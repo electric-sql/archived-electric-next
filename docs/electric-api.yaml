@@ -108,20 +108,4 @@ paths:
                       description: Row ID
                     value:
                       type: object
-                      description: Operation applied to the row of the shape identified by `key`
-                      properties:
-                        columns:
-                          type: array
-                          description: Array of column names specifying the order of columns.
-                          items:
-                            type: string
-                        oldRow:
-                          type: array
-                          description: The old row data
-                          items:
-                            description: The value of the column
-                        newRow:
-                          type: array
-                          description: The new row data
-                          items:
-                            description: The value of the column
+                      description: The row data
