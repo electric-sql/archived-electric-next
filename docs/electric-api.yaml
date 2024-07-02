@@ -38,17 +38,8 @@ paths:
         - name: live
           in: query
           schema:
-            type: string # this is odd, should be a boolean instead of live and notLive query params
-            minLength: 0
-            maxLength: 0
-          description: Requests live updates of the shape when this parameter is present
-        - name: notLive
-          in: query
-          schema:
-            type: string
-            minLength: 0
-            maxLength: 0
-          description: Requests the shape data without subscribing to live updates of the shape
+            type: boolean
+          description: Whether to subscribe to live updates of the shape.
         # Headers
         - name: If-None-Match
           in: header
