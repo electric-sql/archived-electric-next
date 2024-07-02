@@ -59,7 +59,7 @@ paths:
       responses:
         '204':
           description: Client is up to date.
-        '2XX':
+        '200':
           description: The shape data
           headers:
             x-electric-shape-id:
@@ -113,4 +113,30 @@ paths:
                       description: Row ID
                     value:
                       type: object
-                      description: The row data
+                      description: Operation applied to the row of the shape identified by `key`
+                      properties:
+                        # TODO: create a reusable enum for the optype
+                        optype:
+                          type: string
+                          enum:
+                            - begin
+                            - insert
+                            - update
+                            - delete
+                            - commit
+                          description: The type of operation
+                        columns:
+                          type: array
+                          description: Array of column names specifying the order of columns.
+                          items:
+                            type: string
+                        oldRow:
+                          type: array
+                          description: The old row data
+                          items:
+                            description: The value of the column
+                        newRow:
+                          type: array
+                          description: The new row data
+                          items:
+                            description: The value of the column
