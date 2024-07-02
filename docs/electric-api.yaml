@@ -1,0 +1,116 @@
+openapi: 3.1.0
+info:
+  title: Electric API
+  description: HTTP API for Electric
+  version: 0.0.1
+
+servers:
+  - url: http://localhost:3000
+    description: Local server
+
+paths:
+  /shape/{table}:
+    get:
+      summary: Request the shape corresponding to the table
+      parameters:
+        # Path parameters
+        - name: table
+          in: path
+          schema:
+            type: string
+          required: true
+          description: The name of the table
+        # Query parameters
+        - name: shapeId
+          in: query
+          schema:
+            type: string
+          description: The shape ID returned by the initial shape request.
+                       This is a required parameter when this is not an initial sync request, i.e. when offset > -1.
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: -1
+          description: The offset in the shape stream where to resume from.
+                       Specify -1 for initial sync (or just leave it out).
+                       Afterwards, need to specify the offset from where to continue in the stream.
+        - name: live
+          in: query
+          schema:
+            type: string # this is odd, should be a boolean instead of live and notLive query params
+            minLength: 0
+            maxLength: 0
+          description: Requests live updates of the shape when this parameter is present
+        - name: notLive
+          in: query
+          schema:
+            type: string
+            minLength: 0
+            maxLength: 0
+          description: Requests the shape data without subscribing to live updates of the shape
+        # Headers
+        - name: If-None-Match
+          in: header
+          schema:
+            type: string
+          # TODO: is this description below correct?
+          description: Revalidate the shape if the etag doesn't match the servers'
+      responses:
+        '204':
+          description: Client is up to date.
+        '2XX':
+          description: The shape data
+          headers:
+            x-electric-shape-id:
+              schema:
+                type: string
+              description: The shape ID
+            cache-control:
+              schema:
+                type: string
+              description: "Cache control header as a string of comma separated directives.
+                           Supported directives are: max-age, stale-while-revalidate, no-store, no-cache, must-revalidate."
+            etag:
+              schema:
+                type: integer
+                maximum: 99
+              description: Etag header specifying the version of the shape for efficient caching.
+            pragma:
+              schema:
+                type: string
+                enum:
+                  - no-cache
+              description: Pragma header for backwards compatibility with HTTP/1.0 caches that do not have a Cache-Control HTTP/1.1 header.
+          content:
+            application/json:
+              schema:
+                type: array
+                description: Array of message objects
+                items:
+                  type: object
+                  description: Message object
+                  properties:
+                    headers:
+                      type: object
+                      description: The shape data
+                      properties:
+                        control:
+                          type: string
+                          enum:
+                            - up-to-date
+                            - must-refetch
+                        action:
+                          type: string # Presence of this key is used as a marker, the value doesn't matter
+                          minLength: 0
+                          maxLength: 0
+                          description: Marks the presence of row data in this message through the key and value properties.
+                    offset:
+                      type: integer
+                      description: The offset of the row in the shape stream
+                    key:
+                      type: string
+                      description: Row ID
+                    value:
+                      type: object
+                      description: The row data
