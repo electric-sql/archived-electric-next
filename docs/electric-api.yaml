@@ -92,10 +92,14 @@ paths:
                             - up-to-date
                             - must-refetch
                         action:
-                          type: string # Presence of this key is used as a marker, the value doesn't matter
-                          minLength: 0
-                          maxLength: 0
-                          description: Marks the presence of row data in this message through the key and value properties.
+                          type: string
+                          enum:
+                            - begin
+                            - insert
+                            - update
+                            - delete
+                            - commit
+                          description: The type of operation that is performed on the row of the shape that is identified by the `key`.
                     offset:
                       type: integer
                       description: The offset of the row in the shape stream
@@ -106,16 +110,6 @@ paths:
                       type: object
                       description: Operation applied to the row of the shape identified by `key`
                       properties:
-                        # TODO: create a reusable enum for the optype
-                        optype:
-                          type: string
-                          enum:
-                            - begin
-                            - insert
-                            - update
-                            - delete
-                            - commit
-                          description: The type of operation
                         columns:
                           type: array
                           description: Array of column names specifying the order of columns.
