@@ -47,4 +47,44 @@ describe(`Shape`, () => {
 
     expect(map).toEqual(new Map())
   })
+
+  it(`should sync an empty shape/table with subscribe: true`, async () => {
+    const stream = new ShapeStream({
+      shape: { table: `items` },
+      baseUrl: `http://localhost:3000`,
+      subscribe: true
+    })
+    const shape = new Shape(stream)
+    const map = await shape.sync()
+
+    expect(map).toEqual(new Map())
+  })
+
+  it(`should sync an empty shape/table with subscribe: true`, async () => {
+    const { client } = context
+
+    // Add an item.
+    const id = uuidv4()
+    const title = `Item ${id}`
+
+    await client.query(`insert into items(id, title) values($1, $2)`, [id, title])
+
+    const stream = new ShapeStream({
+      shape: { table: `items` },
+      baseUrl: `http://localhost:3000`,
+      subscribe: true
+    })
+    const shape = new Shape(stream)
+    const map = await shape.sync()
+
+    console.log('shape map', map)
+
+    const expectedValue = new Map()
+    expectedValue.set(`public-items-${id}`, {
+      "id": id,
+      "title": `Item ${id}`,
+    })
+
+    expect(map).toEqual(expectedValue)
+  })
 })

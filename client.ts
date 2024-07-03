@@ -1,5 +1,7 @@
 import { Message } from './types'
 
+export type ShapeChangedCallback = (value: Map) => void
+
 export interface ShapeStreamOptions {
   shape: { table: string }
   baseUrl: string
@@ -210,16 +212,14 @@ export class ShapeStream {
  * @param {stream} a ShapeStream instance
  */
 export class Shape {
-  private map: Map = new Map()
-
-  private stream: ShapeStream
-  private subscribers: Array<Subscriber> = []
-
+  private callbacks: Array<ShapeChangedCallback> = []
   private hasSyncedOnce: Boolean = false
   private initiallySyncing: Boolean = false
   private initialSyncPromise?: Promise
+  private map: Map = new Map()
   private rejectInitialSync?: () => void
   private resolveInitialSync?: (value: Map) => void
+  private stream: ShapeStream
 
   constructor(stream: ShapeStream) {
     this.stream = stream
@@ -230,6 +230,18 @@ export class Shape {
   }
   get value() {
     return this.map
+  }
+
+  subscribe(callback: ShapeChangedCallback): void {
+    this.callbacks.push(callback)
+  }
+
+  unsubscribe(callback: ShapeChangedCallback): void {
+    this.callbacks.pop(callback)
+  }
+
+  unsubscribeAll(): void {
+    this.callbacks = []
   }
 
   async sync(): Map {
@@ -290,5 +302,11 @@ export class Shape {
         this.notify()
       }
     }
+  }
+
+  private notify(): void {
+    this.callbacks.forEach((callback) => {
+      callback(this.value)
+    })
   }
 }
