@@ -271,8 +271,6 @@ export class Shape {
     let done = false
 
     messages.forEach((message) => {
-      console.log(message)
-
       switch (message.headers?.[`action`]) {
         case `insert`:
         case `update`:

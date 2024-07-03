@@ -1,11 +1,22 @@
-import { beforeAll, afterAll, describe, it, expect, assert } from "vitest"
-import { Shape, ShapeStream } from "./client"
-import { v4 as uuidv4 } from "uuid"
 import { Client } from "pg"
+import { v4 as uuidv4 } from "uuid"
+import {
+  afterAll,
+  afterEach,
+  assert,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it
+} from "vitest"
 
-let context: { client: Client }
+import { Shape, ShapeStream } from "./client"
 
-// const uuid = uuidv4()
+let context: {
+  aborter?: AbortController,
+  client: Client
+}
 
 beforeAll(async () => {
   const client = new Client({
@@ -25,9 +36,15 @@ beforeAll(async () => {
 
   context = { client }
 })
+beforeEach(async () => {
+  context.aborter = new AbortController()
+})
+afterEach(async () => {
+  context.aborter.abort()
 
-afterAll(async () => {
   await context.client.query(`TRUNCATE TABLE items`)
+})
+afterAll(async () => {
   await context.client.end()
 
   // TODO do any needed server cleanup.
@@ -36,12 +53,15 @@ afterAll(async () => {
 
 describe(`Shape`, () => {
   it(`should sync an empty shape/table`, async () => {
+    const { aborter } = context
 
     const stream = new ShapeStream({
-      shape: { table: `items` },
       baseUrl: `http://localhost:3000`,
+      shape: { table: `items` },
+      signal: aborter.signal,
       subscribe: false
     })
+
     const shape = new Shape(stream)
     const map = await shape.sync()
 
@@ -49,35 +69,37 @@ describe(`Shape`, () => {
   })
 
   it(`should sync an empty shape/table with subscribe: true`, async () => {
+    const { aborter } = context
+
     const stream = new ShapeStream({
-      shape: { table: `items` },
       baseUrl: `http://localhost:3000`,
-      subscribe: true
+      shape: { table: `items` },
+      signal: aborter.signal
     })
+
     const shape = new Shape(stream)
     const map = await shape.sync()
 
     expect(map).toEqual(new Map())
   })
 
-  it(`should sync an empty shape/table with subscribe: true`, async () => {
-    const { client } = context
+  it(`should initially sync a shape/table`, async () => {
+    const { aborter, client } = context
 
     // Add an item.
     const id = uuidv4()
     const title = `Item ${id}`
 
-    await client.query(`insert into items(id, title) values($1, $2)`, [id, title])
+    await client.query(`insert into items (id, title) values ($1, $2)`, [id, title])
 
     const stream = new ShapeStream({
-      shape: { table: `items` },
       baseUrl: `http://localhost:3000`,
-      subscribe: true
+      shape: { table: `items` },
+      signal: aborter.signal
     })
+
     const shape = new Shape(stream)
     const map = await shape.sync()
-
-    console.log('shape map', map)
 
     const expectedValue = new Map()
     expectedValue.set(`public-items-${id}`, {
