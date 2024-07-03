@@ -11,7 +11,7 @@ servers:
 paths:
   /shape/{table}:
     get:
-      summary: Request the shape corresponding to the table
+      summary: Request a shape
       parameters:
         # Path parameters
         - name: table
