@@ -1,3 +1,5 @@
+import { v4 as uuidv4 } from 'uuid'
+
 import { Message } from './types'
 
 export type ShapeChangedCallback = (value: Map) => void
@@ -211,9 +213,9 @@ export class ShapeStream {
  * @param {stream} a ShapeStream instance
  */
 export class Shape {
-  private callbacks: Array<ShapeChangedCallback> = []
-  private hasSyncedOnce: Boolean = false
-  private initiallySyncing: Boolean = false
+  private callbacks = new Map<string, ShapeChangedCallback>();
+  private hasSyncedOnce = false
+  private initiallySyncing = false
   private initialSyncPromise?: Promise
   private map: Map = new Map()
   private rejectInitialSync?: () => void
@@ -231,16 +233,24 @@ export class Shape {
     return this.map
   }
 
-  subscribe(callback: ShapeChangedCallback): void {
-    this.callbacks.push(callback)
+  subscribe(callback: ShapeChangedCallback): Number {
+    const subscriptionId = uuidv4()
+
+    this.callbacks.set(subscriptionId, callback)
+
+    return subscriptionId
   }
 
-  unsubscribe(callback: ShapeChangedCallback): void {
-    this.callbacks.pop(callback)
+  unsubscribe(subscriptionId: string): void {
+    this.callbacks.delete(subscriptionId)
   }
 
   unsubscribeAll(): void {
-    this.callbacks = []
+    this.callbacks.clear()
+  }
+
+  get numSubscribers() {
+    return this.callbacks.size
   }
 
   async sync(): Map {
