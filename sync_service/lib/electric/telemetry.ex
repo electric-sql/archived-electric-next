@@ -37,7 +37,11 @@ defmodule Electric.Telemetry do
       last_value("vm.memory.ets", unit: :byte),
       last_value("vm.total_run_queue_lengths.total"),
       last_value("vm.total_run_queue_lengths.cpu"),
-      last_value("vm.total_run_queue_lengths.io")
+      last_value("vm.total_run_queue_lengths.io"),
+      summary("plug.router_dispatch.stop.duration",
+        tags: [:route],
+        unit: {:native, :millisecond}
+      )
     ]
     |> Enum.map(&%{&1 | tags: [:instance_id | &1.tags]})
   end
