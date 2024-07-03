@@ -49,7 +49,6 @@ export class ShapeStream {
     this.validateOptions(options)
     this.instanceId = Math.random()
     this.options = { subscribe: true, ...options }
-    console.log(`constructor`, this)
     this.shapeId = this.options.shapeId
     this.startStream()
 
@@ -117,16 +116,16 @@ export class ShapeStream {
 
       // This should probably be a header for better cache breaking?
       url.searchParams.set(`shapeId`, this.shapeId!)
-      console.log(
-        `client`,
-        { table: this.options.shape.table },
-        {
-          lastOffset,
-          upToDate,
-          pollCount,
-          url: url.toString(),
-        }
-      )
+      // console.log(
+      //   `client fetching shape`,
+      //   'spec', { table: this.options.shape.table },
+      //   'meta', {
+      //     lastOffset,
+      //     upToDate,
+      //     pollCount,
+      //     url: url.toString(),
+      //   }
+      // )
       try {
         await fetch(url.toString(), {
           signal: this.options.signal ? this.options.signal : undefined,
@@ -137,7 +136,7 @@ export class ShapeStream {
             }
             this.shapeId =
               response.headers.get(`x-electric-shape-id`) ?? undefined
-            console.log({ shapeId: this.shapeId })
+            // console.log({ shapeId: this.shapeId })
             attempt = 0
             if (response.status === 204) {
               console.log('Server returned 204')
