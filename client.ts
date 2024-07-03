@@ -197,3 +197,98 @@ export class ShapeStream {
     }
   }
 }
+
+/**
+ * A Shape is an object that subscribes to a shape log,
+ * keeps a materialised shape `.value` in memory and
+ * notifies subscribers when the value has changed.
+ *
+ * It can be used without a framework and as a primitive
+ * to simplify developing framework hooks.
+ *
+ * @constructor
+ * @param {stream} a ShapeStream instance
+ */
+export class Shape {
+  private map: Map = new Map()
+
+  private stream: ShapeStream
+  private subscribers: Array<Subscriber> = []
+
+  private hasSyncedOnce: Boolean = false
+  private initiallySyncing: Boolean = false
+  private initialSyncPromise?: Promise
+  private rejectInitialSync?: () => void
+  private resolveInitialSync?: (value: Map) => void
+
+  constructor(stream: ShapeStream) {
+    this.stream = stream
+  }
+
+  get id() {
+    return this.stream.shapeId
+  }
+  get value() {
+    return this.map
+  }
+
+  async sync(): Map {
+    if (this.hasSyncedOnce) {
+      return this.value
+    }
+
+    if (this.initiallySyncing) {
+      return this.initialSyncPromise
+    }
+
+    this.initiallySyncing = true
+
+    this.initialSyncPromise = new Promise((resolve, reject) => {
+      this.resolveInitialSync = resolve
+      this.rejectInitialSync = reject
+    })
+
+    const handler = this.handle.bind(this)
+    this.stream.subscribe(handler)
+
+    return this.initialSyncPromise
+  }
+
+  private handle(messages: Message[]): void {
+    let changed = false
+    let done = false
+
+    messages.forEach((message) => {
+      console.log(message)
+
+      switch (message.headers?.[`action`]) {
+        case `insert`:
+        case `update`:
+          this.map.set(message.key, message.value)
+          changed = true
+
+          break
+
+        case `delete`:
+          this.map.delete(message.key)
+          changed = true
+
+          break
+      }
+
+      if (message.headers?.[`control`] === `up-to-date`) {
+        done = true
+      }
+    })
+
+    if (done) {
+      if (this.initiallySyncing) {
+        this.resolveInitialSync(this.value)
+      }
+
+      if (changed) {
+        this.notify()
+      }
+    }
+  }
+}
