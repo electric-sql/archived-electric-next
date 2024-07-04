@@ -1,53 +1,21 @@
-import { useState, useEffect } from "react"
-import { ShapeStream, ShapeStreamOptions } from "./client"
-import { Message } from "./types"
+import { useState, useEffect } from 'react'
+import { Shape, ShapeStream, ShapeStreamOptions } from './client'
 
-export function useShape(config: ShapeStreamOptions) {
+export function useShape(options: ShapeStreamOptions) {
   const [shapeData, setShapeData] = useState<unknown[]>([])
 
   useEffect(() => {
-    async function stream() {
-      let upToDate = false
-      const shapeMap = new Map()
-      function updateSubscribers() {
-        setShapeData([...shapeMap.values()])
-      }
-      console.log(`new ShapeStream`)
-      const issueStream = new ShapeStream(config)
-      issueStream.subscribe((messages: Message[]) => {
-        messages.forEach(async (message) => {
-          console.log({ message })
-          console.log(
-            `message`,
-            message,
-            message.headers?.[`action`],
-            [`insert`, `update`].includes(
-              (message.headers?.[`action`] as string | undefined) ?? ``
-            )
-          )
+    const shapeStream = new ShapeStream(options)
+    const shape = new Shape(shapeStream)
+    const subscriptionId = shape.subscribe((map) => {
+      setShapeData([...map.values()])
+    })
 
-          // Upsert/delete new data
-          switch (message.headers?.[`action`]) {
-            case `insert`:
-            case `update`:
-              shapeMap.set(message.key, message.value)
-              break
-            case `delete`:
-              shapeMap.delete(message.key)
-              break
-          }
+    shape.sync()
 
-          // Control message telling client they're up-to-date
-          if (message.headers?.[`control`] === `up-to-date`) {
-            upToDate = true
-          }
-        })
-        if (upToDate && messages.length > 0) {
-          updateSubscribers()
-        }
-      })
+    return () => {
+      shape.unsubscribe(subscriptionId)
     }
-    stream()
   }, [])
 
   return shapeData
