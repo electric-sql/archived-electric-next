@@ -1,4 +1,7 @@
 defmodule Electric.Shapes.Shape do
+  @moduledoc """
+  Struct describing the requested shape
+  """
   @enforce_keys [:root_table]
   defstruct [:root_table]
 
