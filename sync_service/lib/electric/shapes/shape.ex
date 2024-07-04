@@ -37,6 +37,6 @@ defimpl Inspect, for: Electric.Shapes.Shape do
 
   def inspect(shape, _opts) do
     {schema, table} = shape.root_table
-    concat(["Shape.new!(\"", schema, ".", table, "\")"])
+    concat(["Shape.new!(\"", schema, ".", table, "\", opts)"])
   end
 end

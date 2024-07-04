@@ -19,7 +19,11 @@ defmodule Electric.MixProject do
       ],
       default_release: :electric,
       test_coverage: [
-        ignore_modules: [Electric, ~r/Electric.Postgres.LogicalReplication.Messages.*/]
+        ignore_modules: [
+          Electric,
+          Electric.Telemetry,
+          ~r/Electric.Postgres.LogicalReplication.Messages.*/
+        ]
       ]
     ]
   end
