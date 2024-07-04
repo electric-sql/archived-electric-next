@@ -305,7 +305,7 @@ export class Shape {
         this.resolveInitialSync(this.value)
       }
 
-      if (changed) {
+      if (this.initiallySyncing || changed) {
         this.notify()
       }
     }

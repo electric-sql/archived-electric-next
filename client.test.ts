@@ -130,6 +130,36 @@ describe(`Shape`, () => {
     expect(map).toEqual(expectedValue)
   })
 
+  it(`should notify with the initial value`, async () => {
+    const { aborter, client, tablename } = context
+
+    // Add an item.
+    const id = uuidv4()
+    const title = `Test3 ${id}`
+    await client.query(`insert into ${tablename} (id, title) values ($1, $2)`, [id, title])
+
+    const stream = new ShapeStream({
+      baseUrl: `http://localhost:3000`,
+      shape: { table: tablename },
+      signal: aborter.signal
+    })
+
+    const shape = new Shape(stream)
+    const hasUpdated = new Promise((resolve) => {
+      shape.subscribe(resolve)
+    })
+    shape.sync()
+    const map = await hasUpdated
+
+    const expectedValue = new Map()
+    expectedValue.set(`"public"."${tablename}"/${id}`, {
+      "id": id,
+      "title": title,
+    })
+
+    expect(map).toEqual(expectedValue)
+  })
+
   it(`should continually sync a shape/table`, async () => {
     const { aborter, client, tablename } = context
 
