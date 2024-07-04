@@ -15,9 +15,19 @@ import { Shape, ShapeStream } from "./client"
 
 let context: {
   aborter?: AbortController,
-  client: Client
+  client: Client,
+  tablename: string
 }
 
+/*
+ * We need to work hard to get proper seperation between tests.
+ *
+ * The database has a replication stream.
+ * The sync service has shape logs.
+ *
+ * So, we isolote each test to its own table and we clean
+ * up the DB and shape log after each test.
+ */
 beforeAll(async () => {
   const client = new Client({
     host: `localhost`,
@@ -27,37 +37,47 @@ beforeAll(async () => {
     database: `electric`,
   })
   await client.connect()
-  await client.query(
-    `CREATE TABLE IF NOT EXISTS items (
-        id UUID PRIMARY KEY,
-        title TEXT NOT NULL
+
+  context = { client }
+
+  return async () => {
+    await context.client.end()
+  }
+})
+beforeEach(async () => {
+  const aborter = new AbortController()
+
+  const tablename = `items${uuidv4().replaceAll('-', '').slice(25)}`
+  await context.client.query(
+    `CREATE TABLE ${tablename} (
+      id UUID PRIMARY KEY,
+      title TEXT NOT NULL
     );`
   )
 
-  context = { client }
-})
-beforeEach(async () => {
-  context.aborter = new AbortController()
-})
-afterEach(async () => {
-  context.aborter.abort()
+  context.aborter = aborter
+  context.tablename = tablename
 
-  await context.client.query(`TRUNCATE TABLE items`)
-})
-afterAll(async () => {
-  await context.client.end()
+  return async () => {
+    aborter.abort()
 
-  // TODO do any needed server cleanup.
-  context = {}
+    const resp = await fetch(
+      `http://localhost:3000/shape/${tablename}`, {
+        method: 'DELETE'
+      }
+    )
+
+    await context.client.query(`DROP TABLE ${tablename}`)
+  }
 })
 
 describe(`Shape`, () => {
   it(`should sync an empty shape/table`, async () => {
-    const { aborter } = context
+    const { aborter, tablename } = context
 
     const stream = new ShapeStream({
       baseUrl: `http://localhost:3000`,
-      shape: { table: `items` },
+      shape: { table: tablename },
       signal: aborter.signal,
       subscribe: false
     })
@@ -69,12 +89,13 @@ describe(`Shape`, () => {
   })
 
   it(`should sync an empty shape/table with subscribe: true`, async () => {
-    const { aborter } = context
+    const { aborter, tablename } = context
 
     const stream = new ShapeStream({
       baseUrl: `http://localhost:3000`,
-      shape: { table: `items` },
-      signal: aborter.signal
+      shape: { table: tablename },
+      signal: aborter.signal,
+      subscribe: true
     })
 
     const shape = new Shape(stream)
@@ -84,17 +105,16 @@ describe(`Shape`, () => {
   })
 
   it(`should initially sync a shape/table`, async () => {
-    const { aborter, client } = context
+    const { aborter, client, tablename } = context
 
     // Add an item.
     const id = uuidv4()
     const title = `Test3 ${id}`
-
-    await client.query(`insert into items (id, title) values ($1, $2)`, [id, title])
+    await client.query(`insert into ${tablename} (id, title) values ($1, $2)`, [id, title])
 
     const stream = new ShapeStream({
       baseUrl: `http://localhost:3000`,
-      shape: { table: `items` },
+      shape: { table: tablename },
       signal: aborter.signal
     })
 
@@ -102,7 +122,7 @@ describe(`Shape`, () => {
     const map = await shape.sync()
 
     const expectedValue = new Map()
-    expectedValue.set(`public-items-${id}`, {
+    expectedValue.set(`public-${tablename}-${id}`, {
       "id": id,
       "title": title,
     })
@@ -111,17 +131,16 @@ describe(`Shape`, () => {
   })
 
   it(`should continually sync a shape/table`, async () => {
-    const { aborter, client } = context
+    const { aborter, client, tablename } = context
 
     // Add an item.
     const id = uuidv4()
     const title = `Test4 ${id}`
-
-    await client.query(`insert into items (id, title) values ($1, $2)`, [id, title])
+    await client.query(`insert into ${tablename} (id, title) values ($1, $2)`, [id, title])
 
     const stream = new ShapeStream({
       baseUrl: `http://localhost:3000`,
-      shape: { table: `items` },
+      shape: { table: tablename },
       signal: aborter.signal
     })
 
@@ -129,7 +148,7 @@ describe(`Shape`, () => {
     const map = await shape.sync()
 
     const expectedValue = new Map()
-    expectedValue.set(`public-items-${id}`, {
+    expectedValue.set(`public-${tablename}-${id}`, {
       "id": id,
       "title": title,
     })
@@ -142,30 +161,29 @@ describe(`Shape`, () => {
     const id2 = uuidv4()
     const title2 = `Test4 ${id2}`
 
-    await client.query(`insert into items (id, title) values ($1, $2)`, [id2, title2])
+    await client.query(`insert into ${tablename} (id, title) values ($1, $2)`, [id2, title2])
     await hasUpdated
 
-    expectedValue.set(`public-items-${id2}`, {
+    expectedValue.set(`public-${tablename}-${id2}`, {
       "id": id2,
       "title": title2,
     })
     expect(shape.value).toEqual(expectedValue)
 
     shape.unsubscribeAll()
-  }, 1000)
+  })
 
   it(`should notify subscribers when the value changes`, async () => {
-    const { aborter, client } = context
+    const { aborter, client, tablename } = context
 
     // Add an item.
     const id = uuidv4()
     const title = `Test5 1 ${id}`
-
-    await client.query(`insert into items (id, title) values ($1, $2)`, [id, title])
+    await client.query(`insert into ${tablename} (id, title) values ($1, $2)`, [id, title])
 
     const stream = new ShapeStream({
       baseUrl: `http://localhost:3000`,
-      shape: { table: `items` },
+      shape: { table: tablename },
       signal: aborter.signal
     })
 
@@ -181,30 +199,29 @@ describe(`Shape`, () => {
     // Add an item.
     const id2 = uuidv4()
     const title2 = `Test5 2 ${id2}`
+    await client.query(`insert into ${tablename} (id, title) values ($1, $2)`, [id2, title2])
 
-    await client.query(`insert into items (id, title) values ($1, $2)`, [id2, title2])
     const value = await hasChanged
-
     const expectedValue = new Map()
-    expectedValue.set(`public-items-${id}`, {
+    expectedValue.set(`public-${tablename}-${id}`, {
       "id": id,
       "title": title,
     })
-    expectedValue.set(`public-items-${id2}`, {
+    expectedValue.set(`public-${tablename}-${id2}`, {
       "id": id2,
       "title": title2,
     })
     expect(value).toEqual(expectedValue)
 
     shape.unsubscribeAll()
-  }, 1000)
+  })
 
   it(`should support unsubscribe`, async () => {
-    const { aborter, client } = context
+    const { aborter, client, tablename } = context
 
     const stream = new ShapeStream({
       baseUrl: `http://localhost:3000`,
-      shape: { table: `items` },
+      shape: { table: tablename },
       signal: aborter.signal
     })
 
