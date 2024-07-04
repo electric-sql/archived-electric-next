@@ -122,7 +122,7 @@ describe(`Shape`, () => {
     const map = await shape.sync()
 
     const expectedValue = new Map()
-    expectedValue.set(`public-${tablename}-${id}`, {
+    expectedValue.set(`"public"."${tablename}"/${id}`, {
       "id": id,
       "title": title,
     })
@@ -148,7 +148,7 @@ describe(`Shape`, () => {
     const map = await shape.sync()
 
     const expectedValue = new Map()
-    expectedValue.set(`public-${tablename}-${id}`, {
+    expectedValue.set(`"public"."${tablename}"/${id}`, {
       "id": id,
       "title": title,
     })
@@ -164,7 +164,7 @@ describe(`Shape`, () => {
     await client.query(`insert into ${tablename} (id, title) values ($1, $2)`, [id2, title2])
     await hasUpdated
 
-    expectedValue.set(`public-${tablename}-${id2}`, {
+    expectedValue.set(`"public"."${tablename}"/${id2}`, {
       "id": id2,
       "title": title2,
     })
@@ -203,11 +203,11 @@ describe(`Shape`, () => {
 
     const value = await hasChanged
     const expectedValue = new Map()
-    expectedValue.set(`public-${tablename}-${id}`, {
+    expectedValue.set(`"public"."${tablename}"/${id}`, {
       "id": id,
       "title": title,
     })
-    expectedValue.set(`public-${tablename}-${id2}`, {
+    expectedValue.set(`"public"."${tablename}"/${id2}`, {
       "id": id2,
       "title": title2,
     })

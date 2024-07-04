@@ -1,8 +1,9 @@
 defmodule Electric.Plug.DeleteShapePlug do
   require Logger
-  alias Electric.Shapes
-  alias Electric.Electric.Plug.ServeShapePlug.Params
   use Plug.Builder
+
+  alias Electric.Shapes
+  alias Electric.Plug.ServeShapePlug.Params
 
   plug :fetch_query_params
   plug :put_resp_content_type, "application/json"
@@ -23,7 +24,7 @@ defmodule Electric.Plug.DeleteShapePlug do
   end
 
   defp validate_query_params(%Plug.Conn{} = conn, _) do
-    params =
+    all_params =
       Map.merge(conn.query_params, conn.path_params)
       |> Map.take("shape_definition")
       |> Map.put("offset", -1)
