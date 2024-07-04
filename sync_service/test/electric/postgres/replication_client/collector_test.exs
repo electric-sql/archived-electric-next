@@ -1,5 +1,5 @@
 defmodule Electric.Postgres.ReplicationClient.CollectorTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   alias Electric.Postgres.ReplicationClient.Collector
   alias Electric.Postgres.LogicalReplication.Messages, as: LR
 
