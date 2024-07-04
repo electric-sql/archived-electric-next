@@ -17,7 +17,10 @@ defmodule Electric.MixProject do
           include_executables_for: [:unix]
         ]
       ],
-      default_release: :electric
+      default_release: :electric,
+      test_coverage: [
+        ignore_modules: [Electric, ~r/Electric.Postgres.LogicalReplication.Messages.*/]
+      ]
     ]
   end
 
