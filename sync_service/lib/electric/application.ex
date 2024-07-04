@@ -2,7 +2,6 @@ defmodule Electric.Application do
   # See https://hexdocs.pm/elixir/Application.html
   # for more information on OTP Applications
   @moduledoc false
-  alias Electric.ShapeCache.InMemoryStorage
   alias Electric.Postgres.ReplicationClient
   require Logger
 
@@ -10,14 +9,16 @@ defmodule Electric.Application do
 
   @impl true
   def start(_type, _args) do
-    with {:ok, storage_opts} <- InMemoryStorage.shared_opts([]) do
-      storage = {InMemoryStorage, storage_opts}
+    storage_module = Application.fetch_env!(:electric, :storage_module)
+
+    with {:ok, storage_opts} <- storage_module.shared_opts([]) do
+      storage = {storage_module, storage_opts}
 
       children =
         if Application.fetch_env!(:electric, :environment) != :test do
           [
             Electric.Telemetry,
-            {InMemoryStorage, storage_opts},
+            {storage_module, storage_opts},
             {Registry,
              name: Registry.ShapeChanges, keys: :duplicate, partitions: System.schedulers_online()},
             {Electric.ShapeCache, storage: storage},
