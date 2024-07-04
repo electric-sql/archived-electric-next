@@ -62,7 +62,9 @@ defmodule Electric.Replication.ShapeLogStorage do
           notify_listeners(state.registry, :new_changes, shape_id, lsn)
 
         true ->
-          Logger.debug(fn -> "No relevant changes found for #{shape_def} in txn #{txn.xid}" end)
+          Logger.debug(fn ->
+            "No relevant changes found for #{inspect(shape_def)} in txn #{txn.xid}"
+          end)
       end
     end
 
