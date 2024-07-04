@@ -1,9 +1,11 @@
-defmodule Electric.InMemShapeCache do
+defmodule Electric.ShapeCache do
   require Logger
   alias Electric.ShapeCache.Storage
   alias Electric.Shapes
   alias Electric.Shapes.Shape
   use GenServer
+
+  @type shape_id :: String.t()
 
   @ets_shape_xmins :shape_xmins
 

@@ -6,7 +6,7 @@ defmodule Electric.Replication.ShapeLogStorage do
   alias Electric.Shapes.Shape
   alias Electric.ShapeCache.Storage
   alias Electric.Replication.Changes
-  alias Electric.InMemShapeCache
+  alias Electric.ShapeCache
   alias Electric.Replication.Changes.Transaction
   use GenServer
   require Logger
@@ -39,7 +39,7 @@ defmodule Electric.Replication.ShapeLogStorage do
     Logger.debug(fn -> "Txn received: #{inspect(txn)}" end)
 
     # TODO: can be optimized probably because you can parallelize writing to different shape logs
-    for {shape_id, shape_def, xmin} <- InMemShapeCache.list_active_shapes(),
+    for {shape_id, shape_def, xmin} <- ShapeCache.list_active_shapes(),
         xid >= xmin do
       relevant_changes = Enum.filter(changes, &Shape.change_in_shape?(shape_def, &1))
 
@@ -52,7 +52,7 @@ defmodule Electric.Replication.ShapeLogStorage do
             "Truncate operation encountered while processing txn #{txn.xid} for #{shape_id}"
           )
 
-          InMemShapeCache.handle_truncate(shape_id)
+          ShapeCache.handle_truncate(shape_id)
 
         relevant_changes != [] ->
           # TODO: what's a graceful way to handle failure to append to log?

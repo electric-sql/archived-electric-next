@@ -20,7 +20,7 @@ defmodule Electric.Application do
             {InMemoryStorage, storage_opts},
             {Registry,
              name: Registry.ShapeChanges, keys: :duplicate, partitions: System.schedulers_online()},
-            {Electric.InMemShapeCache, storage: storage},
+            {Electric.ShapeCache, storage: storage},
             {Electric.Replication.ShapeLogStorage,
              storage: storage, registry: Registry.ShapeChanges},
             {Postgrex,
