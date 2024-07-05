@@ -4,7 +4,7 @@ defmodule Electric.Shapes.QueryingTest do
   alias Electric.Shapes.Shape
   alias Electric.Shapes.Querying
 
-  test "should give information about the table and the result stream", %{conn: conn} do
+  test "should give information about the table and the result stream", %{db_conn: conn} do
     Postgrex.query!(
       conn,
       """

@@ -7,9 +7,8 @@ defmodule Electric.ShapeCache do
 
   @type shape_id :: String.t()
 
-  @ets_shape_xmins :shape_xmins
-
-  @shape_meta_table :shape_meta_table
+  @default_shape_xmins_table :shape_xmins
+  @default_shape_meta_table :shape_meta_table
 
   @genserver_name_schema {:or, [:atom, {:tuple, [:atom, :atom, :any]}]}
   @schema NimbleOptions.new!(
@@ -17,22 +16,28 @@ defmodule Electric.ShapeCache do
               type: @genserver_name_schema,
               default: __MODULE__
             ],
+            shape_xmins_table: [
+              type: :atom,
+              default: @default_shape_xmins_table
+            ],
             shape_meta_table: [
               type: :atom,
-              default: @shape_meta_table
+              default: @default_shape_meta_table
             ],
-            storage: [type: :mod_arg, required: true]
+            storage: [type: :mod_arg, required: true],
+            db_pool: [type: {:or, [:atom, :pid]}, default: Electric.DbPool],
+            create_snapshot_fn: [type: {:fun, 5}, default: &__MODULE__.query_in_readonly_txn/5]
           )
 
   def start_link(opts) do
-    with {:ok, opts} = NimbleOptions.validate(opts, @schema) do
+    with {:ok, opts} <- NimbleOptions.validate(opts, @schema) do
       GenServer.start_link(__MODULE__, Map.new(opts), name: opts[:name])
     end
   end
 
   def get_or_create_shape_id(shape, opts) do
-    table = Keyword.get(opts, :shape_meta_table, @shape_meta_table)
-    server = Keyword.get(opts, :server, __MODULE__)
+    table = Access.get(opts, :shape_meta_table, @default_shape_meta_table)
+    server = Access.get(opts, :server, __MODULE__)
 
     case :ets.lookup(table, Shape.hash(shape)) do
       [{_, shape_id, last_offset}] -> {shape_id, last_offset}
@@ -40,8 +45,9 @@ defmodule Electric.ShapeCache do
     end
   end
 
-  def list_active_shapes() do
-    :ets.tab2list(@ets_shape_xmins)
+  def list_active_shapes(opts \\ []) do
+    table = Access.get(opts, :shape_xmins_table, @default_shape_xmins_table)
+    :ets.tab2list(table)
   end
 
   @spec handle_truncate(GenServer.name(), String.t()) :: :ok
@@ -56,23 +62,30 @@ defmodule Electric.ShapeCache do
 
   def init(opts) do
     xmins =
-      :ets.new(@ets_shape_xmins, [:named_table, :public, :ordered_set, read_concurrency: true])
+      :ets.new(opts.shape_xmins_table, [
+        :named_table,
+        :protected,
+        :ordered_set,
+        read_concurrency: true
+      ])
 
     shape_meta_table =
-      :ets.new(opts.shape_meta_table, [:named_table, :public, :ordered_set])
+      :ets.new(opts.shape_meta_table, [:named_table, :protected, :set])
 
     {:ok,
      %{
        storage: opts.storage,
        xmins_table: xmins,
        shape_meta_table: shape_meta_table,
-       waiting_for_creation: %{}
+       waiting_for_creation: %{},
+       db_pool: opts.db_pool,
+       create_snapshot_fn: opts.create_snapshot_fn
      }}
   end
 
   def handle_call({:create_or_wait_shape_id, shape}, _from, state) do
     hash = Shape.hash(shape)
-    shape_id = "#{hash}-#{DateTime.utc_now() |> DateTime.to_unix()}"
+    shape_id = "#{hash}-#{DateTime.utc_now() |> DateTime.to_unix(:millisecond)}"
 
     :ets.insert_new(state.shape_meta_table, {hash, shape_id, 0})
     [{_, shape_id, last_offset}] = :ets.lookup(state.shape_meta_table, hash)
@@ -103,6 +116,20 @@ defmodule Electric.ShapeCache do
     {:reply, :ok, state}
   end
 
+  def handle_cast({:snapshot_xmin_known, shape_id, shape, xmin}, state) do
+    case :ets.match(state.shape_meta_table, {:_, shape_id, :"$1"}, 1) do
+      {_, _} ->
+        :ets.insert(state.xmins_table, {shape_id, shape, xmin})
+
+      _ ->
+        Logger.warning(
+          "Got snapshot information for a shape whose shape_id is no longer valid. Ignoring."
+        )
+    end
+
+    {:noreply, state}
+  end
+
   def handle_cast({:snapshot_ready, shape_id}, state) do
     {waiting, state} = pop_in(state, [:waiting_for_creation, shape_id])
     for client <- waiting, not is_nil(client), do: GenServer.reply(client, :ready)
@@ -126,31 +153,9 @@ defmodule Electric.ShapeCache do
   defp maybe_start_snapshot(state, shape_id, shape) do
     if not Storage.snapshot_exists?(shape_id, state.storage) do
       parent = self()
+      %{db_pool: pool, storage: storage, create_snapshot_fn: create_snapshot_fn} = state
 
-      Task.start(fn ->
-        try do
-          {:ok, :ok} =
-            Postgrex.transaction(Electric.DbPool, fn conn ->
-              Postgrex.query!(
-                conn,
-                "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY",
-                []
-              )
-
-              %{rows: [[xmin]]} =
-                Postgrex.query!(conn, "SELECT pg_snapshot_xmin(pg_current_snapshot())", [])
-
-              :ets.insert(state.xmins_table, {shape_id, shape, xmin})
-              {query, stream} = Querying.stream_initial_data(conn, shape)
-
-              Storage.make_new_snapshot!(shape_id, query, stream, state.storage)
-            end)
-
-          GenServer.cast(parent, {:snapshot_ready, shape_id})
-        rescue
-          error -> GenServer.cast(parent, {:snapshot_failed, shape_id, error, __STACKTRACE__})
-        end
-      end)
+      Task.start(fn -> apply(create_snapshot_fn, [parent, shape_id, shape, pool, storage]) end)
 
       add_waiter(state, shape_id, nil)
     else
@@ -163,4 +168,29 @@ defmodule Electric.ShapeCache do
       state
       | waiting_for_creation: Map.update(waiters, shape_id, [waiter], &[waiter | &1])
     }
+
+  @doc false
+  def query_in_readonly_txn(parent, shape_id, shape, db_pool, storage) do
+    {:ok, _} =
+      Postgrex.transaction(db_pool, fn conn ->
+        Postgrex.query!(
+          conn,
+          "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY",
+          []
+        )
+
+        %{rows: [[xmin]]} =
+          Postgrex.query!(conn, "SELECT pg_snapshot_xmin(pg_current_snapshot())", [])
+
+        GenServer.cast(parent, {:snapshot_xmin_known, shape_id, shape, xmin})
+        # :ets.insert(state.xmins_table, {shape_id, shape, xmin})
+        {query, stream} = Querying.stream_initial_data(conn, shape)
+
+        Storage.make_new_snapshot!(shape_id, query, stream, storage)
+      end)
+
+    GenServer.cast(parent, {:snapshot_ready, shape_id})
+  rescue
+    error -> GenServer.cast(parent, {:snapshot_failed, shape_id, error, __STACKTRACE__})
+  end
 end
