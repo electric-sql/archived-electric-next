@@ -1,7 +1,7 @@
 defmodule Electric.ShapeCache do
   require Logger
   alias Electric.ShapeCache.Storage
-  alias Electric.Shapes
+  alias Electric.Shapes.Querying
   alias Electric.Shapes.Shape
   use GenServer
 
@@ -141,7 +141,7 @@ defmodule Electric.ShapeCache do
                 Postgrex.query!(conn, "SELECT pg_snapshot_xmin(pg_current_snapshot())", [])
 
               :ets.insert(state.xmins_table, {shape_id, shape, xmin})
-              {query, stream} = Shapes.Querying.stream_initial_data(conn, shape)
+              {query, stream} = Querying.stream_initial_data(conn, shape)
 
               Storage.make_new_snapshot!(shape_id, query, stream, state.storage)
             end)
