@@ -1,9 +1,27 @@
+defmodule Electric.ShapeCacheBehaviour do
+  @moduledoc """
+  Behaviour defining the ShapeCache functions to be used in mocks
+  """
+  alias Electric.Shapes.Shape
+
+  @type shape_id :: String.t()
+  @type shape_def :: Shape.t()
+  @type xmin :: non_neg_integer()
+
+  @callback list_active_shapes() :: [{shape_id(), shape_def(), xmin()}]
+  @callback wait_for_snapshot(shape_id(), shape_def()) :: :ready | {:error, term()}
+  @callback handle_truncate(shape_id()) :: :ok
+  @callback get_or_create_shape_id(shape_def()) ::
+              {shape_id(), current_snapshot_offset :: non_neg_integer()}
+end
+
 defmodule Electric.ShapeCache do
   require Logger
   alias Electric.ShapeCache.Storage
   alias Electric.Shapes.Querying
   alias Electric.Shapes.Shape
   use GenServer
+  @behaviour Electric.ShapeCacheBehaviour
 
   @type shape_id :: String.t()
 
@@ -35,7 +53,7 @@ defmodule Electric.ShapeCache do
     end
   end
 
-  def get_or_create_shape_id(shape, opts) do
+  def get_or_create_shape_id(shape, opts \\ []) do
     table = Access.get(opts, :shape_meta_table, @default_shape_meta_table)
     server = Access.get(opts, :server, __MODULE__)
 
