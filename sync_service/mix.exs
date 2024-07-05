@@ -56,7 +56,8 @@ defmodule Electric.MixProject do
       {:dotenvy, "~> 0.8"},
       {:telemetry_poller, "~> 1.1"},
       {:telemetry_metrics_statsd, "~> 0.7"},
-      {:ecto, "~> 3.11"}
+      {:ecto, "~> 3.11"},
+      {:mox, "~> 1.1", only: [:test]}
     ]
   end
 

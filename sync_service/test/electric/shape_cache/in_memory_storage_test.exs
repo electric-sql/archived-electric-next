@@ -144,6 +144,10 @@ defmodule Electric.ShapeCache.InMemoryStorageTest do
           relation: {"public", "test_table"},
           old_record: %{"id" => "123", "name" => "Test1"},
           record: %{"id" => "123", "name" => "Test2"}
+        },
+        %Changes.DeletedRecord{
+          relation: {"public", "test_table"},
+          old_record: %{"id" => "123", "name" => "Test1"}
         }
       ]
 
@@ -152,7 +156,12 @@ defmodule Electric.ShapeCache.InMemoryStorageTest do
 
       stream = InMemoryStorage.get_log_stream(shape_id, 0, opts)
       entries = Enum.to_list(stream)
-      assert [%{headers: %{action: "insert"}}, %{headers: %{action: "update"}}] = entries
+
+      assert [
+               %{headers: %{action: "insert"}},
+               %{headers: %{action: "update"}},
+               %{headers: %{action: "delete"}}
+             ] = entries
     end
 
     test "returns only logs for the requested shape_id", %{opts: opts} do
