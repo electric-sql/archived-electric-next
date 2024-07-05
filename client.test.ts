@@ -19,6 +19,27 @@ let context: {
   tablename: string
 }
 
+const addItem = async (client, tablename, testName = 'Test') => {
+  const id = uuidv4()
+  const title = `${testName} ${id}`
+
+  await client.query(
+    `INSERT INTO ${tablename} (
+        id,
+        title
+      )
+      VALUES (
+        $1,
+        $2
+    )`, [
+      id,
+      title
+    ]
+  )
+
+  return { id, title }
+}
+
 /*
  * We need to work hard to get proper seperation between tests.
  *
@@ -72,54 +93,34 @@ beforeEach(async () => {
 })
 
 describe(`Shape`, () => {
-  it(`should sync an empty shape/table`, async () => {
-    const { aborter, tablename } = context
+  it(`should syncOnce an empty shape`, async () => {
+    const { tablename } = context
 
-    const stream = new ShapeStream({
-      baseUrl: `http://localhost:3000`,
-      shape: { table: tablename },
-      signal: aborter.signal,
-      subscribe: false
-    })
+    const opts = {baseUrl: `http://localhost:3000`}
+    const shape = new Shape({ table: tablename }, opts)
+    const map = await shape.syncOnce()
 
-    const shape = new Shape(stream)
+    expect(map).toEqual(new Map())
+  })
+
+  it(`should sync an empty shape`, async () => {
+    const { tablename } = context
+
+    const opts = {baseUrl: `http://localhost:3000`}
+    const shape = new Shape({ table: tablename }, opts)
     const map = await shape.sync()
 
     expect(map).toEqual(new Map())
   })
 
-  it(`should sync an empty shape/table with subscribe: true`, async () => {
-    const { aborter, tablename } = context
+  it(`should initially syncOnce a shape/table`, async () => {
+    const { client, tablename } = context
 
-    const stream = new ShapeStream({
-      baseUrl: `http://localhost:3000`,
-      shape: { table: tablename },
-      signal: aborter.signal,
-      subscribe: true
-    })
+    const { id, title } = await addItem(client, tablename)
 
-    const shape = new Shape(stream)
-    const map = await shape.sync()
-
-    expect(map).toEqual(new Map())
-  })
-
-  it(`should initially sync a shape/table`, async () => {
-    const { aborter, client, tablename } = context
-
-    // Add an item.
-    const id = uuidv4()
-    const title = `Test3 ${id}`
-    await client.query(`insert into ${tablename} (id, title) values ($1, $2)`, [id, title])
-
-    const stream = new ShapeStream({
-      baseUrl: `http://localhost:3000`,
-      shape: { table: tablename },
-      signal: aborter.signal
-    })
-
-    const shape = new Shape(stream)
-    const map = await shape.sync()
+    const opts = {baseUrl: `http://localhost:3000`}
+    const shape = new Shape({ table: tablename }, opts)
+    const map = await shape.syncOnce()
 
     const expectedValue = new Map()
     expectedValue.set(`"public"."${tablename}"/${id}`, {
@@ -131,25 +132,18 @@ describe(`Shape`, () => {
   })
 
   it(`should notify with the initial value`, async () => {
-    const { aborter, client, tablename } = context
+    const { client, tablename } = context
 
-    // Add an item.
-    const id = uuidv4()
-    const title = `Test3 ${id}`
-    await client.query(`insert into ${tablename} (id, title) values ($1, $2)`, [id, title])
+    const { id, title } = await addItem(client, tablename)
 
-    const stream = new ShapeStream({
-      baseUrl: `http://localhost:3000`,
-      shape: { table: tablename },
-      signal: aborter.signal
-    })
+    const opts = {baseUrl: `http://localhost:3000`}
+    const shape = new Shape({ table: tablename }, opts)
 
-    const shape = new Shape(stream)
-    const hasUpdated = new Promise((resolve) => {
+    const hasNotified = new Promise((resolve) => {
       shape.subscribe(resolve)
     })
-    shape.sync()
-    const map = await hasUpdated
+    shape.syncOnce()
+    const map = await hasNotified
 
     const expectedValue = new Map()
     expectedValue.set(`"public"."${tablename}"/${id}`, {
@@ -161,20 +155,12 @@ describe(`Shape`, () => {
   })
 
   it(`should continually sync a shape/table`, async () => {
-    const { aborter, client, tablename } = context
+    const { client, tablename } = context
 
-    // Add an item.
-    const id = uuidv4()
-    const title = `Test4 ${id}`
-    await client.query(`insert into ${tablename} (id, title) values ($1, $2)`, [id, title])
+    const { id, title } = await addItem(client, tablename)
 
-    const stream = new ShapeStream({
-      baseUrl: `http://localhost:3000`,
-      shape: { table: tablename },
-      signal: aborter.signal
-    })
-
-    const shape = new Shape(stream)
+    const opts = {baseUrl: `http://localhost:3000`}
+    const shape = new Shape({ table: tablename }, opts)
     const map = await shape.sync()
 
     const expectedValue = new Map()
@@ -184,15 +170,11 @@ describe(`Shape`, () => {
     })
     expect(map).toEqual(expectedValue)
 
-    const hasUpdated = new Promise((resolve) => {
+    const hasNotified = new Promise((resolve) => {
       shape.subscribe(resolve)
     })
-
-    const id2 = uuidv4()
-    const title2 = `Test4 ${id2}`
-
-    await client.query(`insert into ${tablename} (id, title) values ($1, $2)`, [id2, title2])
-    await hasUpdated
+    const { id: id2, title: title2 } = await addItem(client, tablename)
+    await hasNotified
 
     expectedValue.set(`"public"."${tablename}"/${id2}`, {
       "id": id2,
@@ -204,34 +186,21 @@ describe(`Shape`, () => {
   })
 
   it(`should notify subscribers when the value changes`, async () => {
-    const { aborter, client, tablename } = context
+    const { client, tablename } = context
 
-    // Add an item.
-    const id = uuidv4()
-    const title = `Test5 1 ${id}`
-    await client.query(`insert into ${tablename} (id, title) values ($1, $2)`, [id, title])
+    const { id, title } = await addItem(client, tablename)
 
-    const stream = new ShapeStream({
-      baseUrl: `http://localhost:3000`,
-      shape: { table: tablename },
-      signal: aborter.signal
+    const opts = {baseUrl: `http://localhost:3000`}
+    const shape = new Shape({ table: tablename }, opts)
+    const map = await shape.sync()
+
+    const hasNotified = new Promise((resolve) => {
+      shape.subscribe(resolve)
     })
 
-    const shape = new Shape(stream)
-    await shape.sync()
+    const { id: id2, title: title2 } = await addItem(client, tablename)
 
-    const hasChanged = new Promise((resolve) => {
-      shape.subscribe((value) => {
-        resolve(value)
-      })
-    })
-
-    // Add an item.
-    const id2 = uuidv4()
-    const title2 = `Test5 2 ${id2}`
-    await client.query(`insert into ${tablename} (id, title) values ($1, $2)`, [id2, title2])
-
-    const value = await hasChanged
+    const value = await hasNotified
     const expectedValue = new Map()
     expectedValue.set(`"public"."${tablename}"/${id}`, {
       "id": id,
@@ -247,18 +216,71 @@ describe(`Shape`, () => {
   })
 
   it(`should support unsubscribe`, async () => {
-    const { aborter, client, tablename } = context
+    const { tablename } = context
 
-    const stream = new ShapeStream({
-      baseUrl: `http://localhost:3000`,
-      shape: { table: tablename },
-      signal: aborter.signal
-    })
+    const opts = {baseUrl: `http://localhost:3000`}
+    const shape = new Shape({ table: tablename }, opts)
 
-    const shape = new Shape(stream)
-    const subscriptionId = shape.subscribe((value) => { console.log(value) })
-    shape.unsubscribe(subscriptionId)
+    const unsubscribeFn = shape.subscribe(console.log)
+    unsubscribeFn()
 
     expect(shape.numSubscribers).toBe(0)
+  })
+
+  it(`should support multiple syncOnce calls`, async () => {
+    const { tablename } = context
+
+    const opts = {baseUrl: `http://localhost:3000`}
+    const shape = new Shape({ table: tablename }, opts)
+    await shape.syncOnce()
+    const data = await shape.syncOnce()
+
+    expect(data).toEqual(new Map())
+  })
+
+  it(`should support incrementally syncing through multiple syncOnce calls`, async () => {
+    const { client, tablename } = context
+
+    const opts = {baseUrl: `http://localhost:3000`}
+    const shape = new Shape({ table: tablename }, opts)
+    await shape.syncOnce()
+    expect(shape.value.size).toEqual(0)
+
+    const { id, title } = await addItem(client, tablename)
+    const data = await shape.syncOnce()
+    expect(data.size).toEqual(1)
+  })
+
+  it(`should support upgrading from syncOnce to sync`, async () => {
+    const { client, tablename } = context
+
+    const opts = {baseUrl: `http://localhost:3000`}
+    const shape = new Shape({ table: tablename }, opts)
+    await shape.syncOnce()
+    expect(shape.value.size).toEqual(0)
+
+    await addItem(client, tablename)
+    let data = await shape.sync()
+    expect(data.size).toEqual(1)
+
+    const hasNotified = new Promise((resolve) => { shape.subscribe(resolve) })
+    await addItem(client, tablename)
+    data = await hasNotified
+    expect(data.size).toEqual(2)
+  })
+
+  it.only(`should support downgrading from sync to syncOnce`, async () => {
+    const { client, tablename } = context
+
+    const opts = {baseUrl: `http://localhost:3000`}
+    const shape = new Shape({ table: tablename }, opts)
+    await shape.sync()
+    expect(shape.value.size).toEqual(0)
+
+    await shape.syncOnce()
+    await addItem(client, tablename)
+
+    await new Promise((resolve) => setTimeout(resolve), 100)
+    expect(shape.value.size).toEqual(0)
   })
 })
