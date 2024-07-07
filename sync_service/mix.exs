@@ -23,6 +23,7 @@ defmodule Electric.MixProject do
         ignore_modules: [
           Electric,
           Electric.Telemetry,
+          Electric.Postgres.ReplicationClient.State,
           ~r/Electric.Postgres.LogicalReplication.Messages.*/,
           ~r/^Support.*/
         ]
