@@ -98,8 +98,7 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
                 ]} = storage.get_snapshot(@shape_id, opts)
       end
 
-      # TODO Why is the LSN still 0 in this case?
-      test "returns LSN of 0 when shape does exist", %{module: storage, opts: opts} do
+      test "returns latest LSN when shape does exist", %{module: storage, opts: opts} do
         storage.make_new_snapshot!(@shape_id, @query_info, @data_stream, opts)
 
         {0, _} = storage.get_snapshot(@shape_id, opts)
