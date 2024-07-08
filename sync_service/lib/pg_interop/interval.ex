@@ -106,7 +106,7 @@ defmodule PgInterop.Interval do
       NaiveDateTime.shift(date,
         month: interval.months,
         day: interval.days,
-        microsecond: interval.microseconds
+        microsecond: {interval.microseconds, 6}
       )
   end
 
@@ -119,7 +119,7 @@ defmodule PgInterop.Interval do
       m.shift(date,
         month: -interval.months,
         day: -interval.days,
-        microsecond: -interval.microseconds
+        microsecond: {-interval.microseconds, 6}
       )
   end
 
