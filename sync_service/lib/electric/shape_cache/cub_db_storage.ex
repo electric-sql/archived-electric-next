@@ -5,13 +5,14 @@ defmodule Electric.ShapeCache.CubDbStorage do
   @behaviour Electric.ShapeCache.Storage
 
   def shared_opts(opts) do
-    file_path = Access.get(opts, :file_path, "/")
+    file_path = Access.get(opts, :file_path, "./shapes")
     db = Access.get(opts, :db, :shape_db)
 
     {:ok, %{file_path: file_path, db: db}}
   end
 
   def start_link(opts) do
+    File.mkdir_p(opts.file_path)
     CubDB.start_link(data_dir: opts.file_path, name: opts.db)
   end
 

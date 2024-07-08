@@ -298,12 +298,9 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
   end
 
   defp opts(CubDbStorage) do
-    file_path = "./test/db"
-    File.mkdir(file_path)
-
     [
       db: String.to_atom("shape_cubdb_#{Utils.uuid4()}"),
-      file_path: file_path
+      file_path: "./test/db"
     ]
   end
 
