@@ -48,7 +48,7 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
         assert {_, []} = storage.get_snapshot(@shape_id, opts)
       end
 
-      test "returns LSN of 0 when shape does not exist", %{module: storage, opts: opts} do
+      test "returns offset of 0 when shape does not exist", %{module: storage, opts: opts} do
         assert {0, _} = storage.get_snapshot(@shape_id, opts)
       end
 
@@ -98,7 +98,7 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
                 ]} = storage.get_snapshot(@shape_id, opts)
       end
 
-      test "returns latest LSN when shape does exist", %{module: storage, opts: opts} do
+      test "returns snapshot offset when shape does exist", %{module: storage, opts: opts} do
         storage.make_new_snapshot!(@shape_id, @query_info, @data_stream, opts)
 
         {0, _} = storage.get_snapshot(@shape_id, opts)
@@ -284,12 +284,30 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
         assert {_, []} = storage.get_snapshot(@shape_id, opts)
       end
 
-      test "causes get_snapshot/2 to return an LSN of 0", %{module: storage, opts: opts} do
+      test "causes get_snapshot/2 to return an offset of 0", %{module: storage, opts: opts} do
         storage.make_new_snapshot!(@shape_id, @query_info, @data_stream, opts)
 
         storage.cleanup!(@shape_id, opts)
 
         assert {0, _} = storage.get_snapshot(@shape_id, opts)
+      end
+
+      test "causes get_log_stream/2 to return empty stream", %{module: storage, opts: opts} do
+        lsn = Lsn.from_integer(1000)
+        xid = 1
+
+        changes = [
+          %Changes.NewRecord{
+            relation: {"public", "test_table"},
+            record: %{"id" => "123", "name" => "Test"}
+          }
+        ]
+
+        :ok = storage.append_to_log!(@shape_id, lsn, xid, changes, opts)
+
+        storage.cleanup!(@shape_id, opts)
+
+        assert storage.get_log_stream(@shape_id, 0, opts) |> Enum.to_list() == []
       end
     end
 
