@@ -9,17 +9,17 @@ servers:
     description: Local server
 
 paths:
-  /shape/{table}:
+  /shape/{shape_definition}:
     get:
       summary: Request a shape
       parameters:
         # Path parameters
-        - name: table
+        - name: shape_definition
           in: path
           schema:
             type: string
           required: true
-          description: The name of the table
+          description: The shape definition, currently the name of the table
         # Query parameters
         - name: shapeId
           in: query
@@ -109,3 +109,31 @@ paths:
                     value:
                       type: object
                       description: The row data
+        '404':
+          description: The requested shape does not exist. 
+        '409':
+          description: The requested shape no longer exists but a newer version exists.
+                       Client should sync the latest version of the shape using the URL from the location header.
+          headers:
+            location:
+              schema:
+                type: string
+              description: URL to sync the latest version of the requested shape.
+    delete:
+      summary: Deletes the specified shape.
+               WARNING - this is to be used in development only and works only if the allow_shape_deletion environment variable is set.
+      parameters:
+        # Path parameters
+        - name: shape_definition
+          in: path
+          schema:
+            type: string
+          required: true
+          description: The shape definition.
+        # Query parameters
+        - name: shapeId
+          in: query
+          schema:
+            type: string
+          description: Optional, deletes the current shape if it matches the shapeId.
+                       If not provided, deletes the current shape.
