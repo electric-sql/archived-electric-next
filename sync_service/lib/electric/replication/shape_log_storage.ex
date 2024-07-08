@@ -18,7 +18,7 @@ defmodule Electric.Replication.ShapeLogStorage do
             ],
             storage: [type: :mod_arg, required: true],
             registry: [type: :atom, required: true],
-            shape_cache: [type: :atom, default: Electric.ShapeCache]
+            shape_cache: [type: :mod_arg, default: {Electric.ShapeCache, []}]
           )
 
   def start_link(opts) do
@@ -42,8 +42,10 @@ defmodule Electric.Replication.ShapeLogStorage do
       ) do
     Logger.debug(fn -> "Txn received: #{inspect(txn)}" end)
 
+    {shape_cache, opts} = state.shape_cache
+
     # TODO: can be optimized probably because you can parallelize writing to different shape logs
-    for {shape_id, shape_def, xmin} <- state.shape_cache.list_active_shapes(),
+    for {shape_id, shape_def, xmin} <- apply(shape_cache, :list_active_shapes, [opts]),
         xid >= xmin do
       relevant_changes = Enum.filter(changes, &Shape.change_in_shape?(shape_def, &1))
 
@@ -56,7 +58,7 @@ defmodule Electric.Replication.ShapeLogStorage do
             "Truncate operation encountered while processing txn #{txn.xid} for #{shape_id}"
           )
 
-          state.shape_cache.handle_truncate(shape_id)
+          apply(shape_cache, :handle_truncate, [shape_id])
 
         relevant_changes != [] ->
           # TODO: what's a graceful way to handle failure to append to log?

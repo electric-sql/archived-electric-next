@@ -19,14 +19,14 @@ defmodule Electric.Replication.ShapeLogStorageTest do
   setup do
     # Start a test Registry
     registry_name = Module.concat(__MODULE__, Registry)
-    {:ok, _} = Registry.start_link(keys: :unique, name: registry_name)
+    start_link_supervised!({Registry, keys: :unique, name: registry_name})
 
     # Start the ShapeLogStorage process
     opts = [
       name: :test_shape_log_storage,
       storage: {MockStorage, []},
       registry: registry_name,
-      shape_cache: MockShapeCache
+      shape_cache: {MockShapeCache, []}
     ]
 
     {:ok, pid} = start_supervised({ShapeLogStorage, opts})
@@ -42,7 +42,7 @@ defmodule Electric.Replication.ShapeLogStorageTest do
       lsn = Lsn.from_string("0/10")
 
       MockShapeCache
-      |> expect(:list_active_shapes, 2, fn -> [{shape_id, shape, xmin}] end)
+      |> expect(:list_active_shapes, 2, fn _ -> [{shape_id, shape, xmin}] end)
       |> allow(self(), server)
 
       MockStorage
@@ -75,7 +75,7 @@ defmodule Electric.Replication.ShapeLogStorageTest do
       lsn = Lsn.from_string("0/10")
 
       MockShapeCache
-      |> expect(:list_active_shapes, fn -> [{shape_id, shape, xmin}] end)
+      |> expect(:list_active_shapes, fn _ -> [{shape_id, shape, xmin}] end)
       |> allow(self(), server)
 
       txn = %Transaction{
@@ -95,7 +95,7 @@ defmodule Electric.Replication.ShapeLogStorageTest do
       lsn = Lsn.from_string("0/10")
 
       MockShapeCache
-      |> expect(:list_active_shapes, fn -> [{shape_id, shape, xmin}] end)
+      |> expect(:list_active_shapes, fn _ -> [{shape_id, shape, xmin}] end)
       |> allow(self(), server)
 
       txn = %Transaction{
@@ -116,7 +116,7 @@ defmodule Electric.Replication.ShapeLogStorageTest do
 
       # The fact that we don't expect `append_to_log` is enough to prove that it wasn't called.
       MockShapeCache
-      |> expect(:list_active_shapes, fn -> [{shape_id, shape, xmin}] end)
+      |> expect(:list_active_shapes, fn _ -> [{shape_id, shape, xmin}] end)
       |> expect(:handle_truncate, fn ^shape_id -> :ok end)
       |> allow(self(), server)
 
@@ -137,7 +137,7 @@ defmodule Electric.Replication.ShapeLogStorageTest do
       lsn = Lsn.from_string("0/10")
 
       MockShapeCache
-      |> expect(:list_active_shapes, fn -> [{shape_id, shape, xmin}] end)
+      |> expect(:list_active_shapes, fn _ -> [{shape_id, shape, xmin}] end)
       |> allow(self(), server)
 
       MockStorage
@@ -165,7 +165,7 @@ defmodule Electric.Replication.ShapeLogStorageTest do
       lsn = Lsn.from_string("0/10")
 
       MockShapeCache
-      |> expect(:list_active_shapes, fn ->
+      |> expect(:list_active_shapes, fn _ ->
         [
           {shape1, %Shape{root_table: {"public", "test_table"}}, xmin},
           {shape2, %Shape{root_table: {"public", "other_table"}}, xmin}

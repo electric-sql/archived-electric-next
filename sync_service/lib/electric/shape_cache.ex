@@ -8,11 +8,11 @@ defmodule Electric.ShapeCacheBehaviour do
   @type shape_def :: Shape.t()
   @type xmin :: non_neg_integer()
 
-  @callback list_active_shapes() :: [{shape_id(), shape_def(), xmin()}]
+  @callback get_or_create_shape_id(shape_def(), opts :: keyword()) ::
+              {shape_id(), current_snapshot_offset :: non_neg_integer()}
+  @callback list_active_shapes(opts :: keyword()) :: [{shape_id(), shape_def(), xmin()}]
   @callback wait_for_snapshot(shape_id(), shape_def()) :: :ready | {:error, term()}
   @callback handle_truncate(shape_id()) :: :ok
-  @callback get_or_create_shape_id(shape_def()) ::
-              {shape_id(), current_snapshot_offset :: non_neg_integer()}
 end
 
 defmodule Electric.ShapeCache do
