@@ -77,7 +77,8 @@ defmodule Electric.Plug.ServeShapePlug do
   end
 
   defp load_shape_info(%Plug.Conn{} = conn, _) do
-    {shape_id, last_offset} = Shapes.get_or_create_shape_id(conn.assigns.shape_definition)
+    {shape_id, last_offset} =
+      Shapes.get_or_create_shape_id(conn.assigns.shape_definition, conn.assigns.config)
 
     conn
     |> assign(:active_shape_id, shape_id)
