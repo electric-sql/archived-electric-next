@@ -1,4 +1,4 @@
-defmodule Electric.ShapeCache.StorageTest do
+defmodule Electric.ShapeCache.StorageImplimentationsTest do
   alias Electric.ShapeCache.CubDbStorage
   alias Electric.ShapeCache.InMemoryStorage
   alias Electric.Utils
