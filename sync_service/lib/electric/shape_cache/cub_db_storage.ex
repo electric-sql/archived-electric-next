@@ -44,13 +44,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
       min_key: key(shape_id, offset + 1),
       max_key: end_key(shape_id)
     )
-    |> Stream.map(fn
-      {{^shape_id, {offset, _}}, {nil, key, action, value}} ->
-        %{key: key, value: value, headers: %{action: action}, offset: offset}
-
-      {{^shape_id, {offset, _}}, {xid, key, action, value}} ->
-        %{key: key, value: value, headers: %{action: action, txid: xid}, offset: offset}
-    end)
+    |> Stream.map(&storage_item_to_log_item/1)
     |> limit_stream(size)
   end
 
@@ -61,7 +55,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
   def make_new_snapshot!(shape_id, query_info, data_stream, opts) do
     data_stream
     |> Stream.with_index()
-    |> Stream.map(&row_to_snapshot_entry(&1, shape_id, query_info))
+    |> Stream.map(&row_to_storage_item(&1, shape_id, query_info))
     |> Stream.chunk_every(500)
     |> Stream.each(fn chunk -> CubDB.put_multi(opts.db, chunk) end)
     |> Stream.run()
@@ -103,7 +97,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
     {shape_id, "end"}
   end
 
-  defp row_to_snapshot_entry({row, index}, shape_id, %Postgrex.Query{
+  defp row_to_storage_item({row, index}, shape_id, %Postgrex.Query{
          name: key_prefix,
          columns: columns,
          result_types: types
@@ -124,6 +118,13 @@ defmodule Electric.ShapeCache.CubDbStorage do
 
     {key(shape_id, offset, index), {nil, key, "insert", serialized_row}}
   end
+
+  defp storage_item_to_log_item({{_shape_id, {offset, _}}, {xid, key, action, value}}) do
+    %{key: key, value: value, headers: headers(action, xid), offset: offset}
+  end
+
+  defp headers(action, nil = _xid), do: %{action: action}
+  defp headers(action, xid), do: %{action: action, txid: xid}
 
   defp limit_stream(stream, :infinity), do: stream
   defp limit_stream(stream, size), do: Stream.take(stream, size)
