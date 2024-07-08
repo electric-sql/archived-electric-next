@@ -36,7 +36,7 @@ defmodule Support.DbSetup do
     {:ok, pool} =
       Postgrex.start_link(config ++ [backoff_type: :stop, max_restarts: 0])
 
-    {:ok, %{pool: pool, db_conn: pool}}
+    {:ok, %{pool: pool, db_config: config, db_conn: pool}}
   end
 
   def in_transaction(%{pool: pool}) do
