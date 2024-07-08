@@ -11,6 +11,15 @@ defmodule Electric.ShapeCache.CubDbStorage do
     {:ok, %{file_path: file_path, db: db}}
   end
 
+  def child_spec(opts) do
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, [opts]},
+      type: :worker,
+      restart: :permanent
+    }
+  end
+
   def start_link(opts) do
     File.mkdir_p(opts.file_path)
     CubDB.start_link(data_dir: opts.file_path, name: opts.db)
