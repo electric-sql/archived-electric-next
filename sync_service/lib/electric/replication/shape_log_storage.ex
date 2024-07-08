@@ -40,6 +40,7 @@ defmodule Electric.Replication.ShapeLogStorage do
         _from,
         state
       ) do
+    Logger.info("Received transaction #{xid} from Postgres at #{lsn}")
     Logger.debug(fn -> "Txn received: #{inspect(txn)}" end)
 
     {shape_cache, opts} = state.shape_cache
