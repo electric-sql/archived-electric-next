@@ -67,10 +67,10 @@ defmodule Electric.ShapeCache.CubDbStorage do
     changes
     |> Enum.with_index(fn
       %{relation: _} = change, index ->
-        key = Changes.build_key(change)
+        change_key = Changes.build_key(change)
         value = Changes.to_json_value(change)
         action = Changes.get_action(change)
-        {key(shape_id, base_offset + index), {xid, key, action, value}}
+        {key(shape_id, base_offset + index), {xid, change_key, action, value}}
     end)
     |> then(&CubDB.put_multi(opts.db, &1))
 
@@ -98,7 +98,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
   end
 
   defp row_to_storage_item({row, index}, shape_id, %Postgrex.Query{
-         name: key_prefix,
+         name: change_key_prefix,
          columns: columns,
          result_types: types
        }) do
@@ -114,13 +114,13 @@ defmodule Electric.ShapeCache.CubDbStorage do
 
     # FIXME: This should not assume pk columns, but we're not querying PG for that info yet
     pk = Map.fetch!(serialized_row, "id")
-    key = "#{key_prefix}/#{pk}"
+    change_key = "#{change_key_prefix}/#{pk}"
 
-    {key(shape_id, offset, index), {nil, key, "insert", serialized_row}}
+    {key(shape_id, offset, index), {nil, change_key, "insert", serialized_row}}
   end
 
-  defp storage_item_to_log_item({{_shape_id, {offset, _}}, {xid, key, action, value}}) do
-    %{key: key, value: value, headers: headers(action, xid), offset: offset}
+  defp storage_item_to_log_item({{_shape_id, {offset, _}}, {xid, change_key, action, value}}) do
+    %{key: change_key, value: value, headers: headers(action, xid), offset: offset}
   end
 
   defp headers(action, nil = _xid), do: %{action: action}
