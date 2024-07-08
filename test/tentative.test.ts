@@ -1,130 +1,90 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { ShapeStreamMock } from './mock/mocks'
 import { Shape, ShapeStream } from '../client'
-import { TentativeState } from '../tentative-shape'
+import { TentativeState } from '../tentative'
 import { MatchFunction, MergeFunction } from '../types'
 import { makeMessage, makeMutation } from './mock/utils'
 
 type Context = {
+  stream: ShapeStreamMock
   shape: Shape
   tentative: TentativeState
-  stream: ShapeStreamMock
 }
 
-const baseTable = 'table'
+const baseTable = `mock-table`
+const shapeDefinition = { table: baseTable }
+const streamOptions = {
+  baseUrl: '',
+  shape: shapeDefinition,
+}
+
+const initContext = (subscribe?: boolean) => {
+  const stream = new ShapeStreamMock({ ...streamOptions, subscribe })
+  const shape = new Shape(shapeDefinition, {}, stream as unknown as ShapeStream)
+  const tentative = new TentativeState(shape)
+
+  return { stream, shape, tentative }
+}
+
 const getKey = (id: any, table?: string) => `${table ?? baseTable}/${id}`
 
-const returnLocal: MergeFunction = (_) => _
-const returnIncoming: MergeFunction = (_, incoming) => incoming!
-
-const neverMatch = () => false
-
-const getHasUpdatedPromise = (shape: Shape) =>
-  new Promise((resolve) => {
-    shape.subscribe(resolve)
-  })
-
-const initContext = () => {
-  const options = {
-    subscribe: true,
-    shape: { table: baseTable },
-  }
-
-  const stream = new ShapeStreamMock(options)
-  const shape = new Shape(stream as unknown as ShapeStream)
-  return { shape, tentative: new TentativeState(shape), stream }
-}
+const returnLocalRow: MergeFunction = (_) => _
+const neverMatch: MatchFunction = () => false
 
 beforeEach((context: any) => {
-  const { shape, tentative, stream } = initContext()
+  const { stream, shape, tentative } = initContext(false)
+  context.stream = stream
   context.shape = shape
   context.tentative = tentative
-  context.stream = stream
 })
 
 describe(`Setting up shape with tentative state`, () => {
-  it(`can't be modified before sync`, async ({ tentative }: Context) => {
-    const mutation = makeMutation('insert', baseTable, { id: '' })
+  it(`can't be modified before syncyinc once`, async (context: Context) => {
+    const { tentative } = context
 
-    expect(() =>
-      tentative.setTentativeValue(mutation, returnLocal, neverMatch)
-    ).toThrowError('cannot set tentative value before shape is ready')
+    const mutation = makeMutation('insert', baseTable, { id: '' })
+    const setTentativeValue = () =>
+      tentative.setTentativeValue(mutation, returnLocalRow, neverMatch)
+
+    expect(setTentativeValue).toThrowError(
+      `cannot set tentative value before shape is ready`
+    )
   })
 
-  it(`can be modified after sync`, async ({
-    shape,
-    tentative,
-    stream,
-  }: Context) => {
-    const tentativeRow = { id: 'id', title: 'test' }
-    const mutation = makeMutation('insert', baseTable, tentativeRow)
-    const ready = shape.sync()
+  it(`can be modified after first sync`, async (context: Context) => {
+    const { shape, tentative, stream } = context
+
+    const synced = shape.syncOnce()
     stream.upToDate()
+    await synced
 
-    await ready
-    tentative.setTentativeValue(mutation, returnLocal, neverMatch)
+    const localRow = { id: 'id', title: 'test' }
+    const mutation = makeMutation('insert', baseTable, localRow)
+    tentative.setTentativeValue(mutation, returnLocalRow, neverMatch)
 
-    expect(shape.value.get(getKey(tentativeRow.id))).toBe(tentativeRow)
+    expect(shape.value.get(getKey(localRow.id))).toBe(localRow)
   })
 })
 
 describe(`merge logic`, () => {
-  beforeEach(async ({ shape, stream }: any) => {
-    const ready = shape.sync()
+  beforeEach(({ stream }: Context) => {
     stream.upToDate()
-    await ready
   })
 
-  it(`merge function is applied`, async ({
-    shape,
-    tentative,
-    stream,
-  }: Context) => {
+  it(`merge function works`, async ({ shape, tentative, stream }: Context) => {
     const id = 'id'
 
-    const tentativeRow = { id, title: 'test' }
-    const tentativeMutation = makeMutation('insert', baseTable, tentativeRow)
-    tentative.setTentativeValue(tentativeMutation, returnLocal, neverMatch)
+    const localRow = { id, title: 'test' }
+    const mutation = makeMutation('insert', baseTable, localRow)
+    tentative.setTentativeValue(mutation, returnLocalRow, neverMatch)
 
-    const hasUpdated = getHasUpdatedPromise(shape)
-
+    const isUpToDate = shape.isUpToDate
     const incoming = { id, title: 'incoming' }
     stream.publish([makeMessage('insert', baseTable, incoming)])
     stream.upToDate()
+    await isUpToDate
 
-    await hasUpdated
-
-    expect(shape.value.get(getKey(id))).toBe(tentativeRow)
-  })
-
-  it(`merge function is applied multiple times`, async ({
-    shape,
-    tentative,
-    stream,
-  }: Context) => {
-    const id = 'id'
-
-    const tentativeRow = { id, title: 'test' }
-    const tentativeMutation = makeMutation('insert', baseTable, tentativeRow)
-    tentative.setTentativeValue(tentativeMutation, returnLocal, neverMatch)
-
-    const hasUpdated = getHasUpdatedPromise(shape)
-
-    const incoming1 = { id, title: 'incoming1' }
-    stream.publish([makeMessage('insert', baseTable, incoming1)])
-    stream.upToDate()
-
-    await hasUpdated
-
-    const hasUpdatedAgain = getHasUpdatedPromise(shape)
-
-    const incoming2 = { id, title: 'incoming2' }
-    stream.publish([makeMessage('insert', baseTable, incoming2)])
-    stream.upToDate()
-
-    await hasUpdatedAgain
-
-    expect(shape.value.get(getKey(id))).toBe(tentativeRow)
+    expect(shape.value.get(getKey(id))).toBe(localRow)
   })
 
   it(`ignore tentative mutations after destroy`, async ({
@@ -134,35 +94,60 @@ describe(`merge logic`, () => {
   }: Context) => {
     const id = 'id'
 
-    const tentativeRow = { id, title: 'test' }
-    const mutation = makeMutation('insert', baseTable, tentativeRow)
-    const ready = shape.sync()
-    stream.upToDate()
-
-    await ready
-    tentative.setTentativeValue(mutation, returnLocal, neverMatch)
-
-    expect(shape.value.get(getKey(id))).toBe(tentativeRow)
+    const localRow = { id, title: 'test' }
+    const mutation = makeMutation('insert', baseTable, localRow)
+    tentative.setTentativeValue(mutation, returnLocalRow, neverMatch)
 
     tentative.destroy()
 
-    const hasUpdated = getHasUpdatedPromise(shape)
-
+    const isUpToDate = shape.isUpToDate
     const incoming = { id, title: 'incoming' }
     stream.publish([makeMessage('insert', baseTable, incoming)])
     stream.upToDate()
-
-    await hasUpdated
+    await isUpToDate
 
     expect(shape.value.get(getKey(id))).toBe(incoming)
+  })
+
+  it(`merge function is applied multiple times`, async ({
+    shape,
+    tentative,
+    stream,
+  }: Context) => {
+    const id = 'id'
+
+    const concatTitle: MergeFunction = (current, incoming) => ({
+      action: 'update',
+      key: current.key,
+      value: {
+        id: current.value.id,
+        title: `${current.value.title}${incoming.value.title}`,
+      },
+    })
+
+    const localRow = { id, title: 'foo' }
+    const mutation = makeMutation('insert', baseTable, localRow)
+    tentative.setTentativeValue(mutation, concatTitle, neverMatch)
+
+    const isUpToDate1 = shape.isUpToDate
+    const incoming1 = { id, title: 'bar' }
+    stream.publish([makeMessage('insert', baseTable, incoming1)])
+    stream.upToDate()
+    await isUpToDate1
+
+    const isUpToDate2 = shape.isUpToDate
+    const incoming2 = { id, title: 'baz' }
+    stream.publish([makeMessage('insert', baseTable, incoming2)])
+    stream.upToDate()
+    await isUpToDate2
+
+    expect(shape.value.get(getKey(id)).title).toBe('foobarbaz')
   })
 })
 
 describe(`match logic`, () => {
-  beforeEach(async ({ shape, stream }: any) => {
-    const ready = shape.sync()
+  beforeEach(({ stream }: Context) => {
     stream.upToDate()
-    await ready
   })
 
   it(`no more merging after match`, async ({
@@ -172,42 +157,30 @@ describe(`match logic`, () => {
   }: Context) => {
     const id = 'id'
 
-    const tentativeRow = { id, title: 'local wins' }
-    const tentativeMutation = makeMutation('insert', baseTable, tentativeRow)
+    const localRow = { id, title: 'local wins' }
+    const mutation = makeMutation('insert', baseTable, localRow)
 
     const matchOnSameRowValues: MatchFunction = (current, incoming) =>
       current?.key === incoming?.key && current?.value === incoming?.value
 
-    tentative.setTentativeValue(
-      tentativeMutation,
-      returnLocal,
-      matchOnSameRowValues
-    )
+    tentative.setTentativeValue(mutation, returnLocalRow, matchOnSameRowValues)
 
-    const hasUpdated = getHasUpdatedPromise(shape)
-
-    const incoming1 = { id, title: 'merge replaces this value' }
+    const isUpToDate1 = shape.isUpToDate
+    const incoming1 = { id, title: 'first incoming' }
     stream.publish([makeMessage('insert', baseTable, incoming1)])
     stream.upToDate()
+    await isUpToDate1
 
-    await hasUpdated
+    expect(shape.value.get(getKey(id))).toBe(localRow)
 
-    expect(shape.value.get(getKey(id))).toBe(tentativeRow)
-
-    const hasUpdatedAgain = getHasUpdatedPromise(shape)
-
-    const incoming2 = { id, title: 'new remote' }
-
-    // after receiving row with tentative values, drop tentative change
-    stream.publish([
-      makeMessage('insert', baseTable, tentativeRow),
-      makeMessage('insert', baseTable, incoming2),
-    ])
+    const isUpToDate2 = shape.isUpToDate
+    const incoming2 = { id, title: 'second incoming' }
+    stream.publish([makeMessage('insert', baseTable, localRow)])
+    stream.publish([makeMessage('insert', baseTable, incoming2)])
     stream.upToDate()
+    await isUpToDate2
 
-    await hasUpdatedAgain
-
-    expect(shape.value.get(getKey(id)).title).toBe('new remote')
+    expect(shape.value.get(getKey(id)).title).toBe('second incoming')
     expect(tentative.isTentativeKey(getKey(id))).toBe(false)
   })
 })

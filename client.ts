@@ -13,7 +13,6 @@ export type ShapeDefinition = {
 }
 
 export interface ShapeOptions {
-  baseUrl: string
   offset?: number
   shapeId?: string
 }
@@ -34,6 +33,8 @@ export interface ShapeStreamOptions extends ShapeOptions {
   shape: ShapeDefinition
   subscribe?: boolean
   signal?: AbortSignal
+  baseUrl: string
+  backoffOptions?: BackoffOptions
 }
 
 /*
@@ -43,7 +44,7 @@ export interface ShapeStreamOptions extends ShapeOptions {
  * @constructor
  * @param {(messages: Message[]) => void} callback function
  */
-class MessageProcessor {
+export class MessageProcessor {
   private messageQueue: Message[][] = []
   private isProcessing = false
   private callback: (messages: Message[]) => void | Promise<void>
@@ -117,7 +118,7 @@ export class ShapeStream {
   private pausedResolve?: (value?: unknown) => void
 
   private lastOffset: Number
-  private hasBeenUpToDate: Boolean = false
+  readonly hasBeenUpToDate: Boolean = false
   private isUpToDate: Boolean = false
 
   private isPaused: Boolean = false
@@ -126,6 +127,8 @@ export class ShapeStream {
   private liveMode: Boolean
 
   shapeId?: string
+
+  private publishHooks: Array<(message: Message) => void> = []
 
   constructor(
     options: ShapeStreamOptions,
@@ -285,6 +288,10 @@ export class ShapeStream {
   }
 
   private publish(messages: Message[]) {
+    this.publishHooks.forEach((hook) =>
+      messages.forEach((message) => hook(message))
+    )
+
     this.subscribers.forEach((subscriber) => {
       subscriber.process(messages)
     })
@@ -308,6 +315,14 @@ export class ShapeStream {
     this.upToDateSubscribers.forEach((callback) => {
       callback()
     })
+  }
+
+  public registerPublishHook(hook: (message: Message) => void) {
+    this.publishHooks.push(hook)
+
+    return () => {
+      this.publishHooks = this.publishHooks.filter((h) => h !== hook)
+    }
   }
 
   private validateOptions(options: ShapeStreamOptions): void {
@@ -399,7 +414,7 @@ export class ShapeStream {
 export class Shape {
   private aborter: AbortController
   private definition: ShapeDefinition
-  private stream: ShapeStream
+  readonly stream: ShapeStream
 
   private data: ShapeData = new Map()
   private subscribers = new Map<string, ShapeChangedCallback>()
@@ -409,7 +424,7 @@ export class Shape {
   constructor(
     definition: ShapeDefinition,
     options: ShapeOptions,
-    backoffOptions?: BackoffOptions
+    stream: ShapeStream
   ) {
     this.aborter = new AbortController()
     this.definition = definition
@@ -419,8 +434,7 @@ export class Shape {
       shape: definition,
       signal: this.aborter.signal,
     }
-
-    this.stream = new ShapeStream(streamOptions, backoffOptions)
+    this.stream = stream
     this.stream.subscribe(this.process.bind(this))
   }
 

@@ -7,26 +7,44 @@ export class TentativeState {
   private shape: Shape
   private handlers: Map<string, TentativeStateHandler>
 
-  private deregisterHook: () => void
+  private deregisterPublishHook: () => void
 
   constructor(shape: Shape) {
     this.shape = shape
     this.handlers = new Map()
-    this.deregisterHook = this.shape.registerPreHandleMessageHook((message) =>
-      this.applyTentativeState(message)
+    this.deregisterPublishHook = this.shape.stream.registerPublishHook(
+      (message) => this.applyTentativeState(message)
     )
   }
 
   destroy() {
-    this.deregisterHook()
+    this.deregisterPublishHook()
     // this.handlers.clear()
   }
 
-  messageHandler(message: Message) {
+  applyTentativeState(message: Message) {
     if (!message.headers?.[`action`]) {
       return
     }
-    this.applyTentativeState(message)
+
+    const { key, value, headers } = message
+
+    const handler = this.handlers.get(key!)
+    if (handler) {
+      const incomingMutation = {
+        action: headers?.[`action`] as 'insert' | 'update' | 'delete',
+        key: key!,
+        value,
+      }
+
+      const mutation = handler(incomingMutation)
+
+      if (message.headers === undefined) {
+        message.headers = {}
+      }
+      message.headers[`action`] = mutation.action
+      message.value = mutation.value
+    }
   }
 
   setTentativeValue<T>(
@@ -34,7 +52,7 @@ export class TentativeState {
     merge: MergeFunction,
     match: MatchFunction
   ) {
-    if (!this.shape.hasSyncedOnce) {
+    if (!this.shape.stream.hasBeenUpToDate) {
       throw new Error('cannot set tentative value before shape is ready')
     }
 
@@ -58,39 +76,6 @@ export class TentativeState {
     }
   }
 
-  applyTentativeState(message: Message) {
-    const { key, value, headers } = message
-
-    const handler = this.handlers.get(key!)
-    if (handler) {
-      const incomingMutation = {
-        action: headers?.[`action`] as 'insert' | 'update' | 'delete',
-        key: key!,
-        value,
-      }
-
-      const mutation = handler(incomingMutation)
-
-      if (message.headers === undefined) {
-        message.headers = {}
-      }
-      message.headers[`action`] = mutation.action
-      message.value = mutation.value
-    }
-  }
-
-  hasTentativeChanges() {
-    return this.handlers.size > 0
-  }
-
-  isTentativeKey(key: string) {
-    return this.handlers.has(key)
-  }
-
-  public isReady() {
-    return this.shape.hasSyncedOnce
-  }
-
   private makeTentativeStateHandler =
     (current: Mutation, merge: MergeFunction, match: MatchFunction) =>
     (incoming: Mutation) => {
@@ -107,4 +92,8 @@ export class TentativeState {
         return merged
       }
     }
+
+  isTentativeKey(key: string) {
+    return this.handlers.has(key)
+  }
 }

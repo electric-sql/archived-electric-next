@@ -1,35 +1,71 @@
-import { ShapeStreamOptions, Subscriber } from '../../client'
+import { MessageProcessor, ShapeStreamOptions } from '../../client'
 import { Message } from '../../types'
 
-type ShapeStreamOptionsMock = Omit<ShapeStreamOptions, 'baseUrl'>
-
 export class ShapeStreamMock {
-  private options: ShapeStreamOptionsMock
-  private subscribers: Array<Subscriber> = []
+  private subscribers: Array<MessageProcessor> = []
 
-  constructor(options: ShapeStreamOptionsMock) {
-    this.options = options
-  }
+  private upToDateSubscribers = new Map<string, () => void>()
+
+  private subscriptionCounter = 0
+  public hasBeenUpToDate = false
+
+  private publishHooks: Array<(message: Message) => void> = []
+
+  constructor(_options: ShapeStreamOptions) {}
 
   subscribe(callback: (messages: Message[]) => void | Promise<void>) {
-    const subscriber = new Subscriber(callback)
+    const subscriber = new MessageProcessor(callback)
     this.subscribers.push(subscriber)
   }
 
   publish(messages: Message[]) {
+    this.publishHooks.forEach((hook) =>
+      messages.forEach((message) => hook(message))
+    )
+
     for (const subscriber of this.subscribers) {
-      subscriber.enqueueMessage(messages)
+      subscriber.process(messages)
     }
   }
 
-  upToDate() {
-    const upToDate: Message = {
-      key: this.options.shape.table,
-      headers: {
-        control: `up-to-date`,
-      },
-    }
+  subscribeOnceToUpToDate(callback: () => void | Promise<void>) {
+    const subscriptionId = `${this.subscriptionCounter++}`
 
-    this.publish([upToDate])
+    this.upToDateSubscribers.set(subscriptionId, callback)
+
+    return () => {
+      this.upToDateSubscribers.delete(subscriptionId)
+    }
+  }
+
+  unsubscribeAllUpToDateSubscribers(): void {
+    this.upToDateSubscribers.clear()
+  }
+
+  private notifyUpToDateSubscribers() {
+    this.upToDateSubscribers.forEach((callback: any) => callback())
+  }
+
+  start() {
+    return Promise.resolve()
+  }
+
+  stop() {
+    return Promise.resolve()
+  }
+
+  setLiveMode(value?: boolean) {}
+
+  upToDate() {
+    this.hasBeenUpToDate = true
+    this.notifyUpToDateSubscribers()
+  }
+
+  public registerPublishHook(hook: (message: Message) => void) {
+    this.publishHooks.push(hook)
+
+    return () => {
+      this.publishHooks = this.publishHooks.filter((h) => h !== hook)
+    }
   }
 }
