@@ -12,7 +12,7 @@ defmodule Electric.Shapes.Querying do
       Postgrex.prepare!(
         conn,
         ~s|"#{schema}"."#{table}"|,
-        ~s|SELECT * FROM "#{schema}"."#{table}"|
+        ~s|SELECT * FROM "#{schema}"."#{table}" WHERE #{shape.where.query}|
       )
 
     stream =

@@ -47,7 +47,7 @@ defmodule Electric.Replication.ShapeLogStorage do
     # TODO: can be optimized probably because you can parallelize writing to different shape logs
     for {shape_id, shape_def, xmin} <- apply(shape_cache, :list_active_shapes, [opts]),
         xid >= xmin do
-      relevant_changes = Enum.filter(changes, &Shape.change_in_shape?(shape_def, &1))
+      relevant_changes = Enum.flat_map(changes, &Shape.convert_change(shape_def, &1))
 
       cond do
         Enum.any?(relevant_changes, &is_struct(&1, Changes.TruncatedRelation)) ->

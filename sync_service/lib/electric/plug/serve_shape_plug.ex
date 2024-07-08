@@ -13,14 +13,16 @@ defmodule Electric.Plug.ServeShapePlug do
       field(:offset, :integer)
       field(:shape_id, :string)
       field(:live, :boolean, default: false)
+      field(:where, :string, default: "true")
+      field(:shape_definition, :string)
     end
 
     def validate(params, opts) do
       %__MODULE__{}
-      |> cast(params, __schema__(:fields), message: fn _, _ -> "must be %{type}" end)
+      |> cast(params, __schema__(:fields) -- [:shape_definition], message: fn _, _ -> "must be %{type}" end)
       |> validate_number(:offset, greater_than_or_equal_to: -1)
       |> validate_required([:root_table, :offset])
-      |> cast_root_table(:root_table, opts)
+      |> cast_root_table(opts)
       |> apply_action(:validate)
       |> case do
         {:ok, params} ->
@@ -36,17 +38,18 @@ defmodule Electric.Plug.ServeShapePlug do
       end
     end
 
-    def cast_root_table(%Ecto.Changeset{} = changeset, field, opts) do
-      value = fetch_change!(changeset, field)
+    def cast_root_table(%Ecto.Changeset{} = changeset, opts) do
+      table = fetch_change!(changeset, :root_table)
+      where = fetch_field!(changeset, :where)
 
-      case Shapes.Shape.from_string(value, opts) do
+      case Shapes.Shape.build(%{root_table: table, where: where}, opts) do
         {:ok, result} ->
-          put_change(changeset, field, result)
+          put_change(changeset, :shape_definition, result)
 
         {:error, reasons} ->
-          Enum.reduce(reasons, changeset, fn
-            {message, keys}, changeset -> add_error(changeset, field, message, keys)
-            message, changeset when is_binary(message) -> add_error(changeset, field, message)
+          Enum.reduce(List.wrap(reasons), changeset, fn
+            {message, keys}, changeset -> add_error(changeset, :root_table, message, keys)
+            message, changeset when is_binary(message) -> add_error(changeset, :root_table, message)
           end)
       end
     end
@@ -56,7 +59,7 @@ defmodule Electric.Plug.ServeShapePlug do
   plug :put_resp_content_type, "application/json"
   plug :validate_query_params
   plug :load_shape_info
-  plug :validate_shape_offset
+  # plug :validate_shape_offset
   plug :generate_etag
   plug :validate_and_put_etag
   plug :put_resp_cache_headers
@@ -67,7 +70,7 @@ defmodule Electric.Plug.ServeShapePlug do
       Map.merge(conn.query_params, conn.path_params)
       |> Map.update("live", "false", &(&1 != "false"))
 
-    case Params.validate(all_params, []) do
+    case Params.validate(all_params, conn: Electric.DbPool) do
       {:ok, params} ->
         %{conn | assigns: Map.merge(conn.assigns, params)}
 
@@ -80,7 +83,7 @@ defmodule Electric.Plug.ServeShapePlug do
 
   defp load_shape_info(%Plug.Conn{} = conn, _) do
     {shape_id, last_offset} =
-      Shapes.get_or_create_shape_id(conn.assigns.root_table, conn.assigns.config)
+      Shapes.get_or_create_shape_id(conn.assigns.shape_definition, conn.assigns.config)
 
     conn
     |> assign(:active_shape_id, shape_id)
@@ -166,7 +169,7 @@ defmodule Electric.Plug.ServeShapePlug do
       put_resp_header(
         conn,
         "cache-control",
-        "max-age=#{conn.assigns.config.max_age}, stale-while-revalidate=#{conn.assigns.config.stale_age}"
+        "max-age=#{conn.assigns.config[:max_age]}, stale-while-revalidate=#{conn.assigns.config[:stale_age]}"
       )
     end
   end
@@ -179,7 +182,7 @@ defmodule Electric.Plug.ServeShapePlug do
          _
        ) do
     {offset, snapshot} =
-      Shapes.get_snapshot(conn.assigns.config, shape_id, conn.assigns.root_table)
+      Shapes.get_snapshot(conn.assigns.config, shape_id, dbg(conn.assigns.shape_definition))
 
     log =
       Shapes.get_log_stream(conn.assigns.config, shape_id, since: offset)

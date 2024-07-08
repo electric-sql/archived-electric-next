@@ -6,13 +6,22 @@ defmodule Electric.Replication.Eval.Runner do
 
   @doc """
   Generate a ref values object based on the record and a given table name
+
+  ## Examples
+
+      iex> used_refs = %{["id"] => :int8, ["created_at"] => :timestamp}
+      iex> record_to_ref_values(used_refs, %{"id" => "80", "created_at" => "2020-01-01T11:00:00Z"})
+      %{
+        ["id"] => 80,
+        ["created_at"] => ~N[2020-01-01 11:00:00]
+      }
   """
   @spec record_to_ref_values(Expr.used_refs(), map(), Env.t()) :: {:ok, map()} | :error
   def record_to_ref_values(used_refs, record, env \\ Env.new()) do
     used_refs
     # Keep only used refs that are pointing to current table
-    |> Enum.filter(&match?({["this", _], _}, &1))
-    |> Enum.reduce_while({:ok, %{}}, fn {["this", key] = path, type}, {:ok, acc} ->
+    |> Enum.filter(&match?({[_], _}, &1))
+    |> Enum.reduce_while({:ok, %{}}, fn {[key] = path, type}, {:ok, acc} ->
       value = record[key]
 
       case Env.parse_const(env, value, type) do
