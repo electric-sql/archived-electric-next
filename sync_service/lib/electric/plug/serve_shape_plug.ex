@@ -9,7 +9,7 @@ defmodule Electric.Plug.ServeShapePlug do
 
     @primary_key false
     embedded_schema do
-      field(:shape_definition, :string)
+      field(:root_table, :string)
       field(:offset, :integer)
       field(:shape_id, :string)
       field(:live, :boolean, default: false)
@@ -19,8 +19,8 @@ defmodule Electric.Plug.ServeShapePlug do
       %__MODULE__{}
       |> cast(params, __schema__(:fields), message: fn _, _ -> "must be %{type}" end)
       |> validate_number(:offset, greater_than_or_equal_to: -1)
-      |> validate_required([:shape_definition, :offset])
-      |> cast_shape_definition(:shape_definition, opts)
+      |> validate_required([:root_table, :offset])
+      |> cast_root_table(:root_table, opts)
       |> apply_action(:validate)
       |> case do
         {:ok, params} ->
@@ -36,7 +36,7 @@ defmodule Electric.Plug.ServeShapePlug do
       end
     end
 
-    def cast_shape_definition(%Ecto.Changeset{} = changeset, field, opts) do
+    def cast_root_table(%Ecto.Changeset{} = changeset, field, opts) do
       value = fetch_change!(changeset, field)
 
       case Shapes.Shape.from_string(value, opts) do
@@ -80,7 +80,7 @@ defmodule Electric.Plug.ServeShapePlug do
 
   defp load_shape_info(%Plug.Conn{} = conn, _) do
     {shape_id, last_offset} =
-      Shapes.get_or_create_shape_id(conn.assigns.shape_definition, conn.assigns.config)
+      Shapes.get_or_create_shape_id(conn.assigns.root_table, conn.assigns.config)
 
     conn
     |> assign(:active_shape_id, shape_id)
@@ -98,7 +98,7 @@ defmodule Electric.Plug.ServeShapePlug do
 
   # If the offset requested is not found, returns 409 along with a location redirect for clients to
   # re-request the shape from scratch with the new shape id which acts as a consistent cache buster
-  # e.g. GET /shape/{shape_definition}?shapeId={new_shape_id}&offset=-1
+  # e.g. GET /shape/{root_table}?shapeId={new_shape_id}&offset=-1
   def validate_shape_offset(%Plug.Conn{assigns: %{offset: offset}} = conn, _) do
     shape_id = conn.assigns.active_shape_id
 
@@ -179,7 +179,7 @@ defmodule Electric.Plug.ServeShapePlug do
          _
        ) do
     {offset, snapshot} =
-      Shapes.get_snapshot(conn.assigns.config, shape_id, conn.assigns.shape_definition)
+      Shapes.get_snapshot(conn.assigns.config, shape_id, conn.assigns.root_table)
 
     log =
       Shapes.get_log_stream(conn.assigns.config, shape_id, since: offset)
