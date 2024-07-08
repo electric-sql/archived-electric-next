@@ -26,7 +26,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
   end
 
   def snapshot_exists?(shape_id, opts) do
-    has_log_entry?(shape_id, 0, opts)
+    CubDB.has_key?(opts.db, snapshot_start(shape_id))
   end
 
   def get_snapshot(shape_id, opts) do
