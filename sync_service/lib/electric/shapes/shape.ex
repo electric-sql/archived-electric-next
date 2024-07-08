@@ -14,33 +14,26 @@ defmodule Electric.Shapes.Shape do
 
   def hash(%__MODULE__{} = shape), do: :erlang.phash2(shape)
 
-  def new!(definition, opts) do
-    case from_string(definition, opts) do
+  def new!(table, shape_opts, parsing_opts) do
+    case build(%{root_table: table, where: Keyword.get(shape_opts, :where)}, parsing_opts) do
       {:ok, shape} -> shape
       {:error, [message | _]} -> raise message
-    end
-  end
-
-  def from_string(definition, _opts) do
-    case String.split(definition, ".") do
-      [table_name] when table_name != "" ->
-        {:ok, %__MODULE__{root_table: {"public", table_name}}}
-
-      [schema_name, table_name] when schema_name != "" and table_name != "" ->
-        {:ok, %__MODULE__{root_table: {schema_name, table_name}}}
-
-      _ ->
-        {:error, ["table name does not match expected format"]}
+      {:error, message} when is_binary(message) -> raise message
     end
   end
 
   def build(%{root_table: root_table, where: where}, opts) do
     with {:ok, table} <- validate_table(root_table),
          {:ok, table_info} <- load_table_info(table, opts),
-         {:ok, where} <- Parser.parse_and_validate_expression(where, table_info) do
+         {:ok, where} <- maybe_parse_where_clause(where, table_info) do
       {:ok, %__MODULE__{root_table: table, where: where}}
     end
   end
+
+  defp maybe_parse_where_clause(nil, _), do: {:ok, nil}
+
+  defp maybe_parse_where_clause(where, info),
+    do: Parser.parse_and_validate_expression(where, info)
 
   defp load_table_info(table, opts) do
     case Inspector.load_table_info(opts[:conn], table) do
@@ -104,5 +97,17 @@ defmodule Electric.Shapes.Shape do
       {false, true} -> [Changes.convert_update(change, to: :new_record)]
       {false, false} -> []
     end
+  end
+end
+
+defimpl Inspect, for: Electric.Shapes.Shape do
+  import Inspect.Algebra
+
+  def inspect(%Electric.Shapes.Shape{} = shape, _opts) do
+    {schema, table} = shape.root_table
+
+    where = if shape.where, do: concat(["[where: \"", shape.where.query, "\"], "]), else: ""
+
+    concat(["Shape.new!(\"", schema, ".", table, "\", ", where, "opts)"])
   end
 end
