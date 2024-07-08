@@ -32,4 +32,4 @@ config :electric,
   environment: config_env(),
   instance_id: env!("ELECTRIC_INSTANCE_ID", :string, Electric.Utils.uuid4()),
   telemetry_statsd_host: statsd_host,
-  storage_module: Electric.ShapeCache.InMemoryStorage
+  storage_module: Electric.ShapeCache.CubDbStorage
