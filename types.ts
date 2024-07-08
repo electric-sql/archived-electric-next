@@ -17,3 +17,18 @@ export type Message = {
   headers?: Header
   offset?: number
 }
+
+
+// Types for tentative shape
+export type Mutation = {
+  action: 'insert' | 'update' | 'delete'
+  key: string
+  value: any
+}
+
+export type MergeFunction = (
+  current: Mutation,
+  incoming: Mutation
+) => Mutation
+
+export type MatchFunction = (current?: Mutation, incoming?: Mutation) => boolean
