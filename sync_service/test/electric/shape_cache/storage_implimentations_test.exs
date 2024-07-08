@@ -181,6 +181,42 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
                ] = entries
       end
 
+      test "returns stream of changes after offset", %{module: storage, opts: opts} do
+        lsn1 = Lsn.from_integer(1000)
+        lsn2 = Lsn.from_integer(2000)
+        xid = 1
+
+        changes1 = [
+          %Changes.NewRecord{
+            relation: {"public", "test_table"},
+            record: %{"id" => "123", "name" => "Test1"}
+          }
+        ]
+
+        changes2 = [
+          %Changes.UpdatedRecord{
+            relation: {"public", "test_table"},
+            old_record: %{"id" => "123", "name" => "Test1"},
+            record: %{"id" => "123", "name" => "Test2"}
+          },
+          %Changes.DeletedRecord{
+            relation: {"public", "test_table"},
+            old_record: %{"id" => "123", "name" => "Test1"}
+          }
+        ]
+
+        :ok = storage.append_to_log!(@shape_id, lsn1, xid, changes1, opts)
+        :ok = storage.append_to_log!(@shape_id, lsn2, xid, changes2, opts)
+
+        stream = storage.get_log_stream(@shape_id, 1000, opts)
+        entries = Enum.to_list(stream)
+
+        assert [
+                 %{headers: %{action: "update"}},
+                 %{headers: %{action: "delete"}}
+               ] = entries
+      end
+
       test "returns only logs for the requested shape_id", %{module: storage, opts: opts} do
         shape_id1 = "shape_a"
         shape_id2 = "shape_b"

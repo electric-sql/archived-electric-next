@@ -22,7 +22,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
   def get_snapshot(shape_id, opts) do
     results =
       shape_id
-      |> get_log_stream(0, opts)
+      |> get_log_stream(-1, opts)
       |> Enum.to_list()
 
     {latest_offset(results), results}
@@ -31,7 +31,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
   def get_log_stream(shape_id, offset, size \\ :infinity, opts) do
     opts.db
     |> CubDB.select(
-      min_key: key(shape_id, offset),
+      min_key: key(shape_id, offset + 1),
       max_key: end_key(shape_id)
     )
     |> Stream.map(fn
