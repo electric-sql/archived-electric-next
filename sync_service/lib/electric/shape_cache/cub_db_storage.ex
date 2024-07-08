@@ -114,8 +114,8 @@ defmodule Electric.ShapeCache.CubDbStorage do
   defp limit_stream(stream, :infinity), do: stream
   defp limit_stream(stream, size), do: Stream.take(stream, size)
 
-  defp latest_offset(list) do
-    case Enum.reverse(list) do
+  defp latest_offset(log) do
+    case Enum.reverse(log) do
       [] -> 0
       [%{offset: offset} | _] -> offset
     end
