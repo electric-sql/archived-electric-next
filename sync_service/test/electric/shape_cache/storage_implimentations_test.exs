@@ -103,6 +103,22 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
 
         {0, _} = storage.get_snapshot(@shape_id, opts)
       end
+
+      test "does not return log entries", %{module: storage, opts: opts} do
+        lsn = Lsn.from_integer(1000)
+        xid = 1
+
+        changes = [
+          %Changes.NewRecord{
+            relation: {"public", "test_table"},
+            record: %{"id" => "123", "name" => "Test"}
+          }
+        ]
+
+        :ok = storage.append_to_log!(@shape_id, lsn, xid, changes, opts)
+
+        assert {0, []} = storage.get_snapshot(@shape_id, opts)
+      end
     end
 
     describe "#{module_name}.append_to_log!/5" do

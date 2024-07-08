@@ -31,11 +31,17 @@ defmodule Electric.ShapeCache.CubDbStorage do
 
   def get_snapshot(shape_id, opts) do
     results =
-      shape_id
-      |> get_log_stream(-1, opts)
+      opts.db
+      |> CubDB.select(
+        min_key: snapshot_start(shape_id),
+        max_key: snapshot_end(shape_id)
+      )
+      |> Stream.map(&storage_item_to_log_item/1)
       |> Enum.to_list()
 
-    {latest_offset(results), results}
+    offset = 0
+
+    {offset, results}
   end
 
   def get_log_stream(shape_id, offset, size \\ :infinity, opts) do
@@ -97,6 +103,14 @@ defmodule Electric.ShapeCache.CubDbStorage do
     {shape_id, "end"}
   end
 
+  defp snapshot_start(shape_id) do
+    key(shape_id, 0, 0)
+  end
+
+  defp snapshot_end(shape_id) do
+    key(shape_id, 0, "snapshot_end")
+  end
+
   defp row_to_storage_item({row, index}, shape_id, %Postgrex.Query{
          name: change_key_prefix,
          columns: columns,
@@ -128,11 +142,4 @@ defmodule Electric.ShapeCache.CubDbStorage do
 
   defp limit_stream(stream, :infinity), do: stream
   defp limit_stream(stream, size), do: Stream.take(stream, size)
-
-  defp latest_offset(log) do
-    case Enum.reverse(log) do
-      [] -> 0
-      [%{offset: offset} | _] -> offset
-    end
-  end
 end
