@@ -1,4 +1,6 @@
 defmodule Electric.ShapeCache.StorageImplimentationsTest do
+  alias Electric.Postgres.Lsn
+  alias Electric.Replication.Changes
   alias Electric.ShapeCache.CubDbStorage
   alias Electric.ShapeCache.InMemoryStorage
   alias Electric.Utils
@@ -10,8 +12,8 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
     result_types: [Postgrex.Extensions.UUID, Postgrex.Extensions.Raw]
   }
   @data_stream [
-    [<<5, 94, 142, 207, 61, 175, 79, 159, 177, 27, 127, 191, 231, 56, 119, 172>>, "row1"],
-    [<<184, 20, 148, 8, 113, 209, 74, 210, 131, 194, 218, 250, 115, 14, 49, 203>>, "row2"]
+    [<<1::128>>, "row1"],
+    [<<2::128>>, "row2"]
   ]
 
   for module <- [InMemoryStorage, CubDbStorage] do
@@ -57,14 +59,40 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
                 [
                   %{
                     offset: 0,
-                    value: %{"id" => "055e8ecf-3daf-4f9f-b11b-7fbfe73877ac", "title" => "row1"},
-                    key: "the-table/055e8ecf-3daf-4f9f-b11b-7fbfe73877ac",
+                    value: %{"id" => "00000000-0000-0000-0000-000000000001", "title" => "row1"},
+                    key: "the-table/00000000-0000-0000-0000-000000000001",
                     headers: %{action: "insert"}
                   },
                   %{
                     offset: 0,
-                    value: %{"id" => "b8149408-71d1-4ad2-83c2-dafa730e31cb", "title" => "row2"},
-                    key: "the-table/b8149408-71d1-4ad2-83c2-dafa730e31cb",
+                    value: %{"id" => "00000000-0000-0000-0000-000000000002", "title" => "row2"},
+                    key: "the-table/00000000-0000-0000-0000-000000000002",
+                    headers: %{action: "insert"}
+                  }
+                ]} = storage.get_snapshot(@shape_id, opts)
+      end
+
+      test "does not leak results from other snapshots", %{module: storage, opts: opts} do
+        another_data_stream = [
+          [<<3::128>>, "row3"],
+          [<<4::128>>, "row4"]
+        ]
+
+        storage.make_new_snapshot!(@shape_id, @query_info, @data_stream, opts)
+        storage.make_new_snapshot!("another-shape-id", @query_info, another_data_stream, opts)
+
+        assert {_,
+                [
+                  %{
+                    offset: 0,
+                    value: %{"id" => "00000000-0000-0000-0000-000000000001", "title" => "row1"},
+                    key: "the-table/00000000-0000-0000-0000-000000000001",
+                    headers: %{action: "insert"}
+                  },
+                  %{
+                    offset: 0,
+                    value: %{"id" => "00000000-0000-0000-0000-000000000002", "title" => "row2"},
+                    key: "the-table/00000000-0000-0000-0000-000000000002",
                     headers: %{action: "insert"}
                   }
                 ]} = storage.get_snapshot(@shape_id, opts)
@@ -75,6 +103,110 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
         storage.make_new_snapshot!(@shape_id, @query_info, @data_stream, opts)
 
         {0, _} = storage.get_snapshot(@shape_id, opts)
+      end
+    end
+
+    describe "#{module_name}.append_to_log!/5" do
+      setup do
+        {:ok, %{module: unquote(module)}}
+      end
+
+      setup :start_storage
+
+      test "adds changes to the log", %{module: storage, opts: opts} do
+        lsn = Lsn.from_integer(1000)
+        xid = 1
+
+        changes = [
+          %Changes.NewRecord{
+            relation: {"public", "test_table"},
+            record: %{"id" => "123", "name" => "Test"}
+          }
+        ]
+
+        :ok = storage.append_to_log!(@shape_id, lsn, xid, changes, opts)
+
+        stream = storage.get_log_stream(@shape_id, 0, opts)
+        [entry] = Enum.to_list(stream)
+
+        assert entry.key == ~S|"public"."test_table"/123|
+        assert entry.value == %{"id" => "123", "name" => "Test"}
+        assert entry.headers == %{action: "insert", txid: 1}
+        assert entry.offset == 1000
+      end
+    end
+
+    describe "#{module_name}.get_log_stream/3-4" do
+      setup do
+        {:ok, %{module: unquote(module)}}
+      end
+
+      setup :start_storage
+
+      test "returns correct stream of changes", %{module: storage, opts: opts} do
+        shape_id = "test_shape"
+        lsn1 = Lsn.from_integer(1000)
+        lsn2 = Lsn.from_integer(2000)
+        xid = 1
+
+        changes1 = [
+          %Changes.NewRecord{
+            relation: {"public", "test_table"},
+            record: %{"id" => "123", "name" => "Test1"}
+          }
+        ]
+
+        changes2 = [
+          %Changes.UpdatedRecord{
+            relation: {"public", "test_table"},
+            old_record: %{"id" => "123", "name" => "Test1"},
+            record: %{"id" => "123", "name" => "Test2"}
+          },
+          %Changes.DeletedRecord{
+            relation: {"public", "test_table"},
+            old_record: %{"id" => "123", "name" => "Test1"}
+          }
+        ]
+
+        :ok = storage.append_to_log!(shape_id, lsn1, xid, changes1, opts)
+        :ok = storage.append_to_log!(shape_id, lsn2, xid, changes2, opts)
+
+        stream = storage.get_log_stream(shape_id, 0, opts)
+        entries = Enum.to_list(stream)
+
+        assert [
+                 %{headers: %{action: "insert"}},
+                 %{headers: %{action: "update"}},
+                 %{headers: %{action: "delete"}}
+               ] = entries
+      end
+
+      test "returns only logs for the requested shape_id", %{module: storage, opts: opts} do
+        shape_id1 = "shape_a"
+        shape_id2 = "shape_b"
+        lsn1 = Lsn.from_integer(1000)
+        lsn2 = Lsn.from_integer(2000)
+        xid = 1
+
+        changes1 = [
+          %Changes.NewRecord{
+            relation: {"public", "test_table"},
+            record: %{"id" => "123", "name" => "Test A"}
+          }
+        ]
+
+        changes2 = [
+          %Changes.NewRecord{
+            relation: {"public", "test_table"},
+            record: %{"id" => "456", "name" => "Test B"}
+          }
+        ]
+
+        :ok = storage.append_to_log!(shape_id1, lsn1, xid, changes1, opts)
+        :ok = storage.append_to_log!(shape_id2, lsn2, xid, changes2, opts)
+
+        assert [%{value: %{"name" => "Test A"}}] =
+                 storage.get_log_stream(shape_id1, 0, opts) |> Enum.to_list()
       end
     end
 

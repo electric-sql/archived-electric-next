@@ -16,7 +16,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
   end
 
   def snapshot_exists?(shape_id, opts) do
-    CubDB.has_key?(opts.db, end_key(shape_id))
+    CubDB.has_key?(opts.db, min_key(shape_id))
   end
 
   def get_snapshot(shape_id, opts) do
@@ -32,8 +32,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
     opts.db
     |> CubDB.select(
       min_key: key(shape_id, offset),
-      max_key: end_key(shape_id),
-      max_key_inclusive: false
+      max_key: end_key(shape_id)
     )
     |> Stream.map(fn
       {{^shape_id, {offset, _}}, {nil, key, action, value}} ->
@@ -52,8 +51,6 @@ defmodule Electric.ShapeCache.CubDbStorage do
     |> Stream.chunk_every(500)
     |> Stream.each(fn chunk -> CubDB.put_multi(opts.db, chunk) end)
     |> Stream.run()
-
-    insert_end_key(shape_id, opts)
   end
 
   def append_to_log!(shape_id, lsn, xid, changes, opts) do
@@ -90,10 +87,6 @@ defmodule Electric.ShapeCache.CubDbStorage do
 
   defp end_key(shape_id) do
     {shape_id, "end"}
-  end
-
-  defp insert_end_key(shape_id, opts) do
-    CubDB.put(opts.db, end_key(shape_id), "end")
   end
 
   defp row_to_snapshot_entry({row, index}, shape_id, %Postgrex.Query{
