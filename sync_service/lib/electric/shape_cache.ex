@@ -11,8 +11,9 @@ defmodule Electric.ShapeCacheBehaviour do
   @callback get_or_create_shape_id(shape_def(), opts :: keyword()) ::
               {shape_id(), current_snapshot_offset :: non_neg_integer()}
   @callback list_active_shapes(opts :: keyword()) :: [{shape_id(), shape_def(), xmin()}]
-  @callback wait_for_snapshot(shape_id(), shape_def()) :: :ready | {:error, term()}
-  @callback handle_truncate(shape_id()) :: :ok
+  @callback wait_for_snapshot(GenServer.name(), shape_id(), shape_def()) ::
+              :ready | {:error, term()}
+  @callback handle_truncate(GenServer.name(), shape_id()) :: :ok
 end
 
 defmodule Electric.ShapeCache do

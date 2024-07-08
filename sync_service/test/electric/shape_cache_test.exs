@@ -16,7 +16,17 @@ defmodule Electric.ShapeCacheTest do
 
   describe "get_or_create_shape_id/2" do
     setup(do: %{pool: :no_pool})
-    setup :with_shape_cache
+
+    setup(ctx,
+      do:
+        with_shape_cache(ctx,
+          create_snapshot_fn: fn parent, shape_id, shape, _, storage ->
+            GenServer.cast(parent, {:snapshot_xmin_known, shape_id, shape, 10})
+            Storage.make_new_snapshot!(shape_id, @basic_query_meta, [["test"]], storage)
+            GenServer.cast(parent, {:snapshot_ready, shape_id})
+          end
+        )
+    )
 
     test "creates a new shape_id", %{shape_cache_opts: opts} do
       shape = %Shape{root_table: {"public", "items"}}

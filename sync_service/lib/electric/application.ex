@@ -43,7 +43,8 @@ defmodule Electric.Application do
                {Electric.Plug.Router,
                 storage: storage,
                 registry: Registry.ShapeChanges,
-                shape_cache: {Electric.ShapeCache, []}},
+                shape_cache: {Electric.ShapeCache, []},
+                long_poll_timeout: 20_000},
              port: 3000}
           ]
         else

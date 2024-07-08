@@ -58,7 +58,7 @@ defmodule Electric.Replication.ShapeLogStorage do
             "Truncate operation encountered while processing txn #{txn.xid} for #{shape_id}"
           )
 
-          apply(shape_cache, :handle_truncate, [shape_id])
+          apply(shape_cache, :handle_truncate, [shape_cache, shape_id])
 
         relevant_changes != [] ->
           # TODO: what's a graceful way to handle failure to append to log?

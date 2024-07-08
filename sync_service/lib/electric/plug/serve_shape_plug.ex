@@ -153,6 +153,7 @@ defmodule Electric.Plug.ServeShapePlug do
   def hold_until_change(conn, shape_id) do
     Logger.debug("Client is waiting for changes to #{shape_id}")
     registry = conn.assigns.config[:registry]
+    long_poll_timeout = conn.assigns.config[:long_poll_timeout]
     ref = make_ref()
     Registry.register(registry, shape_id, ref)
 
@@ -166,7 +167,7 @@ defmodule Electric.Plug.ServeShapePlug do
         # and letting the client handle it on reconnection is good enough.
         send_resp(conn, 200, Jason.encode_to_iodata!(@up_to_date))
     after
-      5000 -> send_resp(conn, 200, Jason.encode_to_iodata!(@up_to_date))
+      long_poll_timeout -> send_resp(conn, 200, Jason.encode_to_iodata!(@up_to_date))
     end
   end
 end

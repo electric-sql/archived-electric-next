@@ -19,7 +19,7 @@ defmodule Electric.Replication.ShapeLogStorageTest do
   setup do
     # Start a test Registry
     registry_name = Module.concat(__MODULE__, Registry)
-    start_link_supervised!({Registry, keys: :unique, name: registry_name})
+    start_link_supervised!({Registry, keys: :duplicate, name: registry_name})
 
     # Start the ShapeLogStorage process
     opts = [
@@ -117,7 +117,7 @@ defmodule Electric.Replication.ShapeLogStorageTest do
       # The fact that we don't expect `append_to_log` is enough to prove that it wasn't called.
       MockShapeCache
       |> expect(:list_active_shapes, fn _ -> [{shape_id, shape, xmin}] end)
-      |> expect(:handle_truncate, fn ^shape_id -> :ok end)
+      |> expect(:handle_truncate, fn _, ^shape_id -> :ok end)
       |> allow(self(), server)
 
       txn = %Transaction{
