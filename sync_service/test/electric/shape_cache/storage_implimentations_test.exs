@@ -277,6 +277,38 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
         assert {0, _} = storage.get_snapshot(@shape_id, opts)
       end
     end
+
+    describe "#{module_name}.has_log_entry?/3" do
+      setup do
+        {:ok, %{module: unquote(module)}}
+      end
+
+      setup :start_storage
+
+      test "returns a boolean indicating whether there is a log entry with such an offset", %{
+        module: storage,
+        opts: opts
+      } do
+        lsn = Lsn.from_integer(1000)
+        xid = 1
+
+        changes = [
+          %Changes.NewRecord{
+            relation: {"public", "test_table"},
+            record: %{"id" => "123", "name" => "Test"}
+          }
+        ]
+
+        :ok = storage.append_to_log!(@shape_id, lsn, xid, changes, opts)
+
+        assert storage.has_log_entry?(@shape_id, 1000, opts)
+        refute storage.has_log_entry?(@shape_id, 1001, opts)
+      end
+
+      test "should return false when there is no log", %{module: storage, opts: opts} do
+        refute storage.has_log_entry?("another_shape_id", 1001, opts)
+      end
+    end
   end
 
   defp start_storage(%{module: module}) do

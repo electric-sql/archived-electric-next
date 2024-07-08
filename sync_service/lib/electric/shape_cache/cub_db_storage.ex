@@ -17,7 +17,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
   end
 
   def snapshot_exists?(shape_id, opts) do
-    CubDB.has_key?(opts.db, min_key(shape_id))
+    has_log_entry?(shape_id, 0, opts)
   end
 
   def get_snapshot(shape_id, opts) do
@@ -43,6 +43,10 @@ defmodule Electric.ShapeCache.CubDbStorage do
         %{key: key, value: value, headers: %{action: action, txid: xid}, offset: offset}
     end)
     |> limit_stream(size)
+  end
+
+  def has_log_entry?(shape_id, offset, opts) do
+    CubDB.has_key?(opts.db, key(shape_id, offset))
   end
 
   def make_new_snapshot!(shape_id, query_info, data_stream, opts) do
