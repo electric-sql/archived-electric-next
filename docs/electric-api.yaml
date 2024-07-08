@@ -109,8 +109,8 @@ paths:
                     value:
                       type: object
                       description: The row data
-        '404':
-          description: The requested shape does not exist. 
+        '400':
+          description: Bad request.
         '409':
           description: The requested offset for the given shape no longer exists
                        Client should sync the shape using the relative path from the location header.
