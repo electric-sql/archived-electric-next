@@ -32,7 +32,7 @@ defmodule Electric.Replication.Eval.Parser do
   @spec parse_and_validate_expression(String.t(), refs_map(), Env.t()) ::
           {:ok, Expr.t()} | {:error, String.t()}
   def parse_and_validate_expression(query, refs \\ %{}, env \\ Env.new())
-      when is_map(refs) and is_struct(env, Env) do
+      when is_map(refs) and is_struct(env, Env) and is_binary(query) do
     with {:ok, %{stmts: stmts}} <- PgQuery.parse("SELECT 1 WHERE #{query}") do
       case stmts do
         [%{stmt: %{node: {:select_stmt, stmt}}}] ->
