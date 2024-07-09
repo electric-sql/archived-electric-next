@@ -40,7 +40,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: sync_service/deps
-          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          key: ${{ runner.os }}-mix-${{ hashFiles('sync_service/**/mix.lock') }}
           restore-keys: ${{ runner.os }}-mix-
       - name: Restore compiled code
         uses: actions/cache/restore@v4
@@ -48,7 +48,7 @@ jobs:
           path: |
             sync_service/_build/*/lib
             !sync_service/_build/*/lib/electric
-          key: ${{ runner.os }}-build-${{ hashFiles('**/mix.lock') }}
+          key: ${{ runner.os }}-build-${{ hashFiles('sync_service/**/mix.lock') }}
       - name: Install dependencies
         run: mix deps.get && mix deps.compile
       - name: Save compiled code
@@ -57,7 +57,7 @@ jobs:
           path: |
             sync_service/_build/*/lib
             !sync_service/_build/*/lib/electric
-          key: ${{ runner.os }}-build-${{ hashFiles('**/mix.lock') }}
+          key: ${{ runner.os }}-build-${{ hashFiles('sync_service/**/mix.lock') }}
       - name: Compiles without warnings
         run: mix compile --force --all-warnings --warnings-as-errors
       - run: mix start_dev
