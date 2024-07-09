@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { ShapeStreamMock } from './mock/mocks'
 import { Shape, ShapeStream } from '../client'
 import { TentativeState } from '../tentative'
-import { MatchFunction, MergeFunction } from '../types'
+import { MatchFunction, MergeFunction, Mutation } from '../types'
 import { makeMessage, makeMutation } from './mock/utils'
 
 type Context = {
@@ -145,7 +145,7 @@ describe(`merge logic`, () => {
   })
 })
 
-describe(`match logic`, () => {
+describe(`row matching works`, () => {
   beforeEach(({ stream }: Context) => {
     stream.upToDate()
   })
@@ -182,5 +182,115 @@ describe(`match logic`, () => {
 
     expect(shape.value.get(getKey(id)).title).toBe('second incoming')
     expect(tentative.isTentativeKey(getKey(id))).toBe(false)
+  })
+})
+
+type ShoppingCartItem = {
+  id: string
+  cartId: string
+  amount: number
+  lastRequestId: string // used to match a request with a row
+}
+
+describe(`usage examples`, () => {
+  beforeEach(({ stream }: Context) => {
+    stream.upToDate()
+  })
+
+  it(`shopping cart with tentative state`, async ({
+    shape,
+    tentative,
+    stream,
+  }: Context) => {
+    const cartId = 'cart-id'
+    const id = 'item-1'
+    const key1 = getKey(`${cartId}/${id}`)
+
+    // make an out-of-band api call to add an item to the cart
+    // const resp = fetch(`https://service-endpoint/cart/${cartId}/`, {
+    //   method: 'POST',
+    //   headers: {
+    //     'Content-Type': 'application/json'
+    //   },
+    //   body: JSON.stringify({
+    //     id,
+    //     amount: 1
+    //   })
+    // })
+
+    // the response returns a requestId to match with lastRequestId
+    const requestId = 'fake-request-id'
+
+    // define the merge function for shopping cart items
+    const merge: MergeFunction = (current, incoming) => {
+      const value = {
+        ...current.value,
+        amount: current.value.amount + incoming.value.amount,
+      }
+      return { ...current, value }
+    }
+
+    // define the matching function for the result of the request
+    const match: MatchFunction = (current, incoming) =>
+      incoming?.value.lastRequestId === current?.value.lastRequestId
+
+    // store the change to the tentative state of the shape
+    const mutation: Mutation = {
+      action: 'insert',
+      key: key1,
+      value: { cartId, id, amount: 1, lastRequestId: requestId },
+    }
+    tentative.setTentativeValue(mutation, merge, match)
+
+    // a concurrent add for same item
+    const isUpToDate1 = shape.isUpToDate
+    const incoming1 = {
+      id,
+      cartId,
+      amount: 2,
+      lastRequestId: 'another-request-1',
+    }
+    stream.publish([makeMessage('insert', getKey(cartId), incoming1)])
+    stream.upToDate()
+    await isUpToDate1
+    expect(shape.value.get(key1).amount).toBe(3)
+
+    // a new item is added to the cart
+    const id2 = 'another-id'
+    const key2 = getKey(`${cartId}/${id2}`)
+
+    const isUpToDate2 = shape.isUpToDate
+    const incoming2 = {
+      id: id2,
+      cartId,
+      amount: 1,
+      lastRequestId: 'another-request-2',
+    }
+
+    stream.publish([makeMessage('insert', getKey(cartId), incoming2)])
+    stream.upToDate()
+    await isUpToDate2
+    expect(shape.value.get(key2).amount).toBe(1)
+
+    // match response
+    const isUpToDate3 = shape.isUpToDate
+    const incoming3 = {
+      id,
+      cartId,
+      amount: 3,
+      lastRequestId: requestId,
+    }
+
+    stream.publish([makeMessage('insert', getKey(cartId), incoming3)])
+    stream.upToDate()
+    await isUpToDate3
+    expect(tentative.isTentativeKey(key1)).toBe(false)
+
+    // The client can persist the tentative state and catch up with
+    // the stream later while the shape_id for the shape definition
+    // does not change.
+    // This way, the shape stream is guaranteed to send the matching
+    // message, otherwise, the initial query for the shape might
+    // have already 'compated' request_id.
   })
 })
