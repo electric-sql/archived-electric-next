@@ -9,9 +9,9 @@ defmodule Electric.Application do
 
   @impl true
   def start(_type, _args) do
-    storage_module = Application.fetch_env!(:electric, :storage_module)
+    {storage_module, init_params} = Application.fetch_env!(:electric, :storage)
 
-    with {:ok, storage_opts} <- storage_module.shared_opts([]) do
+    with {:ok, storage_opts} <- storage_module.shared_opts(init_params) do
       storage = {storage_module, storage_opts}
 
       children =
@@ -49,7 +49,7 @@ defmodule Electric.Application do
                 long_poll_timeout: 20_000,
                 max_age: Application.fetch_env!(:electric, :cache_max_age),
                 stale_age: Application.fetch_env!(:electric, :cache_stale_age)},
-             port: 3000}
+             port: 2999}
           ]
         else
           []
