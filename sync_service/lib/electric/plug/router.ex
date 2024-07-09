@@ -8,6 +8,8 @@ defmodule Electric.Plug.Router do
   plug Plug.RequestId
   plug :dispatch
 
+  head "/", do: send_resp(conn, 200, "")
+
   get "/shape/:shape_definition", to: Electric.Plug.ServeShapePlug
   delete "/shape/:shape_definition", to: Electric.Plug.DeleteShapePlug
 
