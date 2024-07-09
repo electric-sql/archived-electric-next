@@ -65,6 +65,18 @@ defmodule Electric.ShapeCache.InMemoryStorage do
     end)
   end
 
+  def get_latest_log_offset(shape_id, opts) do
+    case :ets.prev(opts.log_ets_table, {shape_id, :infinity}) do
+      {^shape_id, offset} ->
+        {:ok, offset}
+
+      # if no offset found in logs, check if snapshot exists and return
+      # a 0 offset for it
+      _ ->
+        if snapshot_exists?(shape_id, opts), do: {:ok, 0}, else: :error
+    end
+  end
+
   def has_log_entry?(shape_id, offset, opts) when offset == 0 do
     snapshot_exists?(shape_id, opts)
   end
