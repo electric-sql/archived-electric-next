@@ -93,7 +93,6 @@ defmodule Electric.Plug.ServeShapePlug do
     conn
     |> assign(:active_shape_id, shape_id)
     |> assign(:last_offset, last_offset)
-    |> assign(:etag, "#{shape_id}:#{last_offset}")
     |> put_resp_header("x-electric-shape-id", shape_id)
     |> put_resp_header("x-electric-chunk-last-offset", "#{last_offset}")
   end
