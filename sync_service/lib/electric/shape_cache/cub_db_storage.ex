@@ -4,6 +4,10 @@ defmodule Electric.ShapeCache.CubDbStorage do
   alias Electric.Utils
   @behaviour Electric.ShapeCache.Storage
 
+  @snapshot_offset 0
+  @snapshot_key_type 0
+  @log_key_type 1
+
   def shared_opts(opts) do
     file_path = Access.get(opts, :file_path, "./shapes")
     db = Access.get(opts, :db, :shape_db)
@@ -39,29 +43,27 @@ defmodule Electric.ShapeCache.CubDbStorage do
       |> Stream.map(&storage_item_to_log_item/1)
       |> Enum.to_list()
 
-    offset = 0
-
-    {offset, results}
+    {@snapshot_offset, results}
   end
 
   def get_log_stream(shape_id, offset, size \\ :infinity, opts) do
     opts.db
     |> CubDB.select(
-      min_key: key(shape_id, offset + 1),
-      max_key: end_key(shape_id)
+      min_key: log_key(shape_id, offset + 1),
+      max_key: log_end(shape_id)
     )
     |> Stream.map(&storage_item_to_log_item/1)
     |> limit_stream(size)
   end
 
   def has_log_entry?(shape_id, offset, opts) do
-    CubDB.has_key?(opts.db, key(shape_id, offset))
+    CubDB.has_key?(opts.db, log_key(shape_id, offset))
   end
 
   def make_new_snapshot!(shape_id, query_info, data_stream, opts) do
     data_stream
     |> Stream.with_index()
-    |> Stream.map(&row_to_storage_item(&1, shape_id, query_info))
+    |> Stream.map(&row_to_snapshot_item(&1, shape_id, query_info))
     |> Stream.chunk_every(500)
     |> Stream.each(fn chunk -> CubDB.put_multi(opts.db, chunk) end)
     |> Stream.run()
@@ -76,7 +78,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
         change_key = Changes.build_key(change)
         value = Changes.to_json_value(change)
         action = Changes.get_action(change)
-        {key(shape_id, base_offset + index), {xid, change_key, action, value}}
+        {log_key(shape_id, base_offset + index), {xid, change_key, action, value}}
     end)
     |> then(&CubDB.put_multi(opts.db, &1))
 
@@ -84,34 +86,40 @@ defmodule Electric.ShapeCache.CubDbStorage do
   end
 
   def cleanup!(shape_id, opts) do
+    # Deletes from the snapshot start to the log end
+    # and since @snapshot_key_type < @log_key_type this will
+    # delete everything for the shape.
     CubDB.select(opts.db,
-      min_key: min_key(shape_id),
-      max_key: end_key(shape_id)
+      min_key: snapshot_start(shape_id),
+      max_key: log_end(shape_id)
     )
     |> Enum.each(fn {key, _} -> CubDB.delete(opts.db, key) end)
   end
 
-  defp key(shape_id, lsn, index \\ 0) do
-    {shape_id, {lsn, index}}
+  defp snapshot_key(shape_id, index) do
+    {shape_id, @snapshot_key_type, index}
   end
 
-  defp min_key(shape_id) do
-    key(shape_id, 0, 0)
+  defp log_key(shape_id, offset) do
+    {shape_id, @log_key_type, offset}
   end
 
-  defp end_key(shape_id) do
-    {shape_id, "end"}
+  defp offset({_shape_id, @snapshot_key_type, _index}), do: @snapshot_offset
+  defp offset({_shape_id, @log_key_type, offset}), do: offset
+
+  defp log_end(shape_id) do
+    log_key(shape_id, :end)
   end
 
   defp snapshot_start(shape_id) do
-    key(shape_id, 0, 0)
+    snapshot_key(shape_id, 0)
   end
 
   defp snapshot_end(shape_id) do
-    key(shape_id, 0, "snapshot_end")
+    snapshot_key(shape_id, :end)
   end
 
-  defp row_to_storage_item({row, index}, shape_id, %Postgrex.Query{
+  defp row_to_snapshot_item({row, index}, shape_id, %Postgrex.Query{
          name: change_key_prefix,
          columns: columns,
          result_types: types
@@ -124,17 +132,15 @@ defmodule Electric.ShapeCache.CubDbStorage do
       end)
       |> Map.new()
 
-    offset = 0
-
     # FIXME: This should not assume pk columns, but we're not querying PG for that info yet
     pk = Map.fetch!(serialized_row, "id")
     change_key = "#{change_key_prefix}/#{pk}"
 
-    {key(shape_id, offset, index), {nil, change_key, "insert", serialized_row}}
+    {snapshot_key(shape_id, index), {nil, change_key, "insert", serialized_row}}
   end
 
-  defp storage_item_to_log_item({{_shape_id, {offset, _}}, {xid, change_key, action, value}}) do
-    %{key: change_key, value: value, headers: headers(action, xid), offset: offset}
+  defp storage_item_to_log_item({key, {xid, change_key, action, value}}) do
+    %{key: change_key, value: value, headers: headers(action, xid), offset: offset(key)}
   end
 
   defp headers(action, nil = _xid), do: %{action: action}
