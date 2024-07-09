@@ -65,9 +65,8 @@ paths:
                            Supported directives are: max-age, stale-while-revalidate, no-store, no-cache, must-revalidate."
             etag:
               schema:
-                type: integer
-                maximum: 99
-              description: Etag header specifying the version of the shape for efficient caching.
+                type: string
+              description: Etag header specifying the shape ID and offset {shape_id}-{start_offset}-{end_offset} for efficient caching.
             pragma:
               schema:
                 type: string
@@ -120,6 +119,20 @@ paths:
               schema:
                 type: string
               description: Relative path for syncing the latest version of the requested shape.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Error message
+                  shape_id:
+                    type: string
+                    description: The latest shape ID the client should sync.
+                  offset:
+                    type: integer
+                    description: The offset from where to sync the given shape_id.         
     delete:
       summary: Deletes the shape for this table.
                WARNING - this is to be used in development only and works only if the allow_shape_deletion environment variable is set.
