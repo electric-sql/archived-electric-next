@@ -136,7 +136,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
     pk = Map.fetch!(serialized_row, "id")
     change_key = "#{change_key_prefix}/#{pk}"
 
-    {snapshot_key(shape_id, index), {nil, change_key, "insert", serialized_row}}
+    {snapshot_key(shape_id, index), {_xid = nil, change_key, "insert", serialized_row}}
   end
 
   defp storage_item_to_log_item({key, {xid, change_key, action, value}}) do
