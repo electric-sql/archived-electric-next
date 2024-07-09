@@ -4,6 +4,7 @@ defmodule Electric.ShapeCacheTest do
   import Support.DbSetup
   import Support.DbStructureSetup
 
+  alias Electric.Replication.Changes
   alias Electric.ShapeCache.Storage
   alias Electric.ShapeCache
   alias Electric.Shapes.Shape
@@ -54,7 +55,8 @@ defmodule Electric.ShapeCacheTest do
         )
 
       shape = %Shape{root_table: {"public", "items"}}
-      {shape_id, _} = ShapeCache.get_or_create_shape_id(shape, opts)
+      {shape_id, offset} = ShapeCache.get_or_create_shape_id(shape, opts)
+      assert offset == 0
       assert :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id, shape)
       assert Storage.snapshot_exists?(shape_id, storage)
     end
@@ -108,6 +110,36 @@ defmodule Electric.ShapeCacheTest do
 
       assert [%{value: %{"value" => "test1"}}, %{value: %{"value" => "test2"}}] =
                Enum.to_list(stream)
+    end
+
+    test "returns correct latest offset when DB data streams in",
+         %{storage: storage, shape_cache_opts: opts} do
+      shape = %Shape{root_table: {"public", "items"}}
+      {shape_id, initial_offset} = ShapeCache.get_or_create_shape_id(shape, opts)
+      assert :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id, shape)
+      assert Storage.snapshot_exists?(shape_id, storage)
+      assert {^shape_id, offset_after_snapshot} = ShapeCache.get_or_create_shape_id(shape, opts)
+
+      # Add a log entry to increase the offset
+      Storage.append_to_log!(
+        shape_id,
+        Lsn.from_integer(1000),
+        1,
+        [
+          %Changes.NewRecord{
+            relation: {"public", "test_table"},
+            record: %{"id" => "123", "name" => "Test A"}
+          }
+        ],
+        storage
+      )
+
+      assert {^shape_id, offset_after_log_entry} = ShapeCache.get_or_create_shape_id(shape, opts)
+
+      assert initial_offset == 0
+      assert initial_offset == offset_after_snapshot
+      assert offset_after_log_entry > offset_after_snapshot
+      assert offset_after_log_entry == 1000
     end
 
     test "correctly propagates the error", %{shape_cache_opts: opts} do
