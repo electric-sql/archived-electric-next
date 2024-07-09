@@ -58,10 +58,23 @@ defmodule Electric.ShapeCache do
     table = Access.get(opts, :shape_meta_table, @default_shape_meta_table)
     server = Access.get(opts, :server, __MODULE__)
 
-    case :ets.lookup(table, Shape.hash(shape)) do
-      [{_, shape_id, last_offset}] -> {shape_id, last_offset}
-      [] -> GenServer.call(server, {:create_or_wait_shape_id, shape})
-    end
+    # Get or create the shape ID and fire a snapshot if necessary
+    shape_id =
+      case :ets.lookup(table, Shape.hash(shape)) do
+        [{_, shape_id}] -> shape_id
+        [] -> GenServer.call(server, {:create_or_wait_shape_id, shape})
+      end
+
+    # Get the latest offset for this shape - if none is present, not even
+    # the snapshot, then return an offset of 0 that will match the snapshot
+    # which we know is being created by virtue of this function beign called.
+    latest_offset =
+      case GenServer.call(server, {:get_latest_log_offset, shape_id}) do
+        {:ok, offset} -> offset
+        :error -> 0
+      end
+
+    {shape_id, latest_offset}
   end
 
   def list_active_shapes(opts \\ []) do
@@ -117,12 +130,12 @@ defmodule Electric.ShapeCache do
     hash = Shape.hash(shape)
     shape_id = "#{hash}-#{DateTime.utc_now() |> DateTime.to_unix(:millisecond)}"
 
-    :ets.insert_new(state.shape_meta_table, {hash, shape_id, 0})
-    [{_, shape_id, last_offset}] = :ets.lookup(state.shape_meta_table, hash)
+    :ets.insert_new(state.shape_meta_table, {hash, shape_id})
+    [{_, shape_id}] = :ets.lookup(state.shape_meta_table, hash)
 
     state = maybe_start_snapshot(state, shape_id, shape)
 
-    {:reply, {shape_id, last_offset}, state}
+    {:reply, shape_id, state}
   end
 
   def handle_call({:wait_for_snapshot, shape_id, shape}, from, state) do
@@ -149,8 +162,12 @@ defmodule Electric.ShapeCache do
     {:reply, :ok, state}
   end
 
+  def handle_call({:get_latest_log_offset, shape_id}, _from, state) do
+    {:reply, Storage.get_latest_log_offset(shape_id, state.storage), state}
+  end
+
   def handle_cast({:snapshot_xmin_known, shape_id, shape, xmin}, state) do
-    case :ets.match(state.shape_meta_table, {:_, shape_id, :"$1"}, 1) do
+    case :ets.match(state.shape_meta_table, {:_, shape_id}, 1) do
       {_, _} ->
         :ets.insert(state.xmins_table, {shape_id, shape, xmin})
 
@@ -182,7 +199,7 @@ defmodule Electric.ShapeCache do
   defp clean_up_shape(state, shape_id) do
     shape = :ets.lookup_element(state.xmins_table, shape_id, 2)
     :ets.delete(state.xmins_table, shape_id)
-    :ets.match_delete(state.shape_meta_table, {:_, shape_id, :_})
+    :ets.match_delete(state.shape_meta_table, {:_, shape_id})
     Task.start(fn -> Storage.cleanup!(shape_id, state.storage) end)
     shape
   end
