@@ -65,6 +65,10 @@ defmodule Electric.ShapeCache.InMemoryStorage do
     end)
   end
 
+  def has_log_entry?(shape_id, offset, opts) when offset == 0 do
+    snapshot_exists?(shape_id, opts)
+  end
+
   def has_log_entry?(shape_id, offset, opts) do
     case :ets.select(opts.log_ets_table, [{{{shape_id, offset}, :_, :_, :_, :_}, [], [true]}]) do
       [] -> false
