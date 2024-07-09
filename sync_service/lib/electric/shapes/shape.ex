@@ -4,7 +4,6 @@ defmodule Electric.Shapes.Shape do
   """
   alias Electric.Replication.Eval.Parser
   alias Electric.Replication.Eval.Runner
-  alias Electric.Postgres.Inspector
   alias Electric.Replication.Changes
 
   @enforce_keys [:root_table]
@@ -14,18 +13,27 @@ defmodule Electric.Shapes.Shape do
 
   def hash(%__MODULE__{} = shape), do: :erlang.phash2(shape)
 
-  def new!(table, shape_opts, parsing_opts) do
-    case build(%{root_table: table, where: Keyword.get(shape_opts, :where)}, parsing_opts) do
+  def new!(table, opts \\ []) do
+    case new(table, opts) do
       {:ok, shape} -> shape
       {:error, [message | _]} -> raise message
       {:error, message} when is_binary(message) -> raise message
     end
   end
 
-  def build(%{root_table: root_table, where: where}, opts) do
-    with {:ok, table} <- validate_table(root_table),
-         {:ok, table_info} <- load_table_info(table, opts),
-         {:ok, where} <- maybe_parse_where_clause(where, table_info) do
+  @shape_schema NimbleOptions.new!(
+                  where: [type: {:or, [:string, nil]}],
+                  inspector: [
+                    type: :mod_arg,
+                    default: {Electric.Postgres.Inspector, Electric.DbPool}
+                  ]
+                )
+  def new(table, opts) do
+    opts = NimbleOptions.validate!(opts, @shape_schema)
+
+    with {:ok, table} <- validate_table(table),
+         {:ok, table_info} <- load_table_info(table, Access.fetch!(opts, :inspector)),
+         {:ok, where} <- maybe_parse_where_clause(Access.get(opts, :where), table_info) do
       {:ok, %__MODULE__{root_table: table, where: where}}
     end
   end
@@ -35,17 +43,15 @@ defmodule Electric.Shapes.Shape do
   defp maybe_parse_where_clause(where, info),
     do: Parser.parse_and_validate_expression(where, info)
 
-  defp load_table_info(table, opts) do
-    case Inspector.load_table_info(opts[:conn], table) do
+  defp load_table_info(table, {module, inspector_opts}) do
+    case module.load_table_info(table, inspector_opts) do
       [] ->
         {:error, ["table not found"]}
 
       table_info ->
         # %{["column_name"] => :type}
         {:ok,
-         Map.new(table_info, fn row ->
-           {[row["attname"]], String.to_atom(row["typname"])}
-         end)}
+         Map.new(table_info, fn %{name: name, type: type} -> {[name], String.to_atom(type)} end)}
     end
   end
 
@@ -62,15 +68,13 @@ defmodule Electric.Shapes.Shape do
     end
   end
 
-  def record_in_shape?(where, record) do
-    with {:ok, refs} <- Runner.record_to_ref_values(where.used_refs, record),
-         {:ok, evaluated} <- Runner.execute(where, refs) do
-      if is_nil(evaluated), do: false, else: evaluated
-    else
-      _ -> false
-    end
-  end
+  @doc """
+  Convert a change to be correctly represented within the shape.
 
+  New or deleted changes are either propagated as-is, or filtered out completely.
+  Updates, on the other hand, may be converted to an "new record" or a "deleted record"
+  if the previous/new version of the updated row isn't in the shape.
+  """
   def convert_change(%__MODULE__{root_table: table}, %{relation: relation})
       when table != relation,
       do: []
@@ -98,6 +102,15 @@ defmodule Electric.Shapes.Shape do
       {false, false} -> []
     end
   end
+
+  defp record_in_shape?(where, record) do
+    with {:ok, refs} <- Runner.record_to_ref_values(where.used_refs, record),
+         {:ok, evaluated} <- Runner.execute(where, refs) do
+      if is_nil(evaluated), do: false, else: evaluated
+    else
+      _ -> false
+    end
+  end
 end
 
 defimpl Inspect, for: Electric.Shapes.Shape do
@@ -106,8 +119,8 @@ defimpl Inspect, for: Electric.Shapes.Shape do
   def inspect(%Electric.Shapes.Shape{} = shape, _opts) do
     {schema, table} = shape.root_table
 
-    where = if shape.where, do: concat(["[where: \"", shape.where.query, "\"], "]), else: ""
+    where = if shape.where, do: concat([", where: \"", shape.where.query, "\""]), else: ""
 
-    concat(["Shape.new!(\"", schema, ".", table, "\", ", where, "opts)"])
+    concat(["Shape.new!(\"", schema, ".", table, "\"", where, ")"])
   end
 end

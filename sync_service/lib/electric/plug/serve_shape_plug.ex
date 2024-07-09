@@ -13,13 +13,15 @@ defmodule Electric.Plug.ServeShapePlug do
       field(:offset, :integer)
       field(:shape_id, :string)
       field(:live, :boolean, default: false)
-      field(:where, :string, default: "true")
+      field(:where, :string)
       field(:shape_definition, :string)
     end
 
     def validate(params, opts) do
       %__MODULE__{}
-      |> cast(params, __schema__(:fields) -- [:shape_definition], message: fn _, _ -> "must be %{type}" end)
+      |> cast(params, __schema__(:fields) -- [:shape_definition],
+        message: fn _, _ -> "must be %{type}" end
+      )
       |> validate_number(:offset, greater_than_or_equal_to: -1)
       |> validate_required([:root_table, :offset])
       |> cast_root_table(opts)
@@ -42,14 +44,17 @@ defmodule Electric.Plug.ServeShapePlug do
       table = fetch_change!(changeset, :root_table)
       where = fetch_field!(changeset, :where)
 
-      case Shapes.Shape.build(%{root_table: table, where: where}, opts) do
+      case Shapes.Shape.new(table, opts ++ [where: where]) do
         {:ok, result} ->
           put_change(changeset, :shape_definition, result)
 
         {:error, reasons} ->
           Enum.reduce(List.wrap(reasons), changeset, fn
-            {message, keys}, changeset -> add_error(changeset, :root_table, message, keys)
-            message, changeset when is_binary(message) -> add_error(changeset, :root_table, message)
+            {message, keys}, changeset ->
+              add_error(changeset, :root_table, message, keys)
+
+            message, changeset when is_binary(message) ->
+              add_error(changeset, :root_table, message)
           end)
       end
     end
@@ -59,7 +64,7 @@ defmodule Electric.Plug.ServeShapePlug do
   plug :put_resp_content_type, "application/json"
   plug :validate_query_params
   plug :load_shape_info
-  # plug :validate_shape_offset
+  plug :validate_shape_offset
   plug :generate_etag
   plug :validate_and_put_etag
   plug :put_resp_cache_headers
@@ -70,7 +75,7 @@ defmodule Electric.Plug.ServeShapePlug do
       Map.merge(conn.query_params, conn.path_params)
       |> Map.update("live", "false", &(&1 != "false"))
 
-    case Params.validate(all_params, conn: Electric.DbPool) do
+    case Params.validate(all_params, inspector: conn.assigns.config[:inspector]) do
       {:ok, params} ->
         %{conn | assigns: Map.merge(conn.assigns, params)}
 
@@ -182,7 +187,7 @@ defmodule Electric.Plug.ServeShapePlug do
          _
        ) do
     {offset, snapshot} =
-      Shapes.get_snapshot(conn.assigns.config, shape_id, dbg(conn.assigns.shape_definition))
+      Shapes.get_snapshot(conn.assigns.config, shape_id, conn.assigns.shape_definition)
 
     log =
       Shapes.get_log_stream(conn.assigns.config, shape_id, since: offset)

@@ -96,8 +96,13 @@ defmodule Electric.Replication.Eval.KnownDefinition do
   defmacro defcompare(datatype, opts) when is_binary(datatype) do
     case Macro.expand_literals(opts, __CALLER__) do
       [using: Kernel] ->
-        for op <- ~w|= != < > <= >=|a do
-          kernel_op = if(op == :=, do: :==, else: op)
+        for op <- ~w|= <> < > <= >=|a do
+          kernel_op =
+            case op do
+              := -> :==
+              :<> -> :!=
+              op -> op
+            end
 
           quote do
             map = %{

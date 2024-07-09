@@ -7,16 +7,16 @@ defmodule Electric.Replication.Eval.RunnerTest do
   describe "record_to_ref_values/3" do
     test "should build ref values from record with known types and nils" do
       refs = %{
-        ["this", "string"] => :text,
-        ["this", "int"] => :int4,
-        ["this", "null_int"] => :int4
+        ["string"] => :text,
+        ["int"] => :int4,
+        ["null_int"] => :int4
       }
 
       assert {:ok,
               %{
-                ["this", "string"] => "test",
-                ["this", "int"] => 5,
-                ["this", "null_int"] => nil
+                ["string"] => "test",
+                ["int"] => 5,
+                ["null_int"] => nil
               }} ==
                Runner.record_to_ref_values(refs, %{
                  "string" => "test",

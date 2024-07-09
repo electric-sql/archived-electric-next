@@ -16,6 +16,10 @@ defmodule Electric.Plug.ServeShapePlugTest do
   @test_offset 100
   @registry Registry.ServeShapePlugTest
 
+  defmodule Inspector do
+    def load_table_info({"public", "users"}, _), do: [%{name: "id", type: "int8"}]
+  end
+
   setup do
     start_link_supervised!({Registry, keys: :duplicate, name: @registry})
     :ok
@@ -26,6 +30,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
     config = %{
       shape_cache: {Electric.ShapeCacheMock, []},
       storage: {MockStorage, []},
+      inspector: {__MODULE__.Inspector, []},
       registry: @registry,
       long_poll_timeout: 20_000,
       max_age: 60,

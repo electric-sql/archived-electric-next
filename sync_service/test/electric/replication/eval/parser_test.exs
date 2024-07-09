@@ -415,4 +415,15 @@ defmodule Electric.Replication.Eval.ParserTest do
                Parser.parse_and_validate_expression(~S|1 IS TRUE|, %{}, env)
     end
   end
+
+  describe "parse_and_validate_expression/3 default env" do
+    test "can compare integers" do
+      assert {:ok, _} = Parser.parse_and_validate_expression(~S|id != 1|, %{["id"] => :int8})
+      assert {:ok, _} = Parser.parse_and_validate_expression(~S|id > 1|, %{["id"] => :int8})
+      assert {:ok, _} = Parser.parse_and_validate_expression(~S|id < 1|, %{["id"] => :int8})
+      assert {:ok, _} = Parser.parse_and_validate_expression(~S|id >= 1|, %{["id"] => :int8})
+      assert {:ok, _} = Parser.parse_and_validate_expression(~S|id <= 1|, %{["id"] => :int8})
+      assert {:ok, _} = Parser.parse_and_validate_expression(~S|id = 1|, %{["id"] => :int8})
+    end
+  end
 end
