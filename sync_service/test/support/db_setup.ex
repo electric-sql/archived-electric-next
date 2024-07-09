@@ -34,7 +34,7 @@ defmodule Support.DbSetup do
     config = Application.fetch_env!(:electric, :database_config)
 
     {:ok, pool} =
-      Postgrex.start_link(config ++ [backoff_type: :stop, max_restarts: 0])
+      Postgrex.start_link(config ++ [backoff_type: :stop, max_restarts: 1])
 
     {:ok, %{pool: pool, db_config: config, db_conn: pool}}
   end

@@ -61,7 +61,8 @@ defmodule Electric.MixProject do
       {:ecto, "~> 3.11"},
       {:tz, "~> 0.26.5"},
       {:mox, "~> 1.1", only: [:test]},
-      {:cubdb, "~> 2.0.2"}
+      {:cubdb, "~> 2.0.2"},
+      {:req, "~> 0.5.0", only: [:test]}
     ]
   end
 

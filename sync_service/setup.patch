@@ -1,0 +1,122 @@
+diff --git a/sync_service/lib/electric/replication/shape_log_storage.ex b/sync_service/lib/electric/replication/shape_log_storage.ex
+index 5bba7f6..ea45962 100644
+--- a/sync_service/lib/electric/replication/shape_log_storage.ex
++++ b/sync_service/lib/electric/replication/shape_log_storage.ex
+@@ -59,7 +59,7 @@ defmodule Electric.Replication.ShapeLogStorage do
+             "Truncate operation encountered while processing txn #{txn.xid} for #{shape_id}"
+           )
+ 
+-          apply(shape_cache, :handle_truncate, [shape_cache, shape_id])
++          apply(shape_cache, :handle_truncate, [opts[:server] || shape_cache, shape_id])
+ 
+         relevant_changes != [] ->
+           # TODO: what's a graceful way to handle failure to append to log?
+diff --git a/sync_service/test/support/component_setup.ex b/sync_service/test/support/component_setup.ex
+index e0f89bb..35a1623 100644
+--- a/sync_service/test/support/component_setup.ex
++++ b/sync_service/test/support/component_setup.ex
+@@ -1,4 +1,7 @@
+ defmodule Support.ComponentSetup do
++  import ExUnit.Callbacks
++  alias Electric.Postgres.ReplicationClient
++  alias Electric.Replication.ShapeLogStorage
+   alias Electric.ShapeCache
+   alias Electric.ShapeCache.InMemoryStorage
+ 
+@@ -11,7 +14,7 @@ defmodule Support.ComponentSetup do
+ 
+     {:ok, _} = InMemoryStorage.start_link(storage_opts)
+ 
+-    {:ok, %{storage: {InMemoryStorage, storage_opts}}}
++    %{storage: {InMemoryStorage, storage_opts}}
+   end
+ 
+   def with_shape_cache(ctx, additional_opts \\ []) do
+@@ -29,12 +32,83 @@ defmodule Support.ComponentSetup do
+ 
+     {:ok, _pid} = ShapeCache.start_link(start_opts)
+ 
++    opts = [
++      server: :"shape_cache_#{ctx.test}",
++      shape_xmins_table: shape_xmins_table,
++      shape_meta_table: shape_meta_table
++    ]
++
+     %{
+-      shape_cache_opts: [
+-        server: :"shape_cache_#{ctx.test}",
+-        shape_xmins_table: shape_xmins_table,
+-        shape_meta_table: shape_meta_table
++      shape_cache_opts: opts,
++      shape_cache: {ShapeCache, opts}
++    }
++  end
++
++  def with_shape_log_storage(ctx) do
++    name = :"shape_log_storage #{ctx.test}"
++
++    start_opts =
++      [
++        name: name,
++        storage: ctx.storage,
++        registry: ctx.registry,
++        shape_cache: ctx.shape_cache
+       ]
++
++    {:ok, _pid} = ShapeLogStorage.start_link(start_opts)
++
++    %{shape_log_storage: name}
++  end
++
++  def with_replication_client(ctx) do
++    {:ok, _pid} =
++      ReplicationClient.start_link(
++        ctx.db_config ++
++          [
++            init_opts: [
++              publication_name: Map.get(ctx, :publication_name, "electric_publication"),
++              transaction_received:
++                Map.get(
++                  ctx,
++                  :transaction_received,
++                  {ShapeLogStorage, :store_transaction, [ctx.shape_log_storage]}
++                )
++            ]
++          ]
++      )
++
++    %{}
++  end
++
++  def with_router_config(ctx) do
++    %{
++      router:
++        {Electric.Plug.Router,
++         storage: ctx.storage,
++         registry: ctx.registry,
++         shape_cache: ctx.shape_cache,
++         inspector: {Electric.Postgres.Inspector, ctx.pool},
++         long_poll_timeout: 4_000,
++         max_age: 10,
++         stale_age: 60}
+     }
+   end
++
++  def with_complete_stack(ctx) do
++    _ = Map.fetch!(ctx, :pool)
++
++    registry = Module.concat(Registry, ctx.test)
++    start_link_supervised!({Registry, keys: :duplicate, name: registry})
++
++    ctx = Map.put(ctx, :registry, registry)
++
++    [
++      &with_in_memory_storage/1,
++      &with_shape_cache/1,
++      &with_shape_log_storage/1,
++      &with_replication_client/1,
++      &with_router_config/1
++    ]
++    |> Enum.reduce(ctx, &apply/2)
++  end
+ end
