@@ -67,7 +67,7 @@ defmodule Electric.ShapeCache do
 
     # Get the latest offset for this shape - if none is present, not even
     # the snapshot, then return an offset of 0 that will match the snapshot
-    # which we know is being created by virtue of this function beign called.
+    # which we know is being created by virtue of this function being called.
     latest_offset =
       case GenServer.call(server, {:get_latest_log_offset, shape_id}) do
         {:ok, offset} -> offset
