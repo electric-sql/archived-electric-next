@@ -200,13 +200,9 @@ export class ShapeStream {
         url.searchParams.set(`shape_id`, this.shapeId!)
       }
 
-      console.log({
-        url: url.toString(),
-      })
       try {
         await fetch(url.toString(), { signal })
           .then(async (response) => {
-            console.log(`res`, response.ok, response.status)
             if (!response.ok) {
               throw await FetchError.fromResponse(response, url.toString())
             }
