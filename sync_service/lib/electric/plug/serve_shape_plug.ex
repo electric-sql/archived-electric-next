@@ -122,7 +122,8 @@ defmodule Electric.Plug.ServeShapePlug do
   # re-request the shape from scratch with the new shape id which acts as a consistent cache buster
   # e.g. GET /shape/{root_table}?shapeId={new_shape_id}&offset=-1
   def validate_shape_offset(%Plug.Conn{assigns: %{offset: offset}} = conn, _) do
-    shape_id = conn.assigns.active_shape_id
+    shape_id = conn.assigns.shape_id
+    active_shape_id = conn.assigns.active_shape_id
 
     if !Shapes.has_log_entry?(conn.assigns.config, shape_id, offset) do
       # TODO: discuss returning a 307 redirect rather than a 409, the client
@@ -130,13 +131,13 @@ defmodule Electric.Plug.ServeShapePlug do
       conn
       |> put_resp_header(
         "location",
-        "#{conn.request_path}?shape_id=#{shape_id}&offset=-1"
+        "#{conn.request_path}?shape_id=#{active_shape_id}&offset=-1"
       )
       |> send_resp(
         409,
         Jason.encode_to_iodata!(%{
-          message: "Shape offset too far behind. Resync with latest shape ID.",
-          shape_id: shape_id,
+          message: "Specified shape ID and offset not found. Resync with latest shape ID.",
+          shape_id: conn.assigns.active_shape_id,
           offset: -1
         })
       )
