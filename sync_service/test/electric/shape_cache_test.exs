@@ -12,9 +12,9 @@ defmodule Electric.ShapeCacheTest do
 
   @basic_query_meta %Postgrex.Query{columns: ["id"], result_types: [:text], name: "key_prefix"}
 
-  setup :with_in_memory_storage
-
   describe "get_or_create_shape_id/2" do
+    setup :with_in_memory_storage
+
     setup(do: %{pool: :no_pool})
     setup(ctx, do: with_shape_cache(ctx, create_snapshot_fn: fn _, _, _, _, _ -> nil end))
 
@@ -33,6 +33,8 @@ defmodule Electric.ShapeCacheTest do
   end
 
   describe "get_or_create_shape_id/2 shape initialization" do
+    setup :with_in_memory_storage
+
     test "creates initial snapshot if one doesn't exist", %{storage: storage} = ctx do
       %{shape_cache_opts: opts} =
         with_shape_cache(Map.put(ctx, :pool, nil),
@@ -75,6 +77,7 @@ defmodule Electric.ShapeCacheTest do
   end
 
   describe "get_or_create_shape_id/2 against real db" do
+    setup :with_in_memory_storage
     setup :with_unique_db
     setup :with_basic_tables
     setup :with_shape_cache
@@ -150,6 +153,8 @@ defmodule Electric.ShapeCacheTest do
   end
 
   describe "list_active_shapes/1" do
+    setup :with_in_memory_storage
+
     test "returns empty list initially", ctx do
       %{shape_cache_opts: opts} = with_shape_cache(Map.put(ctx, :pool, nil))
       assert ShapeCache.list_active_shapes(opts) == []
@@ -202,6 +207,8 @@ defmodule Electric.ShapeCacheTest do
   end
 
   describe "wait_for_snapshot/4" do
+    setup :with_in_memory_storage
+
     test "returns :ready for existing snapshot", %{storage: storage} = ctx do
       %{shape_cache_opts: opts} =
         with_shape_cache(Map.put(ctx, :pool, nil),
@@ -302,6 +309,8 @@ defmodule Electric.ShapeCacheTest do
   end
 
   describe "handle_truncate/2" do
+    setup :with_in_memory_storage
+
     test "cleans up shape data and rotates the shape id",
          %{storage: storage} = ctx do
       %{shape_cache_opts: opts} =
@@ -348,6 +357,8 @@ defmodule Electric.ShapeCacheTest do
   end
 
   describe "clean_shape/2" do
+    setup :with_in_memory_storage
+
     test "cleans up shape data and rotates the shape id",
          %{storage: storage} = ctx do
       %{shape_cache_opts: opts} =
