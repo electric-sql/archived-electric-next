@@ -6,6 +6,8 @@ defmodule Electric.ShapeCache.CubDbStorage do
 
   @snapshot_key_type 0
   @log_key_type 1
+  @shapes_start {:shapes, 0}
+  @shapes_end {:shapes, "end"}
 
   def shared_opts(opts) do
     file_path = Access.get(opts, :file_path, "./shapes")
@@ -26,6 +28,23 @@ defmodule Electric.ShapeCache.CubDbStorage do
   def start_link(opts) do
     File.mkdir_p(opts.file_path)
     CubDB.start_link(data_dir: opts.file_path, name: opts.db)
+  end
+
+  def shapes(opts) do
+    opts.db
+    |> CubDB.select(min_key: @shapes_start, max_key: @shapes_end)
+    |> Stream.map(fn {{:shapes, shape_id}, {shape, last_offset}} ->
+      %{
+        shape_id: shape_id,
+        shape: shape,
+        last_offset: last_offset,
+        xmin: 0
+      }
+    end)
+  end
+
+  def add_shape(shape_id, shape, last_offset, opts) do
+    CubDB.put(opts.db, {:shapes, shape_id}, {shape, last_offset})
   end
 
   @spec snapshot_exists?(any(), any()) :: false

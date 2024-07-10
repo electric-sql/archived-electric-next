@@ -136,15 +136,27 @@ defmodule Electric.ShapeCache do
     #       a restart, which is not great. We should load any shape IDs we have logs for along
     #       with actual shape definition to be able to immediately start filtering PG txns after
     #       a restart.
+    opts = %{
+      storage: opts.storage,
+      shape_meta_table: shape_meta_table,
+      waiting_for_creation: %{},
+      db_pool: opts.db_pool,
+      create_snapshot_fn: opts.create_snapshot_fn
+    }
 
-    {:ok,
-     %{
-       storage: opts.storage,
-       shape_meta_table: shape_meta_table,
-       waiting_for_creation: %{},
-       db_pool: opts.db_pool,
-       create_snapshot_fn: opts.create_snapshot_fn
-     }}
+    {:ok, opts, {:continue, :recover_shapes}}
+  end
+
+  def handle_continue(:recover_shapes, state) do
+    state.storage
+    |> Storage.shapes()
+    |> Enum.each(fn %{shape: shape, shape_id: shape_id, last_offset: last_offset, xmin: xmin} ->
+      hash = Shape.hash(shape)
+      :ets.insert_new(state.shape_meta_table, {hash, shape_id, last_offset})
+      :ets.insert(state.xmins_table, {shape_id, shape, xmin})
+    end)
+
+    {:noreply, state}
   end
 
   def handle_call({:create_or_wait_shape_id, shape}, _from, state) do
@@ -167,6 +179,7 @@ defmodule Electric.ShapeCache do
     # lookup to ensure concurrent calls with the same shape definition all
     # match to the same shape ID
     [{_, shape_id}] = :ets.lookup(state.shape_meta_table, {@shape_hash_lookup, hash})
+    Storage.add_shape(shape_id, shape, latest_offset, state.storage)
 
     Logger.debug("Returning shape id #{shape_id} for shape #{inspect(shape)}")
 
