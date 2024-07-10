@@ -55,8 +55,11 @@ defmodule Electric.ShapeCache.Storage do
 
   def shapes({mod, opts}), do: apply(mod, :shapes, [opts])
 
-  def add_shape(shape_id, shape, last_offset, {mod, opts}),
-    do: apply(mod, :add_shape, [shape_id, shape, last_offset, opts])
+  def add_shape(shape_id, shape, {mod, opts}),
+    do: apply(mod, :add_shape, [shape_id, shape, opts])
+
+  def set_snapshot_xmin(shape_id, xmin, {mod, opts}),
+    do: apply(mod, :set_snapshot_xmin, [shape_id, xmin, opts])
 
   @doc "Check if snapshot for a given shape id already exists"
   @spec snapshot_exists?(shape_id(), storage()) :: boolean()

@@ -33,18 +33,27 @@ defmodule Electric.ShapeCache.CubDbStorage do
   def shapes(opts) do
     opts.db
     |> CubDB.select(min_key: @shapes_start, max_key: @shapes_end)
-    |> Stream.map(fn {{:shapes, shape_id}, {shape, last_offset}} ->
+    |> Stream.map(fn {{:shapes, shape_id}, shape} ->
       %{
         shape_id: shape_id,
         shape: shape,
-        last_offset: last_offset,
-        xmin: 0
+        last_offset: 0,
+        snapshot_xmin: snapshot_xmin(shape_id, opts)
       }
     end)
   end
 
-  def add_shape(shape_id, shape, last_offset, opts) do
-    CubDB.put(opts.db, {:shapes, shape_id}, {shape, last_offset})
+  def add_shape(shape_id, shape, opts) do
+    CubDB.put(opts.db, {:shapes, shape_id}, shape)
+  end
+
+  def set_snapshot_xmin(shape_id, xmin, opts) do
+    CubDB.put(opts.db, {:snapshot_xmin, shape_id}, xmin)
+  end
+
+  defp snapshot_xmin(shape_id, opts) do
+    # TODO what if it doesn't exist?
+    CubDB.get(opts.db, {:snapshot_xmin, shape_id})
   end
 
   @spec snapshot_exists?(any(), any()) :: false
@@ -113,6 +122,8 @@ defmodule Electric.ShapeCache.CubDbStorage do
   end
 
   def cleanup!(shape_id, opts) do
+    # TODO: cleanup shapes, xmins and last_offsets
+
     # Deletes from the snapshot start to the log end
     # and since @snapshot_key_type < @log_key_type this will
     # delete everything for the shape.

@@ -150,10 +150,15 @@ defmodule Electric.ShapeCache do
   def handle_continue(:recover_shapes, state) do
     state.storage
     |> Storage.shapes()
-    |> Enum.each(fn %{shape: shape, shape_id: shape_id, last_offset: last_offset, xmin: xmin} ->
+    |> Enum.each(fn %{
+                      shape: shape,
+                      shape_id: shape_id,
+                      last_offset: last_offset,
+                      snapshot_xmin: snapshot_xmin
+                    } ->
       hash = Shape.hash(shape)
       :ets.insert_new(state.shape_meta_table, {hash, shape_id, last_offset})
-      :ets.insert(state.xmins_table, {shape_id, shape, xmin})
+      :ets.insert(state.xmins_table, {shape_id, shape, snapshot_xmin})
     end)
 
     {:noreply, state}
@@ -179,7 +184,7 @@ defmodule Electric.ShapeCache do
     # lookup to ensure concurrent calls with the same shape definition all
     # match to the same shape ID
     [{_, shape_id}] = :ets.lookup(state.shape_meta_table, {@shape_hash_lookup, hash})
-    Storage.add_shape(shape_id, shape, latest_offset, state.storage)
+    Storage.add_shape(shape_id, shape, state.storage)
 
     Logger.debug("Returning shape id #{shape_id} for shape #{inspect(shape)}")
 
@@ -220,11 +225,13 @@ defmodule Electric.ShapeCache do
   end
 
   def handle_cast({:snapshot_xmin_known, shape_id, xmin}, state) do
-    if not :ets.update_element(
+    if :ets.update_element(
          state.shape_meta_table,
          {@shape_meta_data, shape_id},
          {@shape_meta_xmin_pos, xmin}
        ) do
+      Storage.set_snapshot_xmin(shape_id, xmin, state.storage)
+    else
       Logger.warning(
         "Got snapshot information for a #{shape_id}, that shape id is no longer valid. Ignoring."
       )

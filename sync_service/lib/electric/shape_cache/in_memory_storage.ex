@@ -25,8 +25,8 @@ defmodule Electric.ShapeCache.InMemoryStorage do
   end
 
   def shapes(_opts), do: []
-
-  def add_shape(_shape_id, _shape, _last_offset, _opts), do: :ok
+  def add_shape(_shape_id, _shape, _opts), do: :ok
+  def set_snapshot_xmin(_shape_id, _xmin, _opts), do: :ok
 
   def snapshot_exists?(shape_id, opts) do
     case :ets.match(opts.snapshot_ets_table, {{:metadata, shape_id}, :_}, 1) do

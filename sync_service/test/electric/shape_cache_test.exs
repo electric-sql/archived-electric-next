@@ -405,16 +405,39 @@ defmodule Electric.ShapeCacheTest do
   end
 
   describe "after restart" do
+    @shape %Shape{root_table: {"public", "items"}}
+    @snapshot_xmin 10
+
     setup :with_cub_db_storage
     setup(do: %{pool: :no_pool})
-    setup :with_shape_cache
 
-    test "returns existing shape_id", %{shape_cache_opts: opts} = context do
-      shape = %Shape{root_table: {"public", "items"}}
-      {shape_id1, 0} = ShapeCache.get_or_create_shape_id(shape, opts)
+    setup(ctx,
+      do:
+        with_shape_cache(ctx,
+          create_snapshot_fn: fn parent, shape_id, shape, _, storage ->
+            GenServer.cast(parent, {:snapshot_xmin_known, shape_id, shape, @snapshot_xmin})
+            Storage.make_new_snapshot!(shape_id, @basic_query_meta, [["test"]], storage)
+            GenServer.cast(parent, {:snapshot_ready, shape_id})
+          end
+        )
+    )
+
+    test "restores shape_ids", %{shape_cache_opts: opts} = context do
+      {shape_id1, 0} = ShapeCache.get_or_create_shape_id(@shape, opts)
       restart_shape_cache(context)
-      {shape_id2, 0} = ShapeCache.get_or_create_shape_id(shape, opts)
+      {shape_id2, 0} = ShapeCache.get_or_create_shape_id(@shape, opts)
       assert shape_id1 == shape_id2
+    end
+
+    test "restores snapshot xmins", %{shape_cache_opts: opts} = context do
+      {shape_id, _} = ShapeCache.get_or_create_shape_id(@shape, opts)
+      :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id, @shape)
+      [{^shape_id, @shape, @snapshot_xmin}] = ShapeCache.list_active_shapes(opts)
+
+      restart_shape_cache(context)
+      :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id, @shape)
+
+      assert [{^shape_id, @shape, @snapshot_xmin}] = ShapeCache.list_active_shapes(opts)
     end
 
     defp restart_shape_cache(context) do
