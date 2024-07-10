@@ -25,22 +25,26 @@ defmodule Electric.ShapeCache.InMemoryStorage do
   end
 
   def snapshot_exists?(shape_id, opts) do
-    case :ets.match(opts.snapshot_ets_table, {{shape_id, :_}, :_}, 1) do
+    case :ets.match(opts.snapshot_ets_table, {{shape_id, :_, :_}, :_}, 1) do
       {[_], _} -> true
       :"$end_of_table" -> false
     end
   end
 
   def get_snapshot(shape_id, opts) do
-    offset = 0
-
     results =
       :ets.select(opts.snapshot_ets_table, [
-        {{{shape_id, :"$1"}, :"$2"}, [],
-         [%{key: :"$1", value: :"$2", headers: %{action: "insert"}, offset: offset}]}
+        {{{shape_id, :"$1", :"$2"}, :"$3"}, [],
+         [%{key: :"$2", value: :"$3", headers: %{action: "insert"}, offset: :"$1"}]}
       ])
 
-    {0, results}
+    offset =
+      case Enum.at(results, 0) do
+        %{offset: offset} -> offset
+        _ -> 0
+      end
+
+    {offset, results}
   end
 
   def get_log_stream(shape_id, offset, size \\ :infinity, opts) do
@@ -65,35 +69,47 @@ defmodule Electric.ShapeCache.InMemoryStorage do
     end)
   end
 
+  @spec get_latest_log_offset(any(), any()) :: :error | {:ok, any()}
   def get_latest_log_offset(shape_id, opts) do
     case :ets.prev(opts.log_ets_table, {shape_id, :infinity}) do
       {^shape_id, offset} ->
         {:ok, offset}
 
-      # if no offset found in logs, check if snapshot exists and return
-      # a 0 offset for it
+      # if no offset found in logs, retrieve the snapshot offset if
+      # it exists
       _ ->
-        if snapshot_exists?(shape_id, opts), do: {:ok, 0}, else: :error
+        case :ets.prev(opts.snapshot_ets_table, {shape_id, :infinity, :infinity}) do
+          {^shape_id, offset, _} -> {:ok, offset}
+          _ -> :error
+        end
     end
-  end
-
-  def has_log_entry?(shape_id, offset, opts) when offset == 0 do
-    snapshot_exists?(shape_id, opts)
   end
 
   def has_log_entry?(shape_id, offset, opts) do
     case :ets.select(opts.log_ets_table, [{{{shape_id, offset}, :_, :_, :_, :_}, [], [true]}]) do
-      [] -> false
-      [true] -> true
+      [] ->
+        case :ets.select(
+               opts.snapshot_ets_table,
+               [
+                 {{{shape_id, offset, :_}, :_}, [], [true]}
+               ],
+               1
+             ) do
+          {[true], _} -> true
+          _ -> false
+        end
+
+      [true] ->
+        true
     end
   end
 
-  @spec make_new_snapshot!(String.t(), Postgrex.Query.t(), Enumerable.t(), map()) :: :ok
-  def make_new_snapshot!(shape_id, query_info, data_stream, opts) do
+  @spec make_new_snapshot!(String.t(), Lsn.t(), Postgrex.Query.t(), Enumerable.t(), map()) :: :ok
+  def make_new_snapshot!(shape_id, snapshot_lsn, query_info, data_stream, opts) do
     ets_table = opts.snapshot_ets_table
 
     data_stream
-    |> Stream.map(&__MODULE__.row_to_snapshot_entry(&1, shape_id, query_info))
+    |> Stream.map(&__MODULE__.row_to_snapshot_entry(&1, shape_id, snapshot_lsn, query_info))
     |> Stream.chunk_every(500)
     |> Stream.each(fn chunk -> :ets.insert(ets_table, chunk) end)
     |> Stream.run()
@@ -117,13 +133,13 @@ defmodule Electric.ShapeCache.InMemoryStorage do
   end
 
   def cleanup!(shape_id, opts) do
-    :ets.match_delete(opts.snapshot_ets_table, {{shape_id, :_}, :_})
+    :ets.match_delete(opts.snapshot_ets_table, {{shape_id, :_, :_}, :_})
     :ets.match_delete(opts.log_ets_table, {{shape_id, :_}, :_, :_, :_, :_})
     :ok
   end
 
   @doc false
-  def row_to_snapshot_entry(row, shape_id, %Postgrex.Query{
+  def row_to_snapshot_entry(row, shape_id, snapshot_lsn, %Postgrex.Query{
         name: key_prefix,
         columns: columns,
         result_types: types
@@ -139,6 +155,6 @@ defmodule Electric.ShapeCache.InMemoryStorage do
     # FIXME: This should not assume pk columns, but we're not querying PG for that info yet
     pk = Map.fetch!(serialized_row, "id")
 
-    {{shape_id, key_prefix <> "/" <> pk}, serialized_row}
+    {{shape_id, Lsn.to_integer(snapshot_lsn), key_prefix <> "/" <> pk}, serialized_row}
   end
 end
