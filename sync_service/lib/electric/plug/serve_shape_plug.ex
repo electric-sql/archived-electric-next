@@ -198,14 +198,16 @@ defmodule Electric.Plug.ServeShapePlug do
 
   # If offset is -1, we're serving a snapshot
   defp serve_log_or_snapshot(
-         %Plug.Conn{assigns: %{offset: -1, active_shape_id: shape_id}} = conn,
+         %Plug.Conn{
+           assigns: %{offset: -1, last_offset: last_offset, active_shape_id: shape_id}
+         } = conn,
          _
        ) do
     {offset, snapshot} =
       Shapes.get_snapshot(conn.assigns.config, shape_id, conn.assigns.shape_definition)
 
     log =
-      Shapes.get_log_stream(conn.assigns.config, shape_id, since: offset)
+      Shapes.get_log_stream(conn.assigns.config, shape_id, since: offset, up_to: last_offset)
       |> Enum.to_list()
 
     send_resp(conn, 200, Jason.encode_to_iodata!(snapshot ++ log ++ @up_to_date))
@@ -213,10 +215,14 @@ defmodule Electric.Plug.ServeShapePlug do
 
   # Otherwise, serve log since that offset
   defp serve_log_or_snapshot(
-         %Plug.Conn{assigns: %{offset: offset, active_shape_id: shape_id}} = conn,
+         %Plug.Conn{
+           assigns: %{offset: offset, last_offset: last_offset, active_shape_id: shape_id}
+         } = conn,
          _
        ) do
-    log = Shapes.get_log_stream(conn.assigns.config, shape_id, since: offset) |> Enum.to_list()
+    log =
+      Shapes.get_log_stream(conn.assigns.config, shape_id, since: offset, up_to: last_offset)
+      |> Enum.to_list()
 
     if log == [] and conn.assigns.live do
       hold_until_change(conn, shape_id)
