@@ -91,11 +91,6 @@ defmodule Electric.ShapeCache.Storage do
       when max_offset == :infinity or max_offset >= offset,
       do: apply(mod, :get_log_stream, [shape_id, offset, max_offset, opts])
 
-  @doc "Get the most recent log offset available - 0 if only snapshot is available"
-  @spec get_latest_log_offset(shape_id(), storage()) :: {:ok, non_neg_integer()} | :error
-  def get_latest_log_offset(shape_id, {mod, opts}),
-    do: apply(mod, :get_latest_log_offset, [shape_id, opts])
-
   @doc "Check if log entry for given shape ID and offset exists"
   @spec has_log_entry?(shape_id(), non_neg_integer(), storage()) :: boolean()
   def has_log_entry?(shape_id, offset, {mod, opts}),

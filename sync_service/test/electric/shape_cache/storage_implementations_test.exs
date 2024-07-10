@@ -389,48 +389,6 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
         refute storage.has_log_entry?("another_shape_id", 1001, opts)
       end
     end
-
-    describe "#{module_name}.get_latest_log_offset/2" do
-      setup do
-        {:ok, %{module: unquote(module)}}
-      end
-
-      setup :start_storage
-
-      test "returns snapshot LSN if only snapshot is available", %{module: storage, opts: opts} do
-        storage.make_new_snapshot!(@shape_id, @query_info, @data_stream, opts)
-        assert {:ok, @snapshot_offset} == storage.get_latest_log_offset(@shape_id, opts)
-      end
-
-      test "returns latest offset for the given shape ID", %{module: storage, opts: opts} do
-        lsn1 = Lsn.from_integer(1000)
-        lsn2 = Lsn.from_integer(2000)
-        xid = 1
-
-        changes1 = [
-          %Changes.NewRecord{
-            relation: {"public", "test_table"},
-            record: %{"id" => "123", "name" => "Test A"}
-          }
-        ]
-
-        changes2 = [
-          %Changes.NewRecord{
-            relation: {"public", "test_table"},
-            record: %{"id" => "456", "name" => "Test B"}
-          }
-        ]
-
-        storage.make_new_snapshot!(@shape_id, @query_info, @data_stream, opts)
-        :ok = storage.append_to_log!(@shape_id, lsn1, xid, changes1, opts)
-        :ok = storage.append_to_log!(@shape_id, lsn2, xid, changes2, opts)
-        assert {:ok, Lsn.to_integer(lsn2)} == storage.get_latest_log_offset(@shape_id, opts)
-      end
-
-      test "returns error if shape does not exist", %{module: storage, opts: opts} do
-        assert :error == storage.get_latest_log_offset(@shape_id, opts)
-      end
-    end
   end
 
   defp start_storage(%{module: module}) do

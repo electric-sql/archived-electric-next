@@ -139,7 +139,8 @@ defmodule Electric.Plug.ServeShapePlug do
       |> send_resp(
         409,
         Jason.encode_to_iodata!(%{
-          message: "The shape associated with this shape_id and offset was not found. Resync to fetch the latest shape",
+          message:
+            "The shape associated with this shape_id and offset was not found. Resync to fetch the latest shape",
           shape_id: conn.assigns.active_shape_id,
           offset: -1
         })

@@ -71,22 +71,6 @@ defmodule Electric.ShapeCache.CubDbStorage do
     |> Stream.map(&storage_item_to_log_item/1)
   end
 
-  def get_latest_log_offset(shape_id, opts) do
-    case CubDB.select(opts.db,
-           min_key: snapshot_start(shape_id),
-           max_key: log_end(shape_id),
-           reverse: true
-         )
-         |> Stream.take(1)
-         |> Enum.to_list() do
-      [{key, _}] ->
-        {:ok, offset(key)}
-
-      _ ->
-        :error
-    end
-  end
-
   def has_log_entry?(shape_id, offset, opts) do
     CubDB.has_key?(opts.db, log_key(shape_id, offset)) ||
       CubDB.has_key?(opts.db, snapshot_key(shape_id, offset, 0))
