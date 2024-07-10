@@ -66,14 +66,13 @@ jobs:
             docker compose -f dev/docker-compose.yml up nginx &
 
           wait-on: |
-            http-get://localhost:3000
+            http://localhost:3000
             http://localhost:3002
 
           tail: true
-          log-output-resume: stderr
           wait-for: 1m
-          log-output: true
-          log-output-if: failure
+          log-output: stderr,stdout
+          log-output-if: true
           working-directory: sync_service
       - name: Adjust Permissions
         run: |
