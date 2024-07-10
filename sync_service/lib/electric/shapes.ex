@@ -7,11 +7,11 @@ defmodule Electric.Shapes do
   @doc """
   Get snapshot for the shape ID
   """
-  def get_snapshot(config, shape_id, shape) do
+  def get_snapshot(config, shape_id) do
     {shape_cache, _} = Access.get(config, :shape_cache, {ShapeCache, []})
     storage = Access.fetch!(config, :storage)
 
-    with :ready <- shape_cache.wait_for_snapshot(shape_cache, shape_id, shape) do
+    with :ready <- shape_cache.wait_for_snapshot(shape_cache, shape_id) do
       Storage.get_snapshot(shape_id, storage)
     end
   end

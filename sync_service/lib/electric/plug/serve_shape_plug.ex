@@ -196,8 +196,7 @@ defmodule Electric.Plug.ServeShapePlug do
          %Plug.Conn{assigns: %{offset: -1, active_shape_id: shape_id}} = conn,
          _
        ) do
-    {offset, snapshot} =
-      Shapes.get_snapshot(conn.assigns.config, shape_id, conn.assigns.shape_definition)
+    {offset, snapshot} = Shapes.get_snapshot(conn.assigns.config, shape_id)
 
     log =
       Shapes.get_log_stream(conn.assigns.config, shape_id, since: offset)
