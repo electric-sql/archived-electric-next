@@ -44,7 +44,8 @@ defmodule Electric.ShapeCache.Storage do
               compiled_opts()
             ) :: :ok
   @doc "Get stream of the log for a shape since a given offset"
-  @callback get_log_stream(shape_id(), integer(), compiled_opts()) :: Enumerable.t()
+  @callback get_log_stream(shape_id(), integer(), non_neg_integer() | :infinity, compiled_opts()) ::
+              Enumerable.t()
   @doc "Check if log entry for given shape ID and offset exists"
   @callback has_log_entry?(shape_id(), integer(), compiled_opts()) :: boolean()
   @doc "Clean up snapshots/logs for a shape id"
@@ -84,9 +85,11 @@ defmodule Electric.ShapeCache.Storage do
     do: apply(mod, :append_to_log!, [shape_id, lsn, xid, changes, opts])
 
   @doc "Get stream of the log for a shape since a given offset"
-  @spec get_log_stream(shape_id(), integer(), storage()) :: Enumerable.t()
-  def get_log_stream(shape_id, offset, {mod, opts}),
-    do: apply(mod, :get_log_stream, [shape_id, offset, opts])
+  @spec get_log_stream(shape_id(), integer(), non_neg_integer() | :infinity, storage()) ::
+          Enumerable.t()
+  def get_log_stream(shape_id, offset, max_offset \\ :infinity, {mod, opts})
+      when max_offset == :infinity or max_offset >= offset,
+      do: apply(mod, :get_log_stream, [shape_id, offset, max_offset, opts])
 
   @doc "Get the most recent log offset available - 0 if only snapshot is available"
   @spec get_latest_log_offset(shape_id(), storage()) :: {:ok, non_neg_integer()} | :error
