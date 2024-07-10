@@ -73,7 +73,7 @@ jobs:
             docker compose -f dev/docker-compose.yml up nginx &
 
           wait-on: |
-            http://localhost:3000
+            http-get://localhost:3000
             http://localhost:3002
 
           tail: true
