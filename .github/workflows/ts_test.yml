@@ -16,6 +16,7 @@ jobs:
       postgres:
         image: postgres:14-alpine
         env:
+          POSTGRES_DB: electric
           POSTGRES_PASSWORD: password
         options: >-
           --health-cmd pg_isready
