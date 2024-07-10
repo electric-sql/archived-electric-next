@@ -62,8 +62,8 @@ jobs:
         name: Bootstrap System Under Test (SUT)
         with:
           run: |
-            docker compose -f dev/docker-compose.yml up nginx &
             mix run --no-halt &
+            docker compose -f dev/docker-compose.yml up nginx &
 
           wait-on: |
             http://localhost:3000
