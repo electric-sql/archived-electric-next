@@ -55,6 +55,18 @@ defmodule Electric.Plug.ServeShapePlugTest do
              }
     end
 
+    test "returns 400 for missing shape_id when offset != -1" do
+      conn =
+        conn(:get, %{"root_table" => "public.users"}, "?offset=0")
+        |> ServeShapePlug.call([])
+
+      assert conn.status == 400
+
+      assert Jason.decode!(conn.resp_body) == %{
+               "shape_id" => ["can't be blank when offset != -1"]
+             }
+    end
+
     test "returns snapshot when offset is -1" do
       Electric.ShapeCacheMock
       |> expect(:get_or_create_shape_id, fn @test_shape, _opts ->
@@ -121,7 +133,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
       |> expect(:has_log_entry?, fn @test_shape_id, 50, _ -> true end)
 
       conn =
-        conn(:get, %{"root_table" => "public.users"}, "?offset=50")
+        conn(:get, %{"root_table" => "public.users"}, "?offset=50&shape_id=#{@test_shape_id}")
         |> ServeShapePlug.call([])
 
       assert conn.status == 200
@@ -144,7 +156,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
       expect(MockStorage, :has_log_entry?, fn @test_shape_id, 50, _ -> true end)
 
       conn =
-        conn(:get, %{"root_table" => "public.users"}, "?offset=50")
+        conn(:get, %{"root_table" => "public.users"}, "?offset=50&shape_id=#{@test_shape_id}")
         |> put_req_header("if-none-match", ~s("#{@test_shape_id}:50:#{@test_offset}"))
         |> ServeShapePlug.call([])
 
@@ -164,7 +176,11 @@ defmodule Electric.Plug.ServeShapePlugTest do
 
       task =
         Task.async(fn ->
-          conn(:get, %{"root_table" => "public.users"}, "?offset=50&live=true")
+          conn(
+            :get,
+            %{"root_table" => "public.users"},
+            "?offset=50&shape_id=#{@test_shape_id}&live=true"
+          )
           |> ServeShapePlug.call([])
         end)
 
@@ -204,7 +220,11 @@ defmodule Electric.Plug.ServeShapePlugTest do
 
       task =
         Task.async(fn ->
-          conn(:get, %{"root_table" => "public.users"}, "?offset=50&live=true")
+          conn(
+            :get,
+            %{"root_table" => "public.users"},
+            "?offset=50&shape_id=#{@test_shape_id}&live=true"
+          )
           |> ServeShapePlug.call([])
         end)
 
@@ -234,7 +254,11 @@ defmodule Electric.Plug.ServeShapePlugTest do
       |> expect(:has_log_entry?, fn @test_shape_id, 50, _ -> true end)
 
       conn =
-        conn(:get, %{"root_table" => "public.users"}, "?offset=50&live=true")
+        conn(
+          :get,
+          %{"root_table" => "public.users"},
+          "?offset=50&shape_id=#{@test_shape_id}&live=true"
+        )
         |> put_in_config(:long_poll_timeout, 100)
         |> ServeShapePlug.call([])
 
@@ -259,7 +283,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
       |> expect(:has_log_entry?, fn @test_shape_id, 50, _ -> false end)
 
       conn =
-        conn(:get, %{"root_table" => "public.users"}, "?offset=50")
+        conn(:get, %{"root_table" => "public.users"}, "?offset=50&shape_id=#{@test_shape_id}")
         |> ServeShapePlug.call([])
 
       assert conn.status == 409

@@ -24,6 +24,7 @@ defmodule Electric.Plug.ServeShapePlug do
       )
       |> validate_number(:offset, greater_than_or_equal_to: -1)
       |> validate_required([:root_table, :offset])
+      |> validate_shape_id_with_offset()
       |> cast_root_table(opts)
       |> apply_action(:validate)
       |> case do
@@ -37,6 +38,20 @@ defmodule Electric.Plug.ServeShapePlug do
                opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
              end)
            end)}
+      end
+    end
+
+    def validate_shape_id_with_offset(%Ecto.Changeset{valid?: false} = changeset), do: changeset
+
+    def validate_shape_id_with_offset(%Ecto.Changeset{} = changeset) do
+      offset = fetch_change!(changeset, :offset)
+
+      case offset do
+        -1 ->
+          changeset
+
+        _ ->
+          validate_required(changeset, [:shape_id], message: "can't be blank when offset != -1")
       end
     end
 
