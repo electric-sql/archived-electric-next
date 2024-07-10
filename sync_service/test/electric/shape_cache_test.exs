@@ -406,7 +406,6 @@ defmodule Electric.ShapeCacheTest do
 
   describe "after restart" do
     setup :with_cub_db_storage
-
     setup(do: %{pool: :no_pool})
     setup :with_shape_cache
 
@@ -422,19 +421,30 @@ defmodule Electric.ShapeCacheTest do
       stop_shape_cache(context)
       # Wait 1 millisecond to ensure shape IDs are not generated the same
       Process.sleep(1)
+      with_cub_db_storage(context)
       with_shape_cache(context)
     end
 
-    defp stop_shape_cache(context) do
-      pid = Process.whereis(context.shape_cache_opts[:server])
-      Process.unlink(pid)
-      Process.monitor(pid)
-      Process.exit(pid, :kill)
+    defp stop_shape_cache(%{storage: {_, %{db: shape_db}}, shape_cache_opts: shape_cache_opts}) do
+      stop_processes([shape_db, shape_cache_opts[:server]])
+    end
 
-      receive do
-        {:DOWN, _, :process, ^pid, :killed} -> :process_killed
-      after
-        500 -> raise "ShapeCache not killed"
+    defp stop_processes(process_names) do
+      processes =
+        for name <- process_names do
+          pid = Process.whereis(name)
+          Process.unlink(pid)
+          Process.monitor(pid)
+          Process.exit(pid, :kill)
+          {pid, name}
+        end
+
+      for {pid, name} <- processes do
+        receive do
+          {:DOWN, _, :process, ^pid, :killed} -> :process_killed
+        after
+          500 -> raise "#{name} process not killed"
+        end
       end
     end
   end
