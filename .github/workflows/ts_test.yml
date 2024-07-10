@@ -46,7 +46,7 @@ jobs:
           key: ${{ runner.os }}-mix-${{ hashFiles('sync_service/**/mix.lock') }}
           restore-keys: ${{ runner.os }}-mix-
       - name: Restore compiled code
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             sync_service/_build/*/lib
@@ -55,6 +55,13 @@ jobs:
       - name: Install dependencies
         run: mix deps.get && mix deps.compile
         working-directory: sync_service
+      - name: Save compiled code
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            sync_service/_build/*/lib
+            !sync_service/_build/*/lib/electric
+          key: ${{ runner.os }}-build-dev-${{ hashFiles('sync_service/**/mix.lock') }}
       - name: Compiles without warnings
         run: mix compile --force --all-warnings --warnings-as-errors
         working-directory: sync_service
