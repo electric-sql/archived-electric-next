@@ -86,30 +86,24 @@ defmodule Electric.ShapeCache.InMemoryStorage do
   end
 
   def has_log_entry?(shape_id, offset, opts) do
-    case :ets.select(opts.log_ets_table, [{{{shape_id, offset}, :_, :_, :_, :_}, [], [true]}]) do
-      [] ->
-        case :ets.select(
-               opts.snapshot_ets_table,
-               [
-                 {{{shape_id, offset, :_}, :_}, [], [true]}
-               ],
-               1
-             ) do
+    case :ets.select(opts.log_ets_table, [{{{shape_id, offset}, :_, :_, :_, :_}, [], [true]}], 1) do
+      {[true], _} ->
+        true
+
+      _ ->
+        case :ets.select(opts.snapshot_ets_table, [{{{shape_id, offset, :_}, :_}, [], [true]}], 1) do
           {[true], _} -> true
           _ -> false
         end
-
-      [true] ->
-        true
     end
   end
 
-  @spec make_new_snapshot!(String.t(), Lsn.t(), Postgrex.Query.t(), Enumerable.t(), map()) :: :ok
-  def make_new_snapshot!(shape_id, snapshot_lsn, query_info, data_stream, opts) do
+  @spec make_new_snapshot!(String.t(), Postgrex.Query.t(), Enumerable.t(), map()) :: :ok
+  def make_new_snapshot!(shape_id, query_info, data_stream, opts) do
     ets_table = opts.snapshot_ets_table
 
     data_stream
-    |> Stream.map(&__MODULE__.row_to_snapshot_entry(&1, shape_id, snapshot_lsn, query_info))
+    |> Stream.map(&__MODULE__.row_to_snapshot_entry(&1, shape_id, 0, query_info))
     |> Stream.chunk_every(500)
     |> Stream.each(fn chunk -> :ets.insert(ets_table, chunk) end)
     |> Stream.run()
@@ -139,7 +133,7 @@ defmodule Electric.ShapeCache.InMemoryStorage do
   end
 
   @doc false
-  def row_to_snapshot_entry(row, shape_id, snapshot_lsn, %Postgrex.Query{
+  def row_to_snapshot_entry(row, shape_id, snapshot_offset, %Postgrex.Query{
         name: key_prefix,
         columns: columns,
         result_types: types
@@ -155,6 +149,6 @@ defmodule Electric.ShapeCache.InMemoryStorage do
     # FIXME: This should not assume pk columns, but we're not querying PG for that info yet
     pk = Map.fetch!(serialized_row, "id")
 
-    {{shape_id, Lsn.to_integer(snapshot_lsn), key_prefix <> "/" <> pk}, serialized_row}
+    {{shape_id, snapshot_offset, key_prefix <> "/" <> pk}, serialized_row}
   end
 end

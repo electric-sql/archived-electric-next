@@ -87,18 +87,13 @@ defmodule Electric.ShapeCache.CubDbStorage do
 
   def has_log_entry?(shape_id, offset, opts) do
     CubDB.has_key?(opts.db, log_key(shape_id, offset)) ||
-      CubDB.select(opts.db,
-        min_key: snapshot_start(shape_id),
-        max_key: snapshot_end(shape_id)
-      )
-      |> Stream.take(1)
-      |> Enum.any?()
+      CubDB.has_key?(opts.db, snapshot_key(shape_id, offset, 0))
   end
 
-  def make_new_snapshot!(shape_id, snapshot_lsn, query_info, data_stream, opts) do
+  def make_new_snapshot!(shape_id, query_info, data_stream, opts) do
     data_stream
     |> Stream.with_index()
-    |> Stream.map(&row_to_snapshot_item(&1, shape_id, snapshot_lsn, query_info))
+    |> Stream.map(&row_to_snapshot_item(&1, shape_id, 0, query_info))
     |> Stream.chunk_every(500)
     |> Stream.each(fn chunk -> CubDB.put_multi(opts.db, chunk) end)
     |> Stream.run()
@@ -125,21 +120,20 @@ defmodule Electric.ShapeCache.CubDbStorage do
     # and since @snapshot_key_type < @log_key_type this will
     # delete everything for the shape.
     CubDB.select(opts.db,
-      min_key: snapshot_key(shape_id, 0),
+      min_key: snapshot_start(shape_id),
       max_key: log_end(shape_id)
     )
     |> Enum.each(fn {key, _} -> CubDB.delete(opts.db, key) end)
   end
 
-  defp snapshot_key(shape_id, snapshot_lsn, index \\ nil) do
-    if index == nil do
-      {shape_id, @snapshot_key_type, snapshot_lsn}
-    else
-      {shape_id, @snapshot_key_type, snapshot_lsn, index}
-    end
+  defp snapshot_key(shape_id, offset, index) do
+    {shape_id, @snapshot_key_type, offset, index}
   end
 
   defp log_key(shape_id, offset) do
+    # keep 0 at the end of key for consistent keying of snapshots and logs,
+    # and retain ability to further split log entries
+    # in more chunks (e.g. large blobs)
     {shape_id, @log_key_type, offset, 0}
   end
 
@@ -158,7 +152,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
     snapshot_key(shape_id, :end, :end)
   end
 
-  defp row_to_snapshot_item({row, index}, shape_id, snapshot_lsn, %Postgrex.Query{
+  defp row_to_snapshot_item({row, index}, shape_id, snapshot_offset, %Postgrex.Query{
          name: change_key_prefix,
          columns: columns,
          result_types: types
@@ -175,7 +169,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
     pk = Map.fetch!(serialized_row, "id")
     change_key = "#{change_key_prefix}/#{pk}"
 
-    {snapshot_key(shape_id, Lsn.to_integer(snapshot_lsn), index),
+    {snapshot_key(shape_id, snapshot_offset, index),
      {_xid = nil, change_key, "insert", serialized_row}}
   end
 

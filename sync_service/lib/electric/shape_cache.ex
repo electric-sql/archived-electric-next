@@ -237,17 +237,13 @@ defmodule Electric.ShapeCache do
           []
         )
 
-        %{rows: [[xmin, snapshot_lsn]]} =
-          Postgrex.query!(
-            conn,
-            "SELECT pg_snapshot_xmin(pg_current_snapshot()), pg_current_wal_insert_lsn()",
-            []
-          )
+        %{rows: [[xmin]]} =
+          Postgrex.query!(conn, "SELECT pg_snapshot_xmin(pg_current_snapshot())", [])
 
         GenServer.cast(parent, {:snapshot_xmin_known, shape_id, shape, xmin})
         {query, stream} = Querying.stream_initial_data(conn, shape)
 
-        Storage.make_new_snapshot!(shape_id, snapshot_lsn, query, stream, storage)
+        Storage.make_new_snapshot!(shape_id, query, stream, storage)
       end)
 
     GenServer.cast(parent, {:snapshot_ready, shape_id})
