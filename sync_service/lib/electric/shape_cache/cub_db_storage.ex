@@ -51,8 +51,8 @@ defmodule Electric.ShapeCache.CubDbStorage do
       |> Enum.to_list()
 
     offset =
-      case Enum.at(results, 0) do
-        %{offset: offset} -> offset
+      case results do
+        [%{offset: offset} | _] -> offset
         _ -> 0
       end
 

@@ -290,7 +290,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
 
       assert Jason.decode!(conn.resp_body) == %{
                "message" =>
-                 "Specified shape ID and offset not found. Resync with latest shape ID.",
+                 "The shape associated with this shape_id and offset was not found. Resync to fetch the latest shape",
                "shape_id" => @test_shape_id,
                "offset" => -1
              }
@@ -314,7 +314,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
 
       assert Jason.decode!(conn.resp_body) == %{
                "message" =>
-                 "Specified shape ID and offset not found. Resync with latest shape ID.",
+                 "The shape associated with this shape_id and offset was not found. Resync to fetch the latest shape",
                "shape_id" => @test_shape_id,
                "offset" => -1
              }
