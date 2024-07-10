@@ -4,7 +4,6 @@ defmodule Electric.ShapeCacheTest do
   import Support.DbSetup
   import Support.DbStructureSetup
 
-  alias Electric.Replication.Changes
   alias Electric.ShapeCache.Storage
   alias Electric.ShapeCache
   alias Electric.Shapes.Shape
@@ -112,8 +111,7 @@ defmodule Electric.ShapeCacheTest do
                Enum.to_list(stream)
     end
 
-    @tag skip: true
-    test "returns correct latest offset when DB data streams in",
+    test "updates latest offset correctly",
          %{storage: storage, shape_cache_opts: opts} do
       shape = %Shape{root_table: {"public", "items"}}
       {shape_id, initial_offset} = ShapeCache.get_or_create_shape_id(shape, opts)
@@ -121,26 +119,19 @@ defmodule Electric.ShapeCacheTest do
       assert Storage.snapshot_exists?(shape_id, storage)
       assert {^shape_id, offset_after_snapshot} = ShapeCache.get_or_create_shape_id(shape, opts)
 
-      # Add a log entry to increase the offset
-      Storage.append_to_log!(
-        shape_id,
-        Lsn.from_integer(1000),
-        1,
-        [
-          %Changes.NewRecord{
-            relation: {"public", "test_table"},
-            record: %{"id" => "123", "name" => "Test A"}
-          }
-        ],
-        storage
-      )
+      expected_offset_after_log_entry = 1000
+      :ok = ShapeCache.update_shape_latest_offset(shape_id, expected_offset_after_log_entry, opts)
 
       assert {^shape_id, offset_after_log_entry} = ShapeCache.get_or_create_shape_id(shape, opts)
 
       assert initial_offset == 0
       assert initial_offset == offset_after_snapshot
       assert offset_after_log_entry > offset_after_snapshot
-      assert offset_after_log_entry == 1000
+      assert offset_after_log_entry == expected_offset_after_log_entry
+    end
+
+    test "fails to update latest offset if shape doesn't exist", %{shape_cache_opts: opts} do
+      assert {:error, _} = ShapeCache.update_shape_latest_offset("foo", 10, opts)
     end
 
     test "correctly propagates the error", %{shape_cache_opts: opts} do

@@ -114,7 +114,7 @@ defmodule Electric.ShapeCache do
 
   def init(opts) do
     shape_meta_table =
-      :ets.new(opts.shape_meta_table, [:named_table, :protected, :ordered_set])
+      :ets.new(opts.shape_meta_table, [:named_table, :public, :ordered_set])
 
     # TODO: when Electric restarts, we're not re-filling neither xmins nor shape meta tables
     #       from persisted storage if one exists, which means persistance doesn't carry over
