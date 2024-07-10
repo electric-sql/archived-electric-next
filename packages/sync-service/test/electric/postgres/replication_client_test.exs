@@ -13,26 +13,23 @@ defmodule Electric.Postgres.ReplicationClientTest do
 
   @moduletag :capture_log
   @publication_name "test_electric_publication"
+  @slot_name "test_electric_slot"
 
   describe "ReplicationClient init" do
     setup {Support.DbSetup, :with_unique_db}
     setup {Support.DbStructureSetup, :with_basic_tables}
 
-    setup do
-      %{
-        replication_opts: [
-          publication_name: @publication_name,
-          transaction_received: {__MODULE__, :test_transaction_received, [self()]}
-        ]
-      }
-    end
-
     test "creates an empty publication on startup if requested", %{
       db_config: config,
-      replication_opts: replication_opts,
       db_conn: conn
     } do
-      replication_opts = Keyword.put(replication_opts, :try_creating_publication?, true)
+      replication_opts = [
+        publication_name: @publication_name,
+        try_creating_publication?: true,
+        slot_name: @slot_name,
+        transaction_received: nil
+      ]
+
       assert {:ok, _} = ReplicationClient.start_link(config, replication_opts)
 
       assert %{rows: [[@publication_name]]} =
@@ -236,13 +233,33 @@ defmodule Electric.Postgres.ReplicationClientTest do
     end
   end
 
-  test "replication client correctly responds to a status update request message from PG" do
-    lsn = Lsn.from_string("0/10")
+  test "correctly responds to a status update request message from PG" do
+    pg_wal = lsn_to_wal("0/10")
 
-    assert {:noreply, [<<?r, wal::64, wal::64, wal::64, _time::64, 0::8>>], nil} =
-             ReplicationClient.handle_data(<<?k, Lsn.to_integer(lsn)::64, 0::64, 1::8>>, nil)
+    state =
+      ReplicationClient.State.new(
+        transaction_received: nil,
+        publication_name: "",
+        try_creating_publication?: false,
+        slot_name: ""
+      )
 
-    assert Lsn.from_integer(wal) == Lsn.from_string("0/11")
+    # Received WAL is PG WAL while "applied" and "flushed" WAL are still at zero based on the `state`.
+    assert {:noreply, [<<?r, wal::64, 0::64, 0::64, _time::64, 0::8>>], state} =
+             ReplicationClient.handle_data(<<?k, pg_wal::64, 0::64, 1::8>>, state)
+
+    assert wal == pg_wal
+
+    ###
+
+    state = %{state | applied_wal: lsn_to_wal("0/10")}
+    pg_wal = lsn_to_wal("1/20")
+
+    assert {:noreply, [<<?r, wal::64, app_wal::64, app_wal::64, _time::64, 0::8>>], state} =
+             ReplicationClient.handle_data(<<?k, pg_wal::64, 0::64, 1::8>>, state)
+
+    assert wal == pg_wal
+    assert app_wal == state.applied_wal
   end
 
   defp setup_publication_and_replication_opts(%{db_conn: conn}) do
@@ -251,8 +268,9 @@ defmodule Electric.Postgres.ReplicationClientTest do
     %{
       replication_opts: [
         publication_name: @publication_name,
-        transaction_received: {__MODULE__, :test_transaction_received, [self()]},
-        try_creating_publication?: false
+        try_creating_publication?: false,
+        slot_name: @slot_name,
+        transaction_received: {__MODULE__, :test_transaction_received, [self()]}
       ]
     }
   end
@@ -268,4 +286,7 @@ defmodule Electric.Postgres.ReplicationClientTest do
     |> Enum.take(length)
     |> List.to_string()
   end
+
+  defp lsn_to_wal(lsn_str) when is_binary(lsn_str),
+    do: lsn_str |> Lsn.from_string() |> Lsn.to_integer()
 end
