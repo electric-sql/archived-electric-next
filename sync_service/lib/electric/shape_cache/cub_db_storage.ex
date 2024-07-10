@@ -50,13 +50,8 @@ defmodule Electric.ShapeCache.CubDbStorage do
       |> Stream.map(&storage_item_to_log_item/1)
       |> Enum.to_list()
 
-    offset =
-      case results do
-        [%{offset: offset} | _] -> offset
-        _ -> 0
-      end
-
-    {offset, results}
+    # FIXME: this is naive while we don't have snapshot metadata to get real offset
+    {0, results}
   end
 
   def get_log_stream(shape_id, offset, max_offset, opts) do
@@ -72,14 +67,15 @@ defmodule Electric.ShapeCache.CubDbStorage do
   end
 
   def has_log_entry?(shape_id, offset, opts) do
-    CubDB.has_key?(opts.db, log_key(shape_id, offset)) ||
-      CubDB.has_key?(opts.db, snapshot_key(shape_id, offset, 0))
+    # FIXME: this is naive while we don't have snapshot metadata to get real offsets
+    CubDB.has_key?(opts.db, log_key(shape_id, offset)) or
+      (snapshot_exists?(shape_id, opts) and offset == 0)
   end
 
   def make_new_snapshot!(shape_id, query_info, data_stream, opts) do
     data_stream
     |> Stream.with_index()
-    |> Stream.map(&row_to_snapshot_item(&1, shape_id, 0, query_info))
+    |> Stream.map(&row_to_snapshot_item(&1, shape_id, query_info))
     |> Stream.chunk_every(500)
     |> Stream.each(fn chunk -> CubDB.put_multi(opts.db, chunk) end)
     |> Stream.run()
@@ -112,33 +108,31 @@ defmodule Electric.ShapeCache.CubDbStorage do
     |> Enum.each(fn {key, _} -> CubDB.delete(opts.db, key) end)
   end
 
-  defp snapshot_key(shape_id, offset, index) do
-    {shape_id, @snapshot_key_type, offset, index}
+  defp snapshot_key(shape_id, index) do
+    {shape_id, @snapshot_key_type, index}
   end
 
   defp log_key(shape_id, offset) do
-    # keep 0 at the end of key for consistent keying of snapshots and logs,
-    # and retain ability to further split log entries
-    # in more chunks (e.g. large blobs)
-    {shape_id, @log_key_type, offset, 0}
+    {shape_id, @log_key_type, offset}
   end
 
-  defp offset({_shape_id, @snapshot_key_type, offset, _index}), do: offset
-  defp offset({_shape_id, @log_key_type, offset, _index}), do: offset
+  # FIXME: this is naive while we don't have snapshot metadata to get real offsets
+  defp offset({_shape_id, @snapshot_key_type, _index}), do: 0
+  defp offset({_shape_id, @log_key_type, offset}), do: offset
 
   defp log_end(shape_id) do
     log_key(shape_id, :end)
   end
 
   defp snapshot_start(shape_id) do
-    snapshot_key(shape_id, 0, 0)
+    snapshot_key(shape_id, 0)
   end
 
   defp snapshot_end(shape_id) do
-    snapshot_key(shape_id, :end, :end)
+    snapshot_key(shape_id, :end)
   end
 
-  defp row_to_snapshot_item({row, index}, shape_id, snapshot_offset, %Postgrex.Query{
+  defp row_to_snapshot_item({row, index}, shape_id, %Postgrex.Query{
          name: change_key_prefix,
          columns: columns,
          result_types: types
@@ -155,8 +149,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
     pk = Map.fetch!(serialized_row, "id")
     change_key = "#{change_key_prefix}/#{pk}"
 
-    {snapshot_key(shape_id, snapshot_offset, index),
-     {_xid = nil, change_key, "insert", serialized_row}}
+    {snapshot_key(shape_id, index), {_xid = nil, change_key, "insert", serialized_row}}
   end
 
   defp storage_item_to_log_item({key, {xid, change_key, action, value}}) do
