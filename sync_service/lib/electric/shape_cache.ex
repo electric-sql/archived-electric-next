@@ -65,6 +65,7 @@ defmodule Electric.ShapeCache do
 
   def get_or_create_shape_id(shape, opts \\ []) do
     table = Access.get(opts, :shape_meta_table, @default_shape_meta_table)
+
     server = Access.get(opts, :server, __MODULE__)
 
     # Get or create the shape ID and fire a snapshot if necessary

@@ -403,4 +403,39 @@ defmodule Electric.ShapeCacheTest do
       assert shape_id != shape_id2
     end
   end
+
+  describe "after restart" do
+    setup :with_cub_db_storage
+
+    setup(do: %{pool: :no_pool})
+    setup :with_shape_cache
+
+    test "returns existing shape_id", %{shape_cache_opts: opts} = context do
+      shape = %Shape{root_table: {"public", "items"}}
+      {shape_id1, 0} = ShapeCache.get_or_create_shape_id(shape, opts)
+      restart_shape_cache(context)
+      {shape_id2, 0} = ShapeCache.get_or_create_shape_id(shape, opts)
+      assert shape_id1 == shape_id2
+    end
+
+    defp restart_shape_cache(context) do
+      stop_shape_cache(context)
+      # Wait 1 millisecond to ensure shape IDs are not generated the same
+      Process.sleep(1)
+      with_shape_cache(context)
+    end
+
+    defp stop_shape_cache(context) do
+      pid = Process.whereis(context.shape_cache_opts[:server])
+      Process.unlink(pid)
+      Process.monitor(pid)
+      Process.exit(pid, :kill)
+
+      receive do
+        {:DOWN, _, :process, ^pid, :killed} -> :process_killed
+      after
+        500 -> raise "ShapeCache not killed"
+      end
+    end
+  end
 end
