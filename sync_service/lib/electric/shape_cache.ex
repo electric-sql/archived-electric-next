@@ -81,7 +81,8 @@ defmodule Electric.ShapeCache do
        }) do
       :ok
     else
-      {:error, "Unknown shape ID: #{shape_id}"}
+      Logger.warning("Tried to update latest offset #{shape_id} when it doesn't exist")
+      :error
     end
   end
 

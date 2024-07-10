@@ -131,7 +131,7 @@ defmodule Electric.ShapeCacheTest do
     end
 
     test "fails to update latest offset if shape doesn't exist", %{shape_cache_opts: opts} do
-      assert {:error, _} = ShapeCache.update_shape_latest_offset("foo", 10, opts)
+      assert :error = ShapeCache.update_shape_latest_offset("foo", 10, opts)
     end
 
     test "correctly propagates the error", %{shape_cache_opts: opts} do
