@@ -143,7 +143,7 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
 
         :ok = storage.append_to_log!(@shape_id, lsn, xid, changes, opts)
 
-        stream = storage.get_log_stream(@shape_id, 0, opts)
+        stream = storage.get_log_stream(@shape_id, 0, :infinity, opts)
         [entry] = Enum.to_list(stream)
 
         assert entry.key == ~S|"public"."test_table"/123|
@@ -153,7 +153,7 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
       end
     end
 
-    describe "#{module_name}.get_log_stream/3-4" do
+    describe "#{module_name}.get_log_stream/4" do
       setup do
         {:ok, %{module: unquote(module)}}
       end
@@ -188,7 +188,7 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
         :ok = storage.append_to_log!(shape_id, lsn1, xid, changes1, opts)
         :ok = storage.append_to_log!(shape_id, lsn2, xid, changes2, opts)
 
-        stream = storage.get_log_stream(shape_id, 0, opts)
+        stream = storage.get_log_stream(shape_id, 0, :infinity, opts)
         entries = Enum.to_list(stream)
 
         assert [
@@ -225,13 +225,49 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
         :ok = storage.append_to_log!(@shape_id, lsn1, xid, changes1, opts)
         :ok = storage.append_to_log!(@shape_id, lsn2, xid, changes2, opts)
 
-        stream = storage.get_log_stream(@shape_id, 1000, opts)
+        stream = storage.get_log_stream(@shape_id, 1000, :infinity, opts)
         entries = Enum.to_list(stream)
 
         assert [
                  %{headers: %{action: "update"}},
                  %{headers: %{action: "delete"}}
                ] = entries
+      end
+
+      test "returns stream of changes after offset and before max_offset (inclusive)", %{
+        module: storage,
+        opts: opts
+      } do
+        lsn1 = Lsn.from_integer(1000)
+        lsn2 = Lsn.from_integer(2000)
+        xid = 1
+
+        changes1 = [
+          %Changes.NewRecord{
+            relation: {"public", "test_table"},
+            record: %{"id" => "123", "name" => "Test1"}
+          }
+        ]
+
+        changes2 = [
+          %Changes.UpdatedRecord{
+            relation: {"public", "test_table"},
+            old_record: %{"id" => "123", "name" => "Test1"},
+            record: %{"id" => "123", "name" => "Test2"}
+          },
+          %Changes.DeletedRecord{
+            relation: {"public", "test_table"},
+            old_record: %{"id" => "123", "name" => "Test1"}
+          }
+        ]
+
+        :ok = storage.append_to_log!(@shape_id, lsn1, xid, changes1, opts)
+        :ok = storage.append_to_log!(@shape_id, lsn2, xid, changes2, opts)
+
+        stream = storage.get_log_stream(@shape_id, 1000, 2000, opts)
+        entries = Enum.to_list(stream)
+
+        assert [%{headers: %{action: "update"}}] = entries
       end
 
       test "returns only logs for the requested shape_id", %{module: storage, opts: opts} do
@@ -259,7 +295,7 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
         :ok = storage.append_to_log!(shape_id2, lsn2, xid, changes2, opts)
 
         assert [%{value: %{"name" => "Test A"}}] =
-                 storage.get_log_stream(shape_id1, 0, opts) |> Enum.to_list()
+                 storage.get_log_stream(shape_id1, 0, :infinity, opts) |> Enum.to_list()
       end
     end
 
@@ -294,7 +330,7 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
         assert {0, _} = storage.get_snapshot(@shape_id, opts)
       end
 
-      test "causes get_log_stream/2 to return empty stream", %{module: storage, opts: opts} do
+      test "causes get_log_stream/4 to return empty stream", %{module: storage, opts: opts} do
         lsn = Lsn.from_integer(1000)
         xid = 1
 
@@ -309,7 +345,7 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
 
         storage.cleanup!(@shape_id, opts)
 
-        assert storage.get_log_stream(@shape_id, 0, opts) |> Enum.to_list() == []
+        assert storage.get_log_stream(@shape_id, 0, :infinity, opts) |> Enum.to_list() == []
       end
     end
 

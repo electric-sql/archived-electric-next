@@ -59,14 +59,16 @@ defmodule Electric.ShapeCache.CubDbStorage do
     {offset, results}
   end
 
-  def get_log_stream(shape_id, offset, size \\ :infinity, opts) do
+  def get_log_stream(shape_id, offset, max_offset, opts) do
+    max_key =
+      if max_offset == :infinity, do: log_end(shape_id), else: log_key(shape_id, max_offset)
+
     opts.db
     |> CubDB.select(
       min_key: log_key(shape_id, offset + 1),
-      max_key: log_end(shape_id)
+      max_key: max_key
     )
     |> Stream.map(&storage_item_to_log_item/1)
-    |> limit_stream(size)
   end
 
   def get_latest_log_offset(shape_id, opts) do
@@ -179,7 +181,4 @@ defmodule Electric.ShapeCache.CubDbStorage do
 
   defp headers(action, nil = _xid), do: %{action: action}
   defp headers(action, xid), do: %{action: action, txid: xid}
-
-  defp limit_stream(stream, :infinity), do: stream
-  defp limit_stream(stream, size), do: Stream.take(stream, size)
 end

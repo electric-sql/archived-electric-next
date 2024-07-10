@@ -47,25 +47,22 @@ defmodule Electric.ShapeCache.InMemoryStorage do
     {offset, results}
   end
 
-  def get_log_stream(shape_id, offset, size \\ :infinity, opts) do
-    Stream.unfold({offset, size}, fn
-      {_, 0} ->
-        nil
+  def get_log_stream(shape_id, offset, max_offset, opts) do
+    Stream.unfold(offset, fn offset ->
+      case :ets.next_lookup(opts.log_ets_table, {shape_id, offset}) do
+        :"$end_of_table" ->
+          nil
 
-      {offset, size} ->
-        new_size = if size != :infinity, do: size - 1, else: :infinity
+        {{other_shape_id, _}, _} when other_shape_id != shape_id ->
+          nil
 
-        case :ets.next_lookup(opts.log_ets_table, {shape_id, offset}) do
-          :"$end_of_table" ->
-            nil
+        {{^shape_id, position}, _} when position > max_offset ->
+          nil
 
-          {{other_shape_id, _}, _} when other_shape_id != shape_id ->
-            nil
-
-          {{^shape_id, position}, [{_, xid, key, action, value}]} ->
-            {%{key: key, value: value, headers: %{action: action, txid: xid}, offset: position},
-             {position, new_size}}
-        end
+        {{^shape_id, position}, [{_, xid, key, action, value}]} ->
+          {%{key: key, value: value, headers: %{action: action, txid: xid}, offset: position},
+           position}
+      end
     end)
   end
 
