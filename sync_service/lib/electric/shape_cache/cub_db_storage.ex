@@ -37,7 +37,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
       %{
         shape_id: shape_id,
         shape: shape,
-        latest_offset: 0,
+        latest_offset: latest_offset(shape_id, opts),
         snapshot_xmin: snapshot_xmin(shape_id, opts)
       }
     end)
@@ -54,6 +54,23 @@ defmodule Electric.ShapeCache.CubDbStorage do
   defp snapshot_xmin(shape_id, opts) do
     # TODO what if it doesn't exist?
     CubDB.get(opts.db, {:snapshot_xmin, shape_id})
+  end
+
+  defp latest_offset(shape_id, opts) do
+    case CubDB.select(opts.db,
+           # TODO: Should this include the snapshot?
+           min_key: snapshot_start(shape_id),
+           max_key: log_end(shape_id),
+           reverse: true
+         )
+         |> Enum.take(1) do
+      [{key, _}] ->
+        offset(key)
+
+      _ ->
+        # TODO: what do we do here!
+        0
+    end
   end
 
   @spec snapshot_exists?(any(), any()) :: false
