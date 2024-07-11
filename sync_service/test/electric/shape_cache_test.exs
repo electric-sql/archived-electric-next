@@ -10,6 +10,7 @@ defmodule Electric.ShapeCacheTest do
   alias Electric.Shapes.Shape
   alias Electric.Postgres.Lsn
   alias Electric.Replication.Changes
+  alias Electric.Postgres.LogOffset
 
   @basic_query_meta %Postgrex.Query{columns: ["id"], result_types: [:text], name: "key_prefix"}
   @changes [
@@ -107,7 +108,8 @@ defmodule Electric.ShapeCacheTest do
       {shape_id, _} = ShapeCache.get_or_create_shape_id(shape, opts)
       assert :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id)
       assert Storage.snapshot_exists?(shape_id, storage)
-      assert {0, stream} = Storage.get_snapshot(shape_id, storage)
+      first_offset = LogOffset.first()
+      assert {^first_offset, stream} = Storage.get_snapshot(shape_id, storage)
 
       assert [%{value: %{"value" => "test1"}}, %{value: %{"value" => "test2"}}] =
                Enum.to_list(stream)
@@ -337,7 +339,6 @@ defmodule Electric.ShapeCacheTest do
 
       Storage.append_to_log!(
         shape_id,
-        Lsn.from_integer(1000),
         1,
         [
           %Electric.Replication.Changes.NewRecord{
@@ -385,7 +386,6 @@ defmodule Electric.ShapeCacheTest do
 
       Storage.append_to_log!(
         shape_id,
-        Lsn.from_integer(1000),
         1,
         [
           %Electric.Replication.Changes.NewRecord{

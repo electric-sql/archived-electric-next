@@ -173,6 +173,11 @@ defmodule Electric.Replication.Changes do
   def get_action(%UpdatedRecord{}), do: "update"
   def get_action(%DeletedRecord{}), do: "delete"
 
+  def get_log_offset(%NewRecord{log_offset: offset}), do: offset
+  def get_log_offset(%UpdatedRecord{log_offset: offset}), do: offset
+  def get_log_offset(%DeletedRecord{log_offset: offset}), do: offset
+  def get_log_offset(%TruncatedRelation{log_offset: offset}), do: offset
+
   def convert_update(%UpdatedRecord{} = change, to: :new_record) do
     %NewRecord{relation: change.relation, record: change.record}
   end

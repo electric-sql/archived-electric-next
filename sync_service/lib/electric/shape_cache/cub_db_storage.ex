@@ -1,6 +1,6 @@
 defmodule Electric.ShapeCache.CubDbStorage do
+  alias Electric.Postgres.LogOffset
   alias Electric.Replication.Changes
-  alias Electric.Postgres.Lsn
   alias Electric.Utils
   @behaviour Electric.ShapeCache.Storage
 
@@ -92,7 +92,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
       |> Enum.to_list()
 
     # FIXME: this is naive while we don't have snapshot metadata to get real offset
-    {0, results}
+    {LogOffset.first(), results}
   end
 
   def get_log_stream(shape_id, offset, max_offset, opts) do
@@ -111,7 +111,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
   def has_log_entry?(shape_id, offset, opts) do
     # FIXME: this is naive while we don't have snapshot metadata to get real offsets
     CubDB.has_key?(opts.db, log_key(shape_id, offset)) or
-      (snapshot_exists?(shape_id, opts) and offset == 0)
+      (snapshot_exists?(shape_id, opts) and offset == LogOffset.first())
   end
 
   def make_new_snapshot!(shape_id, query_info, data_stream, opts) do
@@ -125,16 +125,15 @@ defmodule Electric.ShapeCache.CubDbStorage do
     CubDB.put(opts.db, snapshot_meta_key(shape_id), 0)
   end
 
-  def append_to_log!(shape_id, lsn, xid, changes, opts) do
-    base_offset = Lsn.to_integer(lsn)
-
+  def append_to_log!(shape_id, xid, changes, opts) do
     changes
-    |> Enum.with_index(fn
-      %{relation: _} = change, index ->
+    |> Enum.map(fn
+      %{relation: _} = change ->
         change_key = Changes.build_key(change)
         value = Changes.to_json_value(change)
         action = Changes.get_action(change)
-        {log_key(shape_id, base_offset + index), {xid, change_key, action, value}}
+        offset = Changes.get_log_offset(change)
+        {log_key(shape_id, offset), {xid, change_key, action, value}}
     end)
     |> then(&CubDB.put_multi(opts.db, &1))
 
@@ -181,11 +180,11 @@ defmodule Electric.ShapeCache.CubDbStorage do
   defp shapes_end, do: shape_key("zzz-end")
 
   # FIXME: this is naive while we don't have snapshot metadata to get real offsets
-  defp offset({_shape_id, @snapshot_key_type, _index}), do: 0
+  defp offset({_shape_id, @snapshot_key_type, _index}), do: LogOffset.first()
   defp offset({_shape_id, @log_key_type, offset}), do: offset
 
-  defp log_start(shape_id), do: log_key(shape_id, 0)
-  defp log_end(shape_id), do: log_key(shape_id, :end)
+  defp log_start(shape_id), do: log_key(shape_id, LogOffset.first())
+  defp log_end(shape_id), do: log_key(shape_id, LogOffset.last())
 
   defp snapshot_start(shape_id), do: snapshot_key(shape_id, 0)
   defp snapshot_end(shape_id), do: snapshot_key(shape_id, :end)

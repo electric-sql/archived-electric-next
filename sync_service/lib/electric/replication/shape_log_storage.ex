@@ -61,7 +61,9 @@ defmodule Electric.Replication.ShapeLogStorage do
         relevant_changes != [] ->
           # TODO: what's a graceful way to handle failure to append to log?
           #       Right now we'll just fail everything
-          shape_cache.append_to_log!(shape_id, lsn, xid, relevant_changes, opts)
+          :ok = Storage.append_to_log!(shape_id, xid, relevant_changes, state.storage)
+
+          shape_cache.update_shape_latest_offset(shape_id, Lsn.to_integer(lsn), opts)
 
           notify_listeners(state.registry, :new_changes, shape_id, lsn)
 

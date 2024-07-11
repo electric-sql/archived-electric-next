@@ -1,6 +1,6 @@
 defmodule Electric.ShapeCache.InMemoryStorage do
+  alias Electric.Postgres.LogOffset
   alias Electric.Replication.Changes
-  alias Electric.Postgres.Lsn
   alias Electric.Utils
   use Agent
 
@@ -38,15 +38,15 @@ defmodule Electric.ShapeCache.InMemoryStorage do
   end
 
   def get_snapshot(shape_id, opts) do
-    offset = 0
+    offset = LogOffset.first()
 
     results =
       :ets.select(opts.snapshot_ets_table, [
         {{{:data, shape_id, :"$1"}, :"$2"}, [],
-         [%{key: :"$1", value: :"$2", headers: %{action: "insert"}, offset: offset}]}
+         [%{key: :"$1", value: :"$2", headers: %{action: "insert"}, offset: {:const, offset}}]}
       ])
 
-    {0, results}
+    {offset, results}
   end
 
   def get_log_stream(shape_id, offset, max_offset, opts) do
@@ -72,7 +72,7 @@ defmodule Electric.ShapeCache.InMemoryStorage do
     case :ets.select(opts.log_ets_table, [{{{shape_id, offset}, :_, :_, :_, :_}, [], [true]}]) do
       [true] -> true
       # FIXME: this is naive while we don't have snapshot metadata to get real offset
-      [] -> snapshot_exists?(shape_id, opts) and offset == 0
+      [] -> snapshot_exists?(shape_id, opts) and offset == LogOffset.first()
     end
   end
 
@@ -90,17 +90,17 @@ defmodule Electric.ShapeCache.InMemoryStorage do
     :ok
   end
 
-  def append_to_log!(shape_id, lsn, xid, changes, opts) do
-    base_offset = Lsn.to_integer(lsn)
+  def append_to_log!(shape_id, xid, changes, opts) do
     ets_table = opts.log_ets_table
 
     changes
-    |> Enum.with_index(fn
-      %{relation: _} = change, index ->
+    |> Enum.map(fn
+      %{relation: _} = change ->
         key = Changes.build_key(change)
         value = Changes.to_json_value(change)
         action = Changes.get_action(change)
-        {{shape_id, base_offset + index}, xid, key, action, value}
+        offset = Changes.get_log_offset(change)
+        {{shape_id, offset}, xid, key, action, value}
     end)
     |> then(&:ets.insert(ets_table, &1))
 

@@ -19,6 +19,18 @@ defmodule Electric.Postgres.LogOffset do
   end
 
   @doc """
+  The first possible offset in the log.
+  """
+  @spec first() :: t
+  def first(), do: {0, 0}
+
+  @doc """
+  The last possible offset in the log.
+  """
+  @spec last() :: t
+  def last(), do: {0xFFFFFFFFFFFFFFFF, :infinity}
+
+  @doc """
   ## Examples
 
       iex> tx_offset(make(Lsn.from_integer(10), 0))
@@ -33,4 +45,17 @@ defmodule Electric.Postgres.LogOffset do
       5
   """
   def op_offset({_, op_offset}), do: op_offset
+
+  @doc """
+  Increments the offset of the change inside the transaction.
+
+  ## Examples
+
+      iex> increment(make(Lsn.from_integer(10), 5))
+      {10, 6}
+
+      iex> make(Lsn.from_integer(10), 5) |> increment > make(Lsn.from_integer(10), 5)
+      true
+  """
+  def increment({tx_offset, op_offset}), do: {tx_offset, op_offset + 1}
 end
