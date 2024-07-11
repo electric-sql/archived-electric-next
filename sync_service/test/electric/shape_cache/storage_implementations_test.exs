@@ -6,6 +6,8 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
   alias Electric.Shapes.Shape
   alias Electric.Utils
   use ExUnit.Case, async: true
+  @moduletag :tmp_dir
+
   @shape_id "the-shape-id"
   @snapshot_offset 0
   @query_info %Postgrex.Query{
@@ -487,34 +489,24 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
     end
   end
 
-  defp start_storage(%{module: module}) do
-    {:ok, opts} = module |> opts() |> module.shared_opts()
+  defp start_storage(%{module: module} = context) do
+    {:ok, opts} = module |> opts(context) |> module.shared_opts()
     {:ok, _} = module.start_link(opts)
-
-    on_exit(fn ->
-      teardown(module, opts)
-    end)
 
     {:ok, %{module: module, opts: opts}}
   end
 
-  defp opts(InMemoryStorage) do
+  defp opts(InMemoryStorage, _context) do
     [
       snapshot_ets_table: String.to_atom("snapshot_ets_table_#{Utils.uuid4()}"),
       log_ets_table: String.to_atom("log_ets_table_#{Utils.uuid4()}")
     ]
   end
 
-  defp opts(CubDbStorage) do
+  defp opts(CubDbStorage, %{tmp_dir: tmp_dir}) do
     [
       db: String.to_atom("shape_cubdb_#{Utils.uuid4()}"),
-      file_path: "./test/db"
+      file_path: tmp_dir
     ]
-  end
-
-  defp teardown(InMemoryStorage, _opts), do: :ok
-
-  defp teardown(CubDbStorage, opts) do
-    File.rm_rf!(opts.file_path)
   end
 end
