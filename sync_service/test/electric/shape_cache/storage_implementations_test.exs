@@ -407,6 +407,12 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
 
     describe "#{module_name}.shapes/1" do
       @shape %Shape{root_table: {"public", "items"}}
+      @changes [
+        %Changes.NewRecord{
+          relation: {"public", "test_table"},
+          record: %{"id" => "123", "name" => "Test"}
+        }
+      ]
 
       setup do
         {:ok, %{module: unquote(module)}}
@@ -420,6 +426,38 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
         storage.add_shape("shape-3", @shape, opts)
 
         assert [%{shape_id: "shape-1"}, %{shape_id: "shape-2"}, %{shape_id: "shape-3"}] =
+                 storage.shapes(opts) |> Enum.to_list()
+      end
+
+      test "returns shapes with it's snapshot xmin", %{module: storage, opts: opts} do
+        storage.add_shape("shape-1", @shape, opts)
+        storage.add_shape("shape-2", @shape, opts)
+        storage.set_snapshot_xmin("shape-1", 11, opts)
+        storage.set_snapshot_xmin("shape-2", 22, opts)
+
+        assert [
+                 %{shape_id: "shape-1", snapshot_xmin: 11},
+                 %{shape_id: "shape-2", snapshot_xmin: 22}
+               ] =
+                 storage.shapes(opts) |> Enum.to_list()
+      end
+
+      test "returns nil snapshot_xmin if it's not been set", %{module: storage, opts: opts} do
+        storage.add_shape(@shape_id, @shape, opts)
+
+        assert [%{snapshot_xmin: nil}] = storage.shapes(opts) |> Enum.to_list()
+      end
+
+      test "returns shapes with it's latest offset", %{module: storage, opts: opts} do
+        storage.add_shape("shape-1", @shape, opts)
+        storage.add_shape("shape-2", @shape, opts)
+        storage.append_to_log!("shape-1", Lsn.from_integer(11), 0, @changes, opts)
+        storage.append_to_log!("shape-2", Lsn.from_integer(22), 0, @changes, opts)
+
+        assert [
+                 %{shape_id: "shape-1", latest_offset: 11},
+                 %{shape_id: "shape-2", latest_offset: 22}
+               ] =
                  storage.shapes(opts) |> Enum.to_list()
       end
 
