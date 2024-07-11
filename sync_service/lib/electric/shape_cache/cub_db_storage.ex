@@ -6,8 +6,6 @@ defmodule Electric.ShapeCache.CubDbStorage do
 
   @snapshot_key_type 0
   @log_key_type 1
-  @shapes_start {:shapes, 0}
-  @shapes_end {:shapes, "end"}
 
   def shared_opts(opts) do
     file_path = Access.get(opts, :file_path, "./shapes")
@@ -32,7 +30,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
 
   def shapes(opts) do
     opts.db
-    |> CubDB.select(min_key: @shapes_start, max_key: @shapes_end)
+    |> CubDB.select(min_key: shapes_start(), max_key: shapes_end())
     |> Stream.map(fn {{:shapes, shape_id}, shape} ->
       %{
         shape_id: shape_id,
@@ -44,7 +42,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
   end
 
   def add_shape(shape_id, shape, opts) do
-    CubDB.put(opts.db, {:shapes, shape_id}, shape)
+    CubDB.put(opts.db, shape_key(shape_id), shape)
   end
 
   def set_snapshot_xmin(shape_id, xmin, opts) do
@@ -136,11 +134,12 @@ defmodule Electric.ShapeCache.CubDbStorage do
   end
 
   def cleanup!(shape_id, opts) do
+    CubDB.delete(opts.db, snapshot_meta_key(shape_id))
+    CubDB.delete(opts.db, shape_key(shape_id))
+
     # Deletes from the snapshot start to the log end
     # and since @snapshot_key_type < @log_key_type this will
     # delete everything for the shape.
-    CubDB.delete(opts.db, snapshot_meta_key(shape_id))
-
     CubDB.select(opts.db,
       min_key: snapshot_start(shape_id),
       max_key: log_end(shape_id)
@@ -161,6 +160,13 @@ defmodule Electric.ShapeCache.CubDbStorage do
   defp log_key(shape_id, offset) do
     {shape_id, @log_key_type, offset}
   end
+
+  defp shape_key(shape_id) do
+    {:shapes, shape_id}
+  end
+
+  defp shapes_start, do: shape_key(0)
+  defp shapes_end, do: shape_key("zzz-end")
 
   # FIXME: this is naive while we don't have snapshot metadata to get real offsets
   defp offset({_shape_id, @snapshot_key_type, _index}), do: 0

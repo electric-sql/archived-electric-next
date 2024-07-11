@@ -3,6 +3,7 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
   alias Electric.Replication.Changes
   alias Electric.ShapeCache.CubDbStorage
   alias Electric.ShapeCache.InMemoryStorage
+  alias Electric.Shapes.Shape
   alias Electric.Utils
   use ExUnit.Case, async: true
   @shape_id "the-shape-id"
@@ -396,6 +397,41 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
 
       test "should return false when there is no log", %{module: storage, opts: opts} do
         refute storage.has_log_entry?("another_shape_id", 1001, opts)
+      end
+    end
+  end
+
+  # Tests for storage implimentations that are recoverable
+  for module <- [CubDbStorage] do
+    module_name = module |> Module.split() |> List.last()
+
+    describe "#{module_name}.shapes/1" do
+      @shape %Shape{root_table: {"public", "items"}}
+
+      setup do
+        {:ok, %{module: unquote(module)}}
+      end
+
+      setup :start_storage
+
+      test "returns shapes", %{module: storage, opts: opts} do
+        storage.add_shape("shape-1", @shape, opts)
+        storage.add_shape("shape-2", @shape, opts)
+        storage.add_shape("shape-3", @shape, opts)
+
+        assert [%{shape_id: "shape-1"}, %{shape_id: "shape-2"}, %{shape_id: "shape-3"}] =
+                 storage.shapes(opts) |> Enum.to_list()
+      end
+
+      test "does not return cleaned up shape", %{module: storage, opts: opts} do
+        storage.add_shape("shape-1", @shape, opts)
+        storage.add_shape("shape-2", @shape, opts)
+        storage.add_shape("shape-3", @shape, opts)
+
+        storage.cleanup!("shape-2", opts)
+
+        assert [%{shape_id: "shape-1"}, %{shape_id: "shape-3"}] =
+                 storage.shapes(opts) |> Enum.to_list()
       end
     end
   end

@@ -20,14 +20,13 @@ defmodule Electric.ShapeCache.Storage do
   @callback shared_opts(term()) :: {:ok, compiled_opts()} | {:error, term()}
   @doc "Start any processes required to run the storage backend"
   @callback start_link(compiled_opts()) :: GenServer.on_start()
-  @callback shapes(storage()) :: [
-              %{
+  @callback shapes(storage()) ::
+              Enumerable.t(%{
                 shape_id: shape_id(),
                 shape: Shape.t(),
                 latest_offset: non_neg_integer(),
                 snapshot_xmin: non_neg_integer()
-              }
-            ]
+              })
   @callback add_shape(shape_id(), Shape.t(), storage()) :: :ok
   @callback set_snapshot_xmin(shape_id(), non_neg_integer(), storage()) :: :ok
   @doc "Check if snapshot for a given shape id already exists"
@@ -64,14 +63,13 @@ defmodule Electric.ShapeCache.Storage do
 
   @type storage() :: {module(), compiled_opts()}
 
-  @spec shapes(storage()) :: [
-          %{
+  @spec shapes(storage()) ::
+          Enumerable.t(%{
             shape_id: shape_id(),
             shape: Shape.t(),
             latest_offset: non_neg_integer(),
             snapshot_xmin: non_neg_integer()
-          }
-        ]
+          })
   def shapes({mod, opts}), do: apply(mod, :shapes, [opts])
 
   @spec add_shape(shape_id(), Shape.t(), storage()) :: :ok
