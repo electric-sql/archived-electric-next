@@ -43,7 +43,8 @@ defmodule Electric.Application do
              ],
              pool_opts: [
                name: Electric.DbPool,
-               pool_size: 10
+               pool_size: 10,
+               types: PgInterop.Postgrex.Types
              ]},
             {Electric.Postgres.Inspector.EtsInspector, pool: Electric.DbPool},
             {Bandit,
