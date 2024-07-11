@@ -420,37 +420,22 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
 
       setup :start_storage
 
-      test "returns shapes that have snapshot xmins", %{module: storage, opts: opts} do
+      test "returns shapes with it's snapshot xmins", %{module: storage, opts: opts} do
         storage.add_shape("shape-1", @shape, opts)
         storage.add_shape("shape-2", @shape, opts)
-        storage.add_shape("shape-3", @shape, opts)
         storage.set_snapshot_xmin("shape-1", 11, opts)
-        storage.set_snapshot_xmin("shape-3", 33, opts)
+        storage.set_snapshot_xmin("shape-2", 22, opts)
 
         assert [
                  %{shape_id: "shape-1", snapshot_xmin: 11},
-                 %{shape_id: "shape-3", snapshot_xmin: 33}
+                 %{shape_id: "shape-2", snapshot_xmin: 22}
                ] =
                  storage.shapes(opts) |> Enum.to_list()
-      end
-
-      test "deletes the shape if the snapshot_xmin has not been set", %{
-        module: storage,
-        opts: opts
-      } do
-        storage.add_shape(@shape_id, @shape, opts)
-        storage.make_new_snapshot!(@shape_id, @query_info, @data_stream, opts)
-
-        storage.shapes(opts) |> Enum.to_list()
-
-        assert storage.snapshot_exists?(@shape_id, opts) == false
       end
 
       test "returns shapes with it's latest offset", %{module: storage, opts: opts} do
         storage.add_shape("shape-1", @shape, opts)
         storage.add_shape("shape-2", @shape, opts)
-        storage.set_snapshot_xmin("shape-1", 11, opts)
-        storage.set_snapshot_xmin("shape-2", 22, opts)
         storage.append_to_log!("shape-1", Lsn.from_integer(1), 0, @changes, opts)
         storage.append_to_log!("shape-2", Lsn.from_integer(2), 0, @changes, opts)
 
@@ -465,14 +450,39 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
         storage.add_shape("shape-1", @shape, opts)
         storage.add_shape("shape-2", @shape, opts)
         storage.add_shape("shape-3", @shape, opts)
-        storage.set_snapshot_xmin("shape-1", 11, opts)
-        storage.set_snapshot_xmin("shape-2", 22, opts)
-        storage.set_snapshot_xmin("shape-3", 33, opts)
 
         storage.cleanup!("shape-2", opts)
 
         assert [%{shape_id: "shape-1"}, %{shape_id: "shape-3"}] =
                  storage.shapes(opts) |> Enum.to_list()
+      end
+    end
+
+    describe "#{module_name}.cleanup_shapes_without_xmins/1" do
+      setup do
+        {:ok, %{module: unquote(module)}}
+      end
+
+      setup :start_storage
+
+      test "cleans up the shape if the snapshot_xmin has not been set", %{
+        module: storage,
+        opts: opts
+      } do
+        storage.add_shape("shape-1", @shape, opts)
+        storage.add_shape("shape-2", @shape, opts)
+        storage.add_shape("shape-3", @shape, opts)
+        storage.make_new_snapshot!("shape-1", @query_info, @data_stream, opts)
+        storage.make_new_snapshot!("shape-2", @query_info, @data_stream, opts)
+        storage.make_new_snapshot!("shape-3", @query_info, @data_stream, opts)
+        storage.set_snapshot_xmin("shape-1", 11, opts)
+        storage.set_snapshot_xmin("shape-3", 33, opts)
+
+        storage.cleanup_shapes_without_xmins(opts)
+
+        assert storage.snapshot_exists?("shape-1", opts) == true
+        assert storage.snapshot_exists?("shape-2", opts) == false
+        assert storage.snapshot_exists?("shape-3", opts) == true
       end
     end
   end

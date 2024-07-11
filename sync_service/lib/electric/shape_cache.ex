@@ -142,8 +142,9 @@ defmodule Electric.ShapeCache do
   end
 
   def handle_continue(:recover_shapes, state) do
-    state.storage
-    |> Storage.shapes()
+    Storage.cleanup_shapes_without_xmins(state.storage)
+
+    Storage.shapes(state.storage)
     |> Enum.each(fn %{
                       shape: shape,
                       shape_id: shape_id,
