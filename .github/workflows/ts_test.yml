@@ -29,7 +29,7 @@ jobs:
           key: ${{ runner.os }}-mix-${{ hashFiles('sync_service/**/mix.lock') }}
           restore-keys: ${{ runner.os }}-mix-
       - name: Restore compiled code
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             sync_service/_build/*/lib
@@ -38,6 +38,15 @@ jobs:
       - name: Install dependencies
         run: mix deps.get && mix deps.compile
         working-directory: sync_service
+      - name: Save compiled code
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            sync_service/_build/*/lib
+            !sync_service/_build/*/lib/electric
+          key: ${{ runner.os }}-build-dev-${{ hashFiles('sync_service/**/mix.lock') }}
+      - run: docker compose up -d
+        working-directory: sync_service/dev
       - name: Compiles without warnings
         run: mix compile --force --all-warnings --warnings-as-errors
         working-directory: sync_service
@@ -45,17 +54,16 @@ jobs:
         name: Bootstrap System Under Test (SUT)
         with:
           run: |
-            mix start_dev
             mix run --no-halt &
 
           wait-on: |
-            http://localhost:3000
+            http-get://localhost:3000
+            http://localhost:3002
 
           tail: true
-          log-output-resume: stderr
           wait-for: 1m
-          log-output: true
-          log-output-if: failure
+          log-output: stderr,stdout
+          log-output-if: true
           working-directory: sync_service
       - name: Adjust Permissions
         run: |
