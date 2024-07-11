@@ -438,12 +438,17 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
       test "returns shapes with it's latest offset", %{module: storage, opts: opts} do
         storage.add_shape("shape-1", @shape, opts)
         storage.add_shape("shape-2", @shape, opts)
-        storage.append_to_log!("shape-1", Lsn.from_integer(1), 0, @changes, opts)
-        storage.append_to_log!("shape-2", Lsn.from_integer(2), 0, @changes, opts)
+        storage.add_shape("shape-3", @shape, opts)
+
+        storage.make_new_snapshot!("shape-1", @query_info, @data_stream, opts)
+        storage.append_to_log!("shape-1", Lsn.from_integer(123), 0, @changes, opts)
+
+        storage.make_new_snapshot!("shape-2", @query_info, @data_stream, opts)
 
         assert [
-                 %{shape_id: "shape-1", latest_offset: 1},
-                 %{shape_id: "shape-2", latest_offset: 2}
+                 %{shape_id: "shape-1", latest_offset: 123},
+                 %{shape_id: "shape-2", latest_offset: 0},
+                 %{shape_id: "shape-3", latest_offset: 0}
                ] =
                  storage.shapes(opts) |> Enum.to_list()
       end
