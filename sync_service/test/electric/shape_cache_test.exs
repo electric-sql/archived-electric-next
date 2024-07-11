@@ -11,6 +11,8 @@ defmodule Electric.ShapeCacheTest do
   alias Electric.Postgres.Lsn
   alias Electric.Replication.Changes
 
+  @moduletag :tmp_dir
+
   @basic_query_meta %Postgrex.Query{columns: ["id"], result_types: [:text], name: "key_prefix"}
   @changes [
     %Changes.NewRecord{

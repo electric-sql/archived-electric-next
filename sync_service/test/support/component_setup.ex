@@ -2,7 +2,6 @@ defmodule Support.ComponentSetup do
   alias Electric.ShapeCache
   alias Electric.ShapeCache.CubDbStorage
   alias Electric.ShapeCache.InMemoryStorage
-  import ExUnit.Callbacks, only: [on_exit: 1]
 
   def with_in_memory_storage(ctx) do
     {:ok, storage_opts} =
@@ -20,14 +19,10 @@ defmodule Support.ComponentSetup do
     {:ok, storage_opts} =
       CubDbStorage.shared_opts(
         db: :"shape_cubdb_#{ctx.test}",
-        file_path: "./test/#{ctx.test}_db"
+        file_path: ctx.tmp_dir
       )
 
     {:ok, _} = CubDbStorage.start_link(storage_opts)
-
-    on_exit(fn ->
-      File.rm_rf!(storage_opts.file_path)
-    end)
 
     {:ok, %{storage: {CubDbStorage, storage_opts}}}
   end
