@@ -126,13 +126,24 @@ defmodule Electric.Postgres.ReplicationClient do
     end
   end
 
-  def handle_result([result], %State{step: :create_slot} = state) do
+  def handle_result([%Postgrex.Result{} = result], %State{step: :create_slot} = state) do
     log_slot_creation_result(result)
 
-    if state.start_streaming? do
-      start_streaming_step(state)
-    else
-      {:noreply, %{state | step: :ready_to_stream}}
+    maybe_start_streaming(state)
+  end
+
+  def handle_result(%Postgrex.Error{} = error, %State{step: :create_slot} = state) do
+    error_msg = "replication slot \"#{state.slot_name}\" already exists"
+
+    case error.postgres do
+      %{code: :duplicate_object, pg_code: "42710", message: ^error_msg} ->
+        # Slot already exists, proceed nominally.
+        Logger.debug("Found existing replication slot")
+        maybe_start_streaming(state)
+
+      _ ->
+        # Unexpected error, fail loudly.
+        raise error
     end
   end
 
@@ -224,6 +235,14 @@ defmodule Electric.Postgres.ReplicationClient do
   defp create_replication_slot_step(state) do
     query = "CREATE_REPLICATION_SLOT #{state.slot_name} LOGICAL pgoutput NOEXPORT_SNAPSHOT"
     {:query, query, %{state | step: :create_slot}}
+  end
+
+  defp maybe_start_streaming(state) do
+    if state.start_streaming? do
+      start_streaming_step(state)
+    else
+      {:noreply, %{state | step: :ready_to_stream}}
+    end
   end
 
   defp start_streaming_step(state) do

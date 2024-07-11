@@ -79,12 +79,45 @@ defmodule Electric.Postgres.ReplicationClientTest do
       log =~ "Started replication from postgres"
     end
 
-    test "doesn't fail to start when publication already exists", %{
+    test "works with an existing publication", %{
       db_config: config,
       replication_opts: replication_opts
     } do
       replication_opts = Keyword.put(replication_opts, :try_creating_publication?, true)
       assert {:ok, _} = ReplicationClient.start_link(config, replication_opts)
+    end
+
+    test "works with an existing replication slot", %{
+      db_config: config,
+      replication_opts: replication_opts,
+      db_conn: conn
+    } do
+      {:ok, pid} = ReplicationClient.start_link(config, replication_opts)
+
+      assert %{
+               "slot_name" => @slot_name,
+               "temporary" => false,
+               "confirmed_flush_lsn" => flush_lsn
+             } = fetch_slot_info(conn)
+
+      # Check that the slot remains even when the replication client goes down
+      true = Process.unlink(pid)
+      true = Process.exit(pid, :kill)
+
+      assert %{
+               "slot_name" => @slot_name,
+               "temporary" => false,
+               "confirmed_flush_lsn" => ^flush_lsn
+             } = fetch_slot_info(conn)
+
+      # Check that the replication client works when the replication slot already exists
+      {:ok, _pid} = ReplicationClient.start_link(config, replication_opts)
+
+      assert %{
+               "slot_name" => @slot_name,
+               "temporary" => false,
+               "confirmed_flush_lsn" => ^flush_lsn
+             } = fetch_slot_info(conn)
     end
 
     @tag additional_fields:
@@ -289,4 +322,11 @@ defmodule Electric.Postgres.ReplicationClientTest do
 
   defp lsn_to_wal(lsn_str) when is_binary(lsn_str),
     do: lsn_str |> Lsn.from_string() |> Lsn.to_integer()
+
+  defp fetch_slot_info(conn) do
+    {:ok, result} = Postgrex.query(conn, "SELECT * FROM pg_replication_slots", [])
+    assert %Postgrex.Result{columns: cols, rows: [row], num_rows: 1} = result
+
+    Enum.zip(cols, row) |> Map.new()
+  end
 end
