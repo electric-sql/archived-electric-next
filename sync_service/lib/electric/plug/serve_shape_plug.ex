@@ -6,11 +6,12 @@ defmodule Electric.Plug.ServeShapePlug do
   defmodule Params do
     use Ecto.Schema
     import Ecto.Changeset
+    alias Electric.Postgres.LogOffset
 
     @primary_key false
     embedded_schema do
       field(:root_table, :string)
-      field(:offset, :integer)
+      field(:offset, :string)
       field(:shape_id, :string)
       field(:live, :boolean, default: false)
       field(:where, :string)
@@ -18,11 +19,14 @@ defmodule Electric.Plug.ServeShapePlug do
     end
 
     def validate(params, opts) do
+      offset_regex = Regex.source(LogOffset.regex())
+
       %__MODULE__{}
       |> cast(params, __schema__(:fields) -- [:shape_definition],
         message: fn _, _ -> "must be %{type}" end
       )
-      |> validate_number(:offset, greater_than_or_equal_to: -1)
+      |> validate_format(:offset, Regex.compile("(^-1$)|(#{offset_regex})"))
+      |> cast_offset()
       |> validate_required([:root_table, :offset])
       |> validate_shape_id_with_offset()
       |> cast_root_table(opts)
@@ -38,6 +42,20 @@ defmodule Electric.Plug.ServeShapePlug do
                opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
              end)
            end)}
+      end
+    end
+
+    # offset for initial sync is -1
+    # but following offsets are LogOffset values
+    def cast_offset(%Ecto.Changeset{} = changeset) do
+      offset = fetch_change!(changeset, :offset)
+
+      case offset do
+        "-1" ->
+          put_change(changeset, :offset, -1)
+
+        _ ->
+          put_change(changeset, :offset, LogOffset.from_string(offset))
       end
     end
 
