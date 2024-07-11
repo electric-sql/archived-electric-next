@@ -1,6 +1,7 @@
 defmodule Electric.ShapeCache.Storage do
   alias Electric.Replication.Changes
   alias Electric.Postgres.Lsn
+  alias Electric.Shapes.Shape
   @type shape_id :: String.t()
   @type compiled_opts :: term()
 
@@ -19,6 +20,16 @@ defmodule Electric.ShapeCache.Storage do
   @callback shared_opts(term()) :: {:ok, compiled_opts()} | {:error, term()}
   @doc "Start any processes required to run the storage backend"
   @callback start_link(compiled_opts()) :: GenServer.on_start()
+  @callback shapes(storage()) :: [
+              %{
+                shape_id: shape_id(),
+                shape: Shape.t(),
+                last_offset: non_neg_integer(),
+                snapshot_xmin: non_neg_integer()
+              }
+            ]
+  @callback add_shape(shape_id(), Shape.t(), storage()) :: :ok
+  @callback set_snapshot_xmin(shape_id(), non_neg_integer(), storage()) :: :ok
   @doc "Check if snapshot for a given shape id already exists"
   @callback snapshot_exists?(shape_id(), compiled_opts()) :: boolean()
   @doc "Get the full snapshot for a given shape, also returning the offset this snapshot includes"
@@ -53,11 +64,21 @@ defmodule Electric.ShapeCache.Storage do
 
   @type storage() :: {module(), compiled_opts()}
 
+  @spec shapes(storage()) :: [
+          %{
+            shape_id: shape_id(),
+            shape: Shape.t(),
+            last_offset: non_neg_integer(),
+            snapshot_xmin: non_neg_integer()
+          }
+        ]
   def shapes({mod, opts}), do: apply(mod, :shapes, [opts])
 
+  @spec add_shape(shape_id(), Shape.t(), storage()) :: :ok
   def add_shape(shape_id, shape, {mod, opts}),
     do: apply(mod, :add_shape, [shape_id, shape, opts])
 
+  @spec set_snapshot_xmin(shape_id(), non_neg_integer(), storage()) :: :ok
   def set_snapshot_xmin(shape_id, xmin, {mod, opts}),
     do: apply(mod, :set_snapshot_xmin, [shape_id, xmin, opts])
 

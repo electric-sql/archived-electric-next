@@ -423,9 +423,9 @@ defmodule Electric.ShapeCacheTest do
     )
 
     test "restores shape_ids", %{shape_cache_opts: opts} = context do
-      {shape_id1, 0} = ShapeCache.get_or_create_shape_id(@shape, opts)
+      {shape_id1, _} = ShapeCache.get_or_create_shape_id(@shape, opts)
       restart_shape_cache(context)
-      {shape_id2, 0} = ShapeCache.get_or_create_shape_id(@shape, opts)
+      {shape_id2, _} = ShapeCache.get_or_create_shape_id(@shape, opts)
       assert shape_id1 == shape_id2
     end
 
@@ -439,6 +439,16 @@ defmodule Electric.ShapeCacheTest do
 
       assert [{^shape_id, @shape, @snapshot_xmin}] = ShapeCache.list_active_shapes(opts)
     end
+
+    test "restores last offset", %{shape_cache_opts: opts} = context do
+      {_, last_offset_1} = ShapeCache.get_or_create_shape_id(@shape, opts)
+      # TODO change latest offset
+      restart_shape_cache(context)
+      {_, last_offset_2} = ShapeCache.get_or_create_shape_id(@shape, opts)
+      assert last_offset_1 == last_offset_2
+    end
+
+    test "restores shape"
 
     defp restart_shape_cache(context) do
       stop_shape_cache(context)
