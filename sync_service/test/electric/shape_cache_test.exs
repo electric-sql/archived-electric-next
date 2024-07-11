@@ -435,6 +435,7 @@ defmodule Electric.ShapeCacheTest do
 
     test "restores shape_ids", %{shape_cache_opts: opts} = context do
       {shape_id1, _} = ShapeCache.get_or_create_shape_id(@shape, opts)
+      :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id1)
       restart_shape_cache(context)
       {shape_id2, _} = ShapeCache.get_or_create_shape_id(@shape, opts)
       assert shape_id1 == shape_id2

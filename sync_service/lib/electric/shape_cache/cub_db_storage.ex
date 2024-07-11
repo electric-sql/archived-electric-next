@@ -31,13 +31,22 @@ defmodule Electric.ShapeCache.CubDbStorage do
   def shapes(opts) do
     opts.db
     |> CubDB.select(min_key: shapes_start(), max_key: shapes_end())
-    |> Stream.map(fn {{:shapes, shape_id}, shape} ->
-      %{
-        shape_id: shape_id,
-        shape: shape,
-        latest_offset: latest_offset(shape_id, opts),
-        snapshot_xmin: snapshot_xmin(shape_id, opts)
-      }
+    |> Stream.flat_map(fn {{:shapes, shape_id}, shape} ->
+      case snapshot_xmin(shape_id, opts) do
+        nil ->
+          cleanup!(shape_id, opts)
+          []
+
+        snapshot_xmin ->
+          [
+            %{
+              shape_id: shape_id,
+              shape: shape,
+              latest_offset: latest_offset(shape_id, opts),
+              snapshot_xmin: snapshot_xmin
+            }
+          ]
+      end
     end)
   end
 

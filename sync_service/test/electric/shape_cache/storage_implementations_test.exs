@@ -420,43 +420,43 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
 
       setup :start_storage
 
-      test "returns shapes", %{module: storage, opts: opts} do
+      test "returns shapes that have snapshot xmins", %{module: storage, opts: opts} do
         storage.add_shape("shape-1", @shape, opts)
         storage.add_shape("shape-2", @shape, opts)
         storage.add_shape("shape-3", @shape, opts)
-
-        assert [%{shape_id: "shape-1"}, %{shape_id: "shape-2"}, %{shape_id: "shape-3"}] =
-                 storage.shapes(opts) |> Enum.to_list()
-      end
-
-      test "returns shapes with it's snapshot xmin", %{module: storage, opts: opts} do
-        storage.add_shape("shape-1", @shape, opts)
-        storage.add_shape("shape-2", @shape, opts)
         storage.set_snapshot_xmin("shape-1", 11, opts)
-        storage.set_snapshot_xmin("shape-2", 22, opts)
+        storage.set_snapshot_xmin("shape-3", 33, opts)
 
         assert [
                  %{shape_id: "shape-1", snapshot_xmin: 11},
-                 %{shape_id: "shape-2", snapshot_xmin: 22}
+                 %{shape_id: "shape-3", snapshot_xmin: 33}
                ] =
                  storage.shapes(opts) |> Enum.to_list()
       end
 
-      test "returns nil snapshot_xmin if it's not been set", %{module: storage, opts: opts} do
+      test "deletes the shape if the snapshot_xmin has not been set", %{
+        module: storage,
+        opts: opts
+      } do
         storage.add_shape(@shape_id, @shape, opts)
+        storage.make_new_snapshot!(@shape_id, @query_info, @data_stream, opts)
 
-        assert [%{snapshot_xmin: nil}] = storage.shapes(opts) |> Enum.to_list()
+        storage.shapes(opts) |> Enum.to_list()
+
+        assert storage.snapshot_exists?(@shape_id, opts) == false
       end
 
       test "returns shapes with it's latest offset", %{module: storage, opts: opts} do
         storage.add_shape("shape-1", @shape, opts)
         storage.add_shape("shape-2", @shape, opts)
-        storage.append_to_log!("shape-1", Lsn.from_integer(11), 0, @changes, opts)
-        storage.append_to_log!("shape-2", Lsn.from_integer(22), 0, @changes, opts)
+        storage.set_snapshot_xmin("shape-1", 11, opts)
+        storage.set_snapshot_xmin("shape-2", 22, opts)
+        storage.append_to_log!("shape-1", Lsn.from_integer(1), 0, @changes, opts)
+        storage.append_to_log!("shape-2", Lsn.from_integer(2), 0, @changes, opts)
 
         assert [
-                 %{shape_id: "shape-1", latest_offset: 11},
-                 %{shape_id: "shape-2", latest_offset: 22}
+                 %{shape_id: "shape-1", latest_offset: 1},
+                 %{shape_id: "shape-2", latest_offset: 2}
                ] =
                  storage.shapes(opts) |> Enum.to_list()
       end
@@ -465,6 +465,9 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
         storage.add_shape("shape-1", @shape, opts)
         storage.add_shape("shape-2", @shape, opts)
         storage.add_shape("shape-3", @shape, opts)
+        storage.set_snapshot_xmin("shape-1", 11, opts)
+        storage.set_snapshot_xmin("shape-2", 22, opts)
+        storage.set_snapshot_xmin("shape-3", 33, opts)
 
         storage.cleanup!("shape-2", opts)
 
