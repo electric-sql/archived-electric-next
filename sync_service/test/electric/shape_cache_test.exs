@@ -431,11 +431,11 @@ defmodule Electric.ShapeCacheTest do
 
     test "restores snapshot xmins", %{shape_cache_opts: opts} = context do
       {shape_id, _} = ShapeCache.get_or_create_shape_id(@shape, opts)
-      :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id, @shape)
+      :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id)
       [{^shape_id, @shape, @snapshot_xmin}] = ShapeCache.list_active_shapes(opts)
 
       restart_shape_cache(context)
-      :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id, @shape)
+      :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id)
 
       assert [{^shape_id, @shape, @snapshot_xmin}] = ShapeCache.list_active_shapes(opts)
     end
