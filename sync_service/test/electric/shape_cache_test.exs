@@ -414,8 +414,8 @@ defmodule Electric.ShapeCacheTest do
     setup(ctx,
       do:
         with_shape_cache(ctx,
-          create_snapshot_fn: fn parent, shape_id, shape, _, storage ->
-            GenServer.cast(parent, {:snapshot_xmin_known, shape_id, shape, @snapshot_xmin})
+          create_snapshot_fn: fn parent, shape_id, _, _, storage ->
+            GenServer.cast(parent, {:snapshot_xmin_known, shape_id, @snapshot_xmin})
             Storage.make_new_snapshot!(shape_id, @basic_query_meta, [["test"]], storage)
             GenServer.cast(parent, {:snapshot_ready, shape_id})
           end

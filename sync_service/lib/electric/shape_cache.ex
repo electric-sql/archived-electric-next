@@ -153,12 +153,18 @@ defmodule Electric.ShapeCache do
     |> Enum.each(fn %{
                       shape: shape,
                       shape_id: shape_id,
-                      last_offset: last_offset,
+                      last_offset: latest_offset,
                       snapshot_xmin: snapshot_xmin
                     } ->
       hash = Shape.hash(shape)
-      :ets.insert_new(state.shape_meta_table, {hash, shape_id, last_offset})
-      :ets.insert(state.xmins_table, {shape_id, shape, snapshot_xmin})
+
+      :ets.insert_new(
+        state.shape_meta_table,
+        [
+          {{@shape_hash_lookup, hash}, shape_id},
+          {{@shape_meta_data, shape_id}, shape, snapshot_xmin, latest_offset}
+        ]
+      )
     end)
 
     {:noreply, state}
