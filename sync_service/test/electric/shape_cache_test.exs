@@ -413,6 +413,9 @@ defmodule Electric.ShapeCacheTest do
   end
 
   describe "after restart" do
+    # Capture the log to hide the GenServer exit messages
+    @describetag capture_log: true
+
     @shape %Shape{root_table: {"public", "items"}}
     @snapshot_xmin 10
 
@@ -461,8 +464,6 @@ defmodule Electric.ShapeCacheTest do
       assert {^shape_id, ^offset} = ShapeCache.get_or_create_shape_id(@shape, opts)
     end
 
-    test "restores shape"
-
     defp restart_shape_cache(context) do
       stop_shape_cache(context)
       # Wait 1 millisecond to ensure shape IDs are not generated the same
@@ -472,7 +473,7 @@ defmodule Electric.ShapeCacheTest do
     end
 
     defp stop_shape_cache(%{storage: {_, %{db: shape_db}}, shape_cache_opts: shape_cache_opts}) do
-      stop_processes([shape_db, shape_cache_opts[:server]])
+      stop_processes([shape_cache_opts[:server], shape_db])
     end
 
     defp stop_processes(process_names) do
