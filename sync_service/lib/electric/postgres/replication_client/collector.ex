@@ -129,8 +129,11 @@ defmodule Electric.Postgres.ReplicationClient.Collector do
       # NOTE: keeping the commit LSN rather than the end_lsn as the
       # transaction's identifying LSN for convenience
       when not is_nil(txn) and commit_lsn == txn.lsn do
-    {%Transaction{txn | changes: Enum.reverse(txn.changes)},
-     %__MODULE__{state | transaction: nil, tx_op_index: nil}}
+    {%Transaction{
+       txn
+       | changes: Enum.reverse(txn.changes),
+         last_log_offset: LogOffset.make(txn.lsn, state.tx_op_index - 1)
+     }, %__MODULE__{state | transaction: nil, tx_op_index: nil}}
   end
 
   @spec data_tuple_to_map([LR.Relation.Column.t()], list(String.t())) :: %{

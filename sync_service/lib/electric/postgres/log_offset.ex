@@ -19,6 +19,17 @@ defmodule Electric.Postgres.LogOffset do
   end
 
   @doc """
+  An offset that is smaller than all offsets in the log.
+
+  ## Examples
+
+      iex> before_all() < first()
+      true
+  """
+  @spec before_all() :: t
+  def before_all(), do: {-1, 0}
+
+  @doc """
   The first possible offset in the log.
   """
   @spec first() :: t

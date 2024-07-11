@@ -3,6 +3,7 @@ defmodule Electric.ShapeCacheBehaviour do
   Behaviour defining the ShapeCache functions to be used in mocks
   """
   alias Electric.Shapes.Shape
+  alias Electric.Postgres.LogOffset
 
   @type shape_id :: String.t()
   @type shape_def :: Shape.t()
@@ -17,8 +18,10 @@ defmodule Electric.ShapeCacheBehaviour do
             ) :: :ok
 
   @callback get_or_create_shape_id(shape_def(), opts :: keyword()) ::
-              {shape_id(), current_snapshot_offset :: non_neg_integer()}
+              {shape_id(), current_snapshot_offset :: LogOffset.t()}
 
+  @callback update_shape_latest_offset(shape_id(), LogOffset.t(), opts :: keyword()) ::
+              :ok | {:error, term()}
   @callback list_active_shapes(opts :: keyword()) :: [{shape_id(), shape_def(), xmin()}]
   @callback wait_for_snapshot(GenServer.name(), shape_id()) :: :ready | {:error, term()}
   @callback handle_truncate(GenServer.name(), shape_id()) :: :ok
@@ -30,6 +33,7 @@ defmodule Electric.ShapeCache do
   alias Electric.ShapeCache.Storage
   alias Electric.Shapes.Querying
   alias Electric.Shapes.Shape
+  alias Electric.Postgres.LogOffset
   use GenServer
   @behaviour Electric.ShapeCacheBehaviour
 
@@ -147,9 +151,9 @@ defmodule Electric.ShapeCache do
     hash = Shape.hash(shape)
     shape_id = "#{hash}-#{DateTime.utc_now() |> DateTime.to_unix(:millisecond)}"
 
-    # fresh snapshots always start with offset 0 - only once they
-    # are folded into the log do we have lsn-like non-zero offsets
-    latest_offset = 0
+    # fresh snapshots always start with a zero offset - only once they
+    # are folded into the log do we have non-zero offsets
+    latest_offset = LogOffset.first()
     xmin = nil
 
     :ets.insert_new(

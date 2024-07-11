@@ -126,7 +126,8 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
         changes = [
           %Changes.NewRecord{
             relation: {"public", "test_table"},
-            record: %{"id" => "123", "name" => "Test"}
+            record: %{"id" => "123", "name" => "Test"},
+            log_offset: LogOffset.make(Lsn.from_integer(1000), 0)
           }
         ]
 

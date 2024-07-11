@@ -2,7 +2,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
   use ExUnit.Case, async: true
   import Plug.Conn
 
-  alias Electric.Postgres.Lsn
+  alias Electric.Postgres.LogOffset
   alias Electric.Plug.ServeShapePlug
   alias Electric.Shapes.Shape
   alias Electric.ShapeCache.MockStorage
@@ -198,7 +198,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
 
       # Simulate new changes arriving
       Registry.dispatch(@registry, @test_shape_id, fn [{pid, ref}] ->
-        send(pid, {ref, :new_changes, Lsn.from_integer(next_offset)})
+        send(pid, {ref, :new_changes, LogOffset.first()})
       end)
 
       # The conn process should exit after sending the response

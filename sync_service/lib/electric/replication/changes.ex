@@ -43,13 +43,15 @@ defmodule Electric.Replication.Changes do
             changes: [Changes.change()],
             affected_relations: MapSet.t(Changes.relation()),
             commit_timestamp: DateTime.t(),
-            lsn: Electric.Postgres.Lsn.t()
+            lsn: Electric.Postgres.Lsn.t(),
+            last_log_offset: LogOffset.t()
           }
 
     defstruct [
       :xid,
       :commit_timestamp,
       :lsn,
+      :last_log_offset,
       changes: [],
       affected_relations: MapSet.new()
     ]
@@ -173,10 +175,19 @@ defmodule Electric.Replication.Changes do
   def get_action(%UpdatedRecord{}), do: "update"
   def get_action(%DeletedRecord{}), do: "delete"
 
-  def get_log_offset(%NewRecord{log_offset: offset}), do: offset
-  def get_log_offset(%UpdatedRecord{log_offset: offset}), do: offset
-  def get_log_offset(%DeletedRecord{log_offset: offset}), do: offset
-  def get_log_offset(%TruncatedRelation{log_offset: offset}), do: offset
+  @doc """
+  ## Examples
+
+      iex> get_log_offset(%NewRecord{log_offset: {1, 2}})
+      {1, 2}
+
+      iex> get_log_offset(%NewRecord{})
+      ** (FunctionClauseError) no function clause matching in Electric.Replication.Changes.get_log_offset/1
+  """
+  def get_log_offset(%NewRecord{log_offset: offset}) when offset != nil, do: offset
+  def get_log_offset(%UpdatedRecord{log_offset: offset}) when offset != nil, do: offset
+  def get_log_offset(%DeletedRecord{log_offset: offset}) when offset != nil, do: offset
+  def get_log_offset(%TruncatedRelation{log_offset: offset}) when offset != nil, do: offset
 
   def convert_update(%UpdatedRecord{} = change, to: :new_record) do
     %NewRecord{relation: change.relation, record: change.record}

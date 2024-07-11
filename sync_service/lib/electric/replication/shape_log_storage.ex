@@ -34,7 +34,9 @@ defmodule Electric.Replication.ShapeLogStorage do
   end
 
   def handle_call(
-        {:new_txn, %Transaction{xid: xid, changes: changes, lsn: lsn} = txn},
+        {:new_txn,
+         %Transaction{xid: xid, changes: changes, lsn: lsn, last_log_offset: last_log_offset} =
+           txn},
         _from,
         state
       ) do
@@ -63,9 +65,8 @@ defmodule Electric.Replication.ShapeLogStorage do
           #       Right now we'll just fail everything
           :ok = Storage.append_to_log!(shape_id, xid, relevant_changes, state.storage)
 
-          shape_cache.update_shape_latest_offset(shape_id, Lsn.to_integer(lsn), opts)
-
-          notify_listeners(state.registry, :new_changes, shape_id, lsn)
+          shape_cache.update_shape_latest_offset(shape_id, last_log_offset, opts)
+          notify_listeners(state.registry, :new_changes, shape_id, last_log_offset)
 
         true ->
           Logger.debug(fn ->
@@ -77,14 +78,14 @@ defmodule Electric.Replication.ShapeLogStorage do
     {:reply, :ok, state}
   end
 
-  defp notify_listeners(registry, :new_changes, shape_id, lsn) do
+  defp notify_listeners(registry, :new_changes, shape_id, latest_log_offset) do
     Registry.dispatch(registry, shape_id, fn registered ->
       Logger.debug(fn ->
         "Notifying ~#{length(registered)} clients about new changes to #{shape_id}"
       end)
 
       for {pid, ref} <- registered,
-          do: send(pid, {ref, :new_changes, lsn})
+          do: send(pid, {ref, :new_changes, latest_log_offset})
     end)
   end
 end
