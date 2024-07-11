@@ -24,7 +24,7 @@ defmodule Electric.ShapeCache.Storage do
               %{
                 shape_id: shape_id(),
                 shape: Shape.t(),
-                last_offset: non_neg_integer(),
+                latest_offset: non_neg_integer(),
                 snapshot_xmin: non_neg_integer()
               }
             ]
@@ -68,7 +68,7 @@ defmodule Electric.ShapeCache.Storage do
           %{
             shape_id: shape_id(),
             shape: Shape.t(),
-            last_offset: non_neg_integer(),
+            latest_offset: non_neg_integer(),
             snapshot_xmin: non_neg_integer()
           }
         ]

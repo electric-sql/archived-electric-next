@@ -441,11 +441,11 @@ defmodule Electric.ShapeCacheTest do
     end
 
     test "restores last offset", %{shape_cache_opts: opts} = context do
-      {_, last_offset_1} = ShapeCache.get_or_create_shape_id(@shape, opts)
+      {_, latest_offset_1} = ShapeCache.get_or_create_shape_id(@shape, opts)
       # TODO change latest offset
       restart_shape_cache(context)
-      {_, last_offset_2} = ShapeCache.get_or_create_shape_id(@shape, opts)
-      assert last_offset_1 == last_offset_2
+      {_, latest_offset_2} = ShapeCache.get_or_create_shape_id(@shape, opts)
+      assert latest_offset_1 == latest_offset_2
     end
 
     test "restores shape"

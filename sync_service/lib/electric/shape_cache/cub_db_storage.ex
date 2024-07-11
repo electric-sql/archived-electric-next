@@ -37,7 +37,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
       %{
         shape_id: shape_id,
         shape: shape,
-        last_offset: 0,
+        latest_offset: 0,
         snapshot_xmin: snapshot_xmin(shape_id, opts)
       }
     end)
@@ -122,7 +122,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
   end
 
   def cleanup!(shape_id, opts) do
-    # TODO: cleanup shapes, xmins and last_offsets
+    # TODO: cleanup shapes, xmins and latest_offsets
 
     # Deletes from the snapshot start to the log end
     # and since @snapshot_key_type < @log_key_type this will

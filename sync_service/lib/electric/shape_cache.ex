@@ -153,7 +153,7 @@ defmodule Electric.ShapeCache do
     |> Enum.each(fn %{
                       shape: shape,
                       shape_id: shape_id,
-                      last_offset: latest_offset,
+                      latest_offset: latest_offset,
                       snapshot_xmin: snapshot_xmin
                     } ->
       hash = Shape.hash(shape)
