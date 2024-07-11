@@ -46,11 +46,11 @@ defmodule Electric.ShapeCache.CubDbStorage do
   end
 
   def set_snapshot_xmin(shape_id, xmin, opts) do
-    CubDB.put(opts.db, {:snapshot_xmin, shape_id}, xmin)
+    CubDB.put(opts.db, xmin_key(shape_id), xmin)
   end
 
   defp snapshot_xmin(shape_id, opts) do
-    CubDB.get(opts.db, {:snapshot_xmin, shape_id})
+    CubDB.get(opts.db, xmin_key(shape_id))
   end
 
   defp latest_offset(shape_id, opts) do
@@ -136,14 +136,14 @@ defmodule Electric.ShapeCache.CubDbStorage do
   def cleanup!(shape_id, opts) do
     CubDB.delete(opts.db, snapshot_meta_key(shape_id))
     CubDB.delete(opts.db, shape_key(shape_id))
+    CubDB.delete(opts.db, xmin_key(shape_id))
 
-    # Deletes from the snapshot start to the log end
-    # and since @snapshot_key_type < @log_key_type this will
-    # delete everything for the shape.
-    CubDB.select(opts.db,
-      min_key: snapshot_start(shape_id),
-      max_key: log_end(shape_id)
-    )
+    delete_range(snapshot_start(shape_id), snapshot_end(shape_id), opts)
+    delete_range(log_start(shape_id), log_end(shape_id), opts)
+  end
+
+  defp delete_range(min_key, max_key, opts) do
+    CubDB.select(opts.db, min_key: min_key, max_key: max_key)
     |> Stream.map(&elem(&1, 0))
     |> Stream.chunk_every(500)
     |> Enum.each(fn keys -> CubDB.delete_multi(opts.db, keys) end)
@@ -165,6 +165,10 @@ defmodule Electric.ShapeCache.CubDbStorage do
     {:shapes, shape_id}
   end
 
+  def xmin_key(shape_id) do
+    {:snapshot_xmin, shape_id}
+  end
+
   defp shapes_start, do: shape_key(0)
   defp shapes_end, do: shape_key("zzz-end")
 
@@ -172,17 +176,11 @@ defmodule Electric.ShapeCache.CubDbStorage do
   defp offset({_shape_id, @snapshot_key_type, _index}), do: 0
   defp offset({_shape_id, @log_key_type, offset}), do: offset
 
-  defp log_end(shape_id) do
-    log_key(shape_id, :end)
-  end
+  defp log_start(shape_id), do: log_key(shape_id, 0)
+  defp log_end(shape_id), do: log_key(shape_id, :end)
 
-  defp snapshot_start(shape_id) do
-    snapshot_key(shape_id, 0)
-  end
-
-  defp snapshot_end(shape_id) do
-    snapshot_key(shape_id, :end)
-  end
+  defp snapshot_start(shape_id), do: snapshot_key(shape_id, 0)
+  defp snapshot_end(shape_id), do: snapshot_key(shape_id, :end)
 
   defp row_to_snapshot_item({row, index}, shape_id, %Postgrex.Query{
          name: change_key_prefix,
