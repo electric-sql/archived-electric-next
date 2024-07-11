@@ -57,7 +57,6 @@ defmodule Electric.ShapeCache.CubDbStorage do
 
   defp latest_offset(shape_id, opts) do
     case CubDB.select(opts.db,
-           # TODO: Should this include the snapshot?
            min_key: snapshot_start(shape_id),
            max_key: log_end(shape_id),
            reverse: true
@@ -67,7 +66,6 @@ defmodule Electric.ShapeCache.CubDbStorage do
         offset(key)
 
       _ ->
-        # TODO: what do we do here!
         0
     end
   end
@@ -138,8 +136,6 @@ defmodule Electric.ShapeCache.CubDbStorage do
   end
 
   def cleanup!(shape_id, opts) do
-    # TODO: cleanup shapes, xmins and latest_offsets
-
     # Deletes from the snapshot start to the log end
     # and since @snapshot_key_type < @log_key_type this will
     # delete everything for the shape.
