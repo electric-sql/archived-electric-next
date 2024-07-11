@@ -52,7 +52,6 @@ defmodule Electric.ShapeCache.CubDbStorage do
   end
 
   defp snapshot_xmin(shape_id, opts) do
-    # TODO what if it doesn't exist?
     CubDB.get(opts.db, {:snapshot_xmin, shape_id})
   end
 
