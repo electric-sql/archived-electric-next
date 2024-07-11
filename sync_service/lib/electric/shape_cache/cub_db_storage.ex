@@ -134,19 +134,19 @@ defmodule Electric.ShapeCache.CubDbStorage do
   end
 
   def cleanup!(shape_id, opts) do
-    CubDB.delete(opts.db, snapshot_meta_key(shape_id))
-    CubDB.delete(opts.db, shape_key(shape_id))
-    CubDB.delete(opts.db, xmin_key(shape_id))
-
-    delete_range(snapshot_start(shape_id), snapshot_end(shape_id), opts)
-    delete_range(log_start(shape_id), log_end(shape_id), opts)
+    [
+      snapshot_meta_key(shape_id),
+      shape_key(shape_id),
+      xmin_key(shape_id)
+    ]
+    |> Stream.concat(keys_from_range(snapshot_start(shape_id), snapshot_end(shape_id), opts))
+    |> Stream.concat(keys_from_range(log_start(shape_id), log_end(shape_id), opts))
+    |> then(&CubDB.delete_multi(opts.db, &1))
   end
 
-  defp delete_range(min_key, max_key, opts) do
+  defp keys_from_range(min_key, max_key, opts) do
     CubDB.select(opts.db, min_key: min_key, max_key: max_key)
     |> Stream.map(&elem(&1, 0))
-    |> Stream.chunk_every(500)
-    |> Enum.each(fn keys -> CubDB.delete_multi(opts.db, keys) end)
   end
 
   defp snapshot_meta_key(shape_id) do
