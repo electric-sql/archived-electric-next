@@ -95,7 +95,7 @@ defmodule Electric.ShapeCache do
        }) do
       :ok
     else
-      Logger.warning("Tried to update latest offset #{shape_id} when it doesn't exist")
+      Logger.warning("Tried to update latest offset fro shape #{shape_id} which doesn't exist")
       :error
     end
   end
@@ -204,7 +204,7 @@ defmodule Electric.ShapeCache do
          {@shape_meta_xmin_pos, xmin}
        ) do
       Logger.warning(
-        "Got snapshot information for a shape whose shape_id is no longer valid. Ignoring."
+        "Got snapshot information for a #{shape_id}, that shape id is no longer valid. Ignoring."
       )
     end
 

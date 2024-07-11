@@ -3,30 +3,20 @@ defmodule Electric.ShapeCacheTest do
   import Support.ComponentSetup
   import Support.DbSetup
   import Support.DbStructureSetup
+  import ExUnit.CaptureLog
 
   alias Electric.ShapeCache.Storage
   alias Electric.ShapeCache
   alias Electric.Shapes.Shape
   alias Electric.Postgres.Lsn
 
-  @moduletag :capture_log
   @basic_query_meta %Postgrex.Query{columns: ["id"], result_types: [:text], name: "key_prefix"}
 
   setup :with_in_memory_storage
 
   describe "get_or_create_shape_id/2" do
     setup(do: %{pool: :no_pool})
-
-    setup(ctx,
-      do:
-        with_shape_cache(ctx,
-          create_snapshot_fn: fn parent, shape_id, _, _, storage ->
-            GenServer.cast(parent, {:snapshot_xmin_known, shape_id, 10})
-            Storage.make_new_snapshot!(shape_id, @basic_query_meta, [["test"]], storage)
-            GenServer.cast(parent, {:snapshot_ready, shape_id})
-          end
-        )
-    )
+    setup(ctx, do: with_shape_cache(ctx, create_snapshot_fn: fn _, _, _, _, _ -> nil end))
 
     test "creates a new shape_id", %{shape_cache_opts: opts} do
       shape = %Shape{root_table: {"public", "items"}}
@@ -140,10 +130,21 @@ defmodule Electric.ShapeCacheTest do
 
     test "correctly propagates the error", %{shape_cache_opts: opts} do
       shape = %Shape{root_table: {"public", "nonexistent"}}
-      {shape_id, _} = ShapeCache.get_or_create_shape_id(shape, opts)
 
-      assert {:error, %Postgrex.Error{postgres: %{code: :undefined_table}}} =
-               ShapeCache.wait_for_snapshot(opts[:server], shape_id, shape)
+      {shape_id, log} =
+        with_log(fn ->
+          {shape_id, _} = ShapeCache.get_or_create_shape_id(shape, opts)
+
+          assert {:error, %Postgrex.Error{postgres: %{code: :undefined_table}}} =
+                   ShapeCache.wait_for_snapshot(opts[:server], shape_id, shape)
+
+          shape_id
+        end)
+
+      log =~ "Snapshot creation failed for #{shape_id}"
+
+      log =~
+        ~S|** (Postgrex.Error) ERROR 42P01 (undefined_table) relation "public.nonexistent" does not exist|
     end
   end
 
@@ -201,7 +202,11 @@ defmodule Electric.ShapeCacheTest do
 
   describe "wait_for_snapshot/4" do
     test "returns :ready for existing snapshot", %{storage: storage} = ctx do
-      %{shape_cache_opts: opts} = with_shape_cache(Map.put(ctx, :pool, nil))
+      %{shape_cache_opts: opts} =
+        with_shape_cache(Map.put(ctx, :pool, nil),
+          create_snapshot_fn: fn _, _, _, _, _ -> :ok end
+        )
+
       shape = %Shape{root_table: {"public", "items"}}
       {shape_id, _} = ShapeCache.get_or_create_shape_id(shape, opts)
 
@@ -236,11 +241,16 @@ defmodule Electric.ShapeCacheTest do
 
       %{shape_cache_opts: opts} =
         with_shape_cache(Map.put(ctx, :pool, nil),
-          create_snapshot_fn: fn parent, shape_id, _, _, _storage ->
+          create_snapshot_fn: fn parent, shape_id, _, _, storage ->
             ref = make_ref()
             send(test_pid, {:waiting_point, ref, self()})
             receive(do: ({:continue, ^ref} -> :ok))
             GenServer.cast(parent, {:snapshot_xmin_known, shape_id, 10})
+
+            # Sometimes only some tasks subscribe before reaching this point, and then hang
+            # if we don't actually have a snapshot. This is kind of part of the test, because
+            # `wait_for_snapshot/3` should always resolve to `:ready` in concurrent situations
+            Storage.make_new_snapshot!(shape_id, @basic_query_meta, [["test"]], storage)
             GenServer.cast(parent, {:snapshot_ready, shape_id})
           end
         )
@@ -278,12 +288,18 @@ defmodule Electric.ShapeCacheTest do
 
       shape = %Shape{root_table: {"public", "items"}}
       {shape_id, _} = ShapeCache.get_or_create_shape_id(shape, opts)
+      task = Task.async(fn -> ShapeCache.wait_for_snapshot(opts[:server], shape_id, shape) end)
 
-      assert_receive {:waiting_point, ref, pid}
-      send(pid, {:continue, ref})
+      log =
+        capture_log(fn ->
+          assert_receive {:waiting_point, ref, pid}
+          send(pid, {:continue, ref})
 
-      assert {:error, %RuntimeError{message: "expected error"}} =
-               ShapeCache.wait_for_snapshot(opts[:server], shape_id, shape)
+          assert {:error, %RuntimeError{message: "expected error"}} =
+                   Task.await(task)
+        end)
+
+      assert log =~ "Snapshot creation failed for #{shape_id}"
     end
   end
 
@@ -301,6 +317,7 @@ defmodule Electric.ShapeCacheTest do
 
       shape = %Shape{root_table: {"public", "items"}}
       {shape_id, _} = ShapeCache.get_or_create_shape_id(shape, opts)
+      Process.sleep(50)
       assert :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id, shape)
 
       Storage.append_to_log!(
@@ -319,7 +336,8 @@ defmodule Electric.ShapeCacheTest do
       assert Storage.snapshot_exists?(shape_id, storage)
       assert Enum.count(Storage.get_log_stream(shape_id, 0, storage)) == 1
 
-      ShapeCache.handle_truncate(opts[:server], shape_id)
+      log = capture_log(fn -> ShapeCache.handle_truncate(opts[:server], shape_id) end)
+      assert log =~ "Truncating and rotating shape id"
 
       # Wait a bit for the async cleanup to complete
       Process.sleep(100)
@@ -345,6 +363,7 @@ defmodule Electric.ShapeCacheTest do
 
       shape = %Shape{root_table: {"public", "items"}}
       {shape_id, _} = ShapeCache.get_or_create_shape_id(shape, opts)
+      Process.sleep(50)
       assert :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id, shape)
 
       Storage.append_to_log!(
@@ -363,7 +382,8 @@ defmodule Electric.ShapeCacheTest do
       assert Storage.snapshot_exists?(shape_id, storage)
       assert Enum.count(Storage.get_log_stream(shape_id, 0, storage)) == 1
 
-      ShapeCache.clean_shape(opts[:server], shape_id)
+      log = capture_log(fn -> ShapeCache.clean_shape(opts[:server], shape_id) end)
+      assert log =~ "Cleaning up shape"
 
       # Wait a bit for the async cleanup to complete
       Process.sleep(100)
