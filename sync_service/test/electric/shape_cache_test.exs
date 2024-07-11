@@ -44,9 +44,10 @@ defmodule Electric.ShapeCacheTest do
         )
 
       shape = %Shape{root_table: {"public", "items"}}
+
       {shape_id, offset} = ShapeCache.get_or_create_shape_id(shape, opts)
       assert offset == 0
-      assert :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id, shape)
+      assert :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id)
       assert Storage.snapshot_exists?(shape_id, storage)
     end
 
@@ -66,7 +67,7 @@ defmodule Electric.ShapeCacheTest do
       shape = %Shape{root_table: {"public", "items"}}
       {shape_id, _} = ShapeCache.get_or_create_shape_id(shape, opts)
       for _ <- 1..10, do: assert({^shape_id, _} = ShapeCache.get_or_create_shape_id(shape, opts))
-      assert :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id, shape)
+      assert :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id)
 
       assert_received {:called, :create_snapshot_fn}
       refute_received {:called, :create_snapshot_fn}
@@ -93,7 +94,7 @@ defmodule Electric.ShapeCacheTest do
          %{storage: storage, shape_cache_opts: opts} do
       shape = %Shape{root_table: {"public", "items"}}
       {shape_id, _} = ShapeCache.get_or_create_shape_id(shape, opts)
-      assert :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id, shape)
+      assert :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id)
       assert Storage.snapshot_exists?(shape_id, storage)
       assert {0, stream} = Storage.get_snapshot(shape_id, storage)
 
@@ -105,7 +106,7 @@ defmodule Electric.ShapeCacheTest do
          %{storage: storage, shape_cache_opts: opts} do
       shape = %Shape{root_table: {"public", "items"}}
       {shape_id, initial_offset} = ShapeCache.get_or_create_shape_id(shape, opts)
-      assert :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id, shape)
+      assert :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id)
       assert Storage.snapshot_exists?(shape_id, storage)
       assert {^shape_id, offset_after_snapshot} = ShapeCache.get_or_create_shape_id(shape, opts)
 
@@ -136,7 +137,7 @@ defmodule Electric.ShapeCacheTest do
           {shape_id, _} = ShapeCache.get_or_create_shape_id(shape, opts)
 
           assert {:error, %Postgrex.Error{postgres: %{code: :undefined_table}}} =
-                   ShapeCache.wait_for_snapshot(opts[:server], shape_id, shape)
+                   ShapeCache.wait_for_snapshot(opts[:server], shape_id)
 
           shape_id
         end)
@@ -166,7 +167,7 @@ defmodule Electric.ShapeCacheTest do
 
       shape = %Shape{root_table: {"public", "items"}}
       {shape_id, _} = ShapeCache.get_or_create_shape_id(shape, opts)
-      assert :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id, shape)
+      assert :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id)
       assert [{^shape_id, ^shape, 10}] = ShapeCache.list_active_shapes(opts)
     end
 
@@ -195,7 +196,7 @@ defmodule Electric.ShapeCacheTest do
 
       send(pid, {:continue, ref})
 
-      assert :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id, shape)
+      assert :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id)
       assert [{^shape_id, ^shape, 10}] = ShapeCache.list_active_shapes(opts)
     end
   end
@@ -213,10 +214,10 @@ defmodule Electric.ShapeCacheTest do
       # Manually create a snapshot
       Storage.make_new_snapshot!(shape_id, @basic_query_meta, [["test"]], storage)
 
-      assert ShapeCache.wait_for_snapshot(opts[:server], shape_id, shape) == :ready
+      assert ShapeCache.wait_for_snapshot(opts[:server], shape_id) == :ready
     end
 
-    test "creates a new snapshot if none were created for some reason",
+    test "returns an error if waiting is for an unknown shape id",
          %{storage: storage} = ctx do
       shape_id = "orphaned_id"
 
@@ -229,11 +230,9 @@ defmodule Electric.ShapeCacheTest do
           end
         )
 
-      shape = %Shape{root_table: {"public", "items"}}
+      assert {:error, :unknown} = ShapeCache.wait_for_snapshot(opts[:server], shape_id)
 
-      assert :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id, shape)
-
-      assert Storage.snapshot_exists?(shape_id, storage)
+      refute Storage.snapshot_exists?(shape_id, storage)
     end
 
     test "handles buffering multiple callers correctly", ctx do
@@ -259,8 +258,7 @@ defmodule Electric.ShapeCacheTest do
       {shape_id, _} = ShapeCache.get_or_create_shape_id(shape, opts)
 
       tasks =
-        for _ <- 1..10,
-            do: Task.async(ShapeCache, :wait_for_snapshot, [opts[:server], shape_id, shape])
+        for _ <- 1..10, do: Task.async(ShapeCache, :wait_for_snapshot, [opts[:server], shape_id])
 
       assert_receive {:waiting_point, ref, pid}
       send(pid, {:continue, ref})
@@ -288,7 +286,7 @@ defmodule Electric.ShapeCacheTest do
 
       shape = %Shape{root_table: {"public", "items"}}
       {shape_id, _} = ShapeCache.get_or_create_shape_id(shape, opts)
-      task = Task.async(fn -> ShapeCache.wait_for_snapshot(opts[:server], shape_id, shape) end)
+      task = Task.async(fn -> ShapeCache.wait_for_snapshot(opts[:server], shape_id) end)
 
       log =
         capture_log(fn ->
@@ -318,7 +316,7 @@ defmodule Electric.ShapeCacheTest do
       shape = %Shape{root_table: {"public", "items"}}
       {shape_id, _} = ShapeCache.get_or_create_shape_id(shape, opts)
       Process.sleep(50)
-      assert :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id, shape)
+      assert :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id)
 
       Storage.append_to_log!(
         shape_id,
@@ -364,7 +362,7 @@ defmodule Electric.ShapeCacheTest do
       shape = %Shape{root_table: {"public", "items"}}
       {shape_id, _} = ShapeCache.get_or_create_shape_id(shape, opts)
       Process.sleep(50)
-      assert :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id, shape)
+      assert :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id)
 
       Storage.append_to_log!(
         shape_id,

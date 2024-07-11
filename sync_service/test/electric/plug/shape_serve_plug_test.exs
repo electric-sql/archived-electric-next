@@ -72,7 +72,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
       |> expect(:get_or_create_shape_id, fn @test_shape, _opts ->
         {@test_shape_id, @test_offset}
       end)
-      |> expect(:wait_for_snapshot, fn _, @test_shape_id, _ -> :ready end)
+      |> expect(:wait_for_snapshot, fn _, @test_shape_id -> :ready end)
 
       MockStorage
       |> expect(:get_snapshot, fn @test_shape_id, _opts -> {0, [%{key: "snapshot"}]} end)
@@ -99,7 +99,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
       |> expect(:get_or_create_shape_id, fn @test_shape, _opts ->
         {@test_shape_id, @test_offset}
       end)
-      |> expect(:wait_for_snapshot, fn _, @test_shape_id, _ -> :ready end)
+      |> expect(:wait_for_snapshot, fn _, @test_shape_id -> :ready end)
 
       MockStorage
       |> expect(:get_snapshot, fn @test_shape_id, _opts -> {0, [%{key: "snapshot"}]} end)
