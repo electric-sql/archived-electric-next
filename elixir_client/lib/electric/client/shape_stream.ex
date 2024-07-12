@@ -208,4 +208,36 @@ defmodule Electric.Client.ShapeStream do
 
     {:noreply, events, %{state | demand: demand - num_taken, queue: queue}}
   end
+
+  def get_state(pid, key \\ nil) do
+    GenServer.call(pid, {:get_state, key})
+  end
+
+  def patch_state(pid, %State{} = state) do
+    GenServer.cast(pid, {:patch_state, state})
+  end
+
+  def patch_state(pid, key, value) when is_atom(key) do
+    GenServer.cast(pid, {:patch_state, key, value})
+  end
+
+  @impl true
+  def handle_call({:get_state, nil}, _from, state) do
+    {:reply, state, [], state}
+  end
+
+  @impl true
+  def handle_call({:get_state, key}, _from, state) when is_atom(key) do
+    {:reply, Map.get(state, key), [], state}
+  end
+
+  @impl true
+  def handle_cast({:patch_state, %State{} = state}, _state) do
+    {:noreply, [], state}
+  end
+
+  @impl true
+  def handle_cast({:patch_state, key, value}, state) when is_atom(key) do
+    {:noreply, [], %{state | key => value}}
+  end
 end
