@@ -1,5 +1,7 @@
 import Config
 
+config :logger, level: :warning
+
 if config_env() == :test do
   default_database_url = "postgresql://postgres:password@localhost:54321/electric"
   database_url = System.get_env("DATABASE_URL", default_database_url)
