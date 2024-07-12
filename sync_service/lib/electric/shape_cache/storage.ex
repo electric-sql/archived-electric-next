@@ -14,6 +14,13 @@ defmodule Electric.ShapeCache.Storage do
         }
   @type log :: [log_entry()]
 
+  @type serialised_log_entry :: %{
+          key: String.t(),
+          value: map(),
+          headers: log_header(),
+          offset: String.t()
+        }
+
   @type row :: list()
 
   @doc "Initialize shared options that will be passed to every other callback"

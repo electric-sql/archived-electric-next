@@ -2,6 +2,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
   use ExUnit.Case, async: true
   import Plug.Conn
 
+  alias Electric.Postgres.Lsn
   alias Electric.Postgres.LogOffset
   alias Electric.Plug.ServeShapePlug
   alias Electric.Shapes.Shape
@@ -13,8 +14,12 @@ defmodule Electric.Plug.ServeShapePlugTest do
 
   @test_shape %Shape{root_table: {"public", "users"}}
   @test_shape_id "test-shape-id"
-  @test_offset 100
+  @test_offset LogOffset.make(Lsn.from_integer(100), 0)
   @registry Registry.ServeShapePlugTest
+  @first_offset LogOffset.first()
+  @encoded_first_offset URI.encode(LogOffset.to_string(@first_offset))
+  @start_offset_50 LogOffset.make(Lsn.from_integer(50), 0)
+  @start_offset_50_str LogOffset.to_string(@start_offset_50)
 
   defmodule Inspector do
     def load_table_info({"public", "users"}, _), do: [%{name: "id", type: "int8"}]
@@ -50,14 +55,14 @@ defmodule Electric.Plug.ServeShapePlugTest do
       assert conn.status == 400
 
       assert Jason.decode!(conn.resp_body) == %{
-               "offset" => ["must be integer"],
+               "offset" => ["has invalid format"],
                "root_table" => ["table name does not match expected format"]
              }
     end
 
     test "returns 400 for missing shape_id when offset != -1" do
       conn =
-        conn(:get, %{"root_table" => "public.users"}, "?offset=0")
+        conn(:get, %{"root_table" => "public.users"}, "?offset=#{@encoded_first_offset}")
         |> ServeShapePlug.call([])
 
       assert conn.status == 400
@@ -74,9 +79,15 @@ defmodule Electric.Plug.ServeShapePlugTest do
       end)
       |> expect(:wait_for_snapshot, fn _, @test_shape_id -> :ready end)
 
+      next_offset = LogOffset.increment(@first_offset)
+
       MockStorage
-      |> expect(:get_snapshot, fn @test_shape_id, _opts -> {0, [%{key: "snapshot"}]} end)
-      |> expect(:get_log_stream, fn @test_shape_id, 0, _, _opts -> [%{key: "log"}] end)
+      |> expect(:get_snapshot, fn @test_shape_id, _opts ->
+        {@first_offset, [%{key: "snapshot"}]}
+      end)
+      |> expect(:get_log_stream, fn @test_shape_id, @first_offset, _, _opts ->
+        [%{key: "log", value: "foo", headers: %{}, offset: next_offset}]
+      end)
 
       conn =
         conn(:get, %{"root_table" => "public.users"}, "?offset=-1")
@@ -86,11 +97,19 @@ defmodule Electric.Plug.ServeShapePlugTest do
 
       assert Jason.decode!(conn.resp_body) == [
                %{"key" => "snapshot"},
-               %{"key" => "log"},
+               %{
+                 "key" => "log",
+                 "value" => "foo",
+                 "headers" => %{},
+                 "offset" => LogOffset.to_string(next_offset)
+               },
                %{"headers" => %{"control" => "up-to-date"}}
              ]
 
-      assert Plug.Conn.get_resp_header(conn, "etag") == ["#{@test_shape_id}:-1:#{@test_offset}"]
+      assert Plug.Conn.get_resp_header(conn, "etag") == [
+               "#{@test_shape_id}:-1:#{LogOffset.to_string(@test_offset)}"
+             ]
+
       assert Plug.Conn.get_resp_header(conn, "x-electric-shape-id") == [@test_shape_id]
     end
 
@@ -101,9 +120,15 @@ defmodule Electric.Plug.ServeShapePlugTest do
       end)
       |> expect(:wait_for_snapshot, fn _, @test_shape_id -> :ready end)
 
+      next_offset = LogOffset.increment(@first_offset)
+
       MockStorage
-      |> expect(:get_snapshot, fn @test_shape_id, _opts -> {0, [%{key: "snapshot"}]} end)
-      |> expect(:get_log_stream, fn @test_shape_id, 0, _, _opts -> [%{key: "log"}] end)
+      |> expect(:get_snapshot, fn @test_shape_id, _opts ->
+        {@first_offset, [%{key: "snapshot"}]}
+      end)
+      |> expect(:get_log_stream, fn @test_shape_id, @first_offset, _, _opts ->
+        [%{key: "log", value: "foo", headers: %{}, offset: next_offset}]
+      end)
 
       max_age = 62
       stale_age = 312
@@ -126,25 +151,48 @@ defmodule Electric.Plug.ServeShapePlugTest do
         {@test_shape_id, @test_offset}
       end)
 
+      next_offset = LogOffset.increment(@start_offset_50)
+      next_next_offset = LogOffset.increment(next_offset)
+
       MockStorage
-      |> expect(:get_log_stream, fn @test_shape_id, 50, _, _opts ->
-        [%{key: "log1"}, %{key: "log2"}]
+      |> expect(:get_log_stream, fn @test_shape_id, @start_offset_50, _, _opts ->
+        [
+          %{key: "log1", value: "foo", headers: %{}, offset: next_offset},
+          %{key: "log2", value: "bar", headers: %{}, offset: next_next_offset}
+        ]
       end)
-      |> expect(:has_log_entry?, fn @test_shape_id, 50, _ -> true end)
+      |> expect(:has_log_entry?, fn @test_shape_id, @start_offset_50, _ -> true end)
 
       conn =
-        conn(:get, %{"root_table" => "public.users"}, "?offset=50&shape_id=#{@test_shape_id}")
+        conn(
+          :get,
+          %{"root_table" => "public.users"},
+          "?offset=#{URI.encode(@start_offset_50_str)}&shape_id=#{@test_shape_id}"
+        )
         |> ServeShapePlug.call([])
 
       assert conn.status == 200
 
       assert Jason.decode!(conn.resp_body) == [
-               %{"key" => "log1"},
-               %{"key" => "log2"},
+               %{
+                 "key" => "log1",
+                 "value" => "foo",
+                 "headers" => %{},
+                 "offset" => LogOffset.to_string(next_offset)
+               },
+               %{
+                 "key" => "log2",
+                 "value" => "bar",
+                 "headers" => %{},
+                 "offset" => LogOffset.to_string(next_next_offset)
+               },
                %{"headers" => %{"control" => "up-to-date"}}
              ]
 
-      assert Plug.Conn.get_resp_header(conn, "etag") == ["#{@test_shape_id}:50:#{@test_offset}"]
+      assert Plug.Conn.get_resp_header(conn, "etag") == [
+               "#{@test_shape_id}:#{@start_offset_50_str}:#{LogOffset.to_string(@test_offset)}"
+             ]
+
       assert Plug.Conn.get_resp_header(conn, "x-electric-shape-id") == [@test_shape_id]
     end
 
@@ -153,11 +201,18 @@ defmodule Electric.Plug.ServeShapePlugTest do
         {@test_shape_id, @test_offset}
       end)
 
-      expect(MockStorage, :has_log_entry?, fn @test_shape_id, 50, _ -> true end)
+      expect(MockStorage, :has_log_entry?, fn @test_shape_id, @start_offset_50, _ -> true end)
 
       conn =
-        conn(:get, %{"root_table" => "public.users"}, "?offset=50&shape_id=#{@test_shape_id}")
-        |> put_req_header("if-none-match", ~s("#{@test_shape_id}:50:#{@test_offset}"))
+        conn(
+          :get,
+          %{"root_table" => "public.users"},
+          "?offset=#{URI.encode(@start_offset_50_str)}&shape_id=#{@test_shape_id}"
+        )
+        |> put_req_header(
+          "if-none-match",
+          ~s("#{@test_shape_id}:#{@start_offset_50_str}:#{LogOffset.to_string(@test_offset)}")
+        )
         |> ServeShapePlug.call([])
 
       assert conn.status == 304
@@ -187,7 +242,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
           conn(
             :get,
             %{"root_table" => "public.users"},
-            "?offset=#{@test_offset}&shape_id=#{@test_shape_id}&live=true"
+            "?offset=#{URI.encode(@test_offset)}&shape_id=#{@test_shape_id}&live=true"
           )
           |> ServeShapePlug.call([])
         end)
@@ -207,7 +262,12 @@ defmodule Electric.Plug.ServeShapePlugTest do
       assert conn.status == 200
 
       assert Jason.decode!(conn.resp_body) == [
-               "test result",
+               %{
+                 "key" => "log",
+                 "value" => "foo",
+                 "headers" => %{},
+                 "offset" => LogOffset.to_string(next_offset)
+               },
                %{"headers" => %{"control" => "up-to-date"}}
              ]
 
@@ -228,18 +288,18 @@ defmodule Electric.Plug.ServeShapePlugTest do
       test_pid = self()
 
       MockStorage
-      |> expect(:get_log_stream, fn @test_shape_id, 50, _, _opts ->
+      |> expect(:get_log_stream, fn @test_shape_id, @start_offset_50, _, _opts ->
         send(test_pid, :got_log_stream)
         []
       end)
-      |> expect(:has_log_entry?, fn @test_shape_id, 50, _ -> true end)
+      |> expect(:has_log_entry?, fn @test_shape_id, @start_offset_50, _ -> true end)
 
       task =
         Task.async(fn ->
           conn(
             :get,
             %{"root_table" => "public.users"},
-            "?offset=50&shape_id=#{@test_shape_id}&live=true"
+            "?offset=#{URI.encode(@start_offset_50_str)}&shape_id=#{@test_shape_id}&live=true"
           )
           |> ServeShapePlug.call([])
         end)
@@ -268,14 +328,14 @@ defmodule Electric.Plug.ServeShapePlugTest do
       end)
 
       MockStorage
-      |> expect(:get_log_stream, fn @test_shape_id, 50, _, _opts -> [] end)
-      |> expect(:has_log_entry?, fn @test_shape_id, 50, _ -> true end)
+      |> expect(:get_log_stream, fn @test_shape_id, @start_offset_50, _, _opts -> [] end)
+      |> expect(:has_log_entry?, fn @test_shape_id, @start_offset_50, _ -> true end)
 
       conn =
         conn(
           :get,
           %{"root_table" => "public.users"},
-          "?offset=50&shape_id=#{@test_shape_id}&live=true"
+          "?offset=#{URI.encode(@start_offset_50_str)}&shape_id=#{@test_shape_id}&live=true"
         )
         |> put_in_config(:long_poll_timeout, 100)
         |> ServeShapePlug.call([])
@@ -298,10 +358,14 @@ defmodule Electric.Plug.ServeShapePlugTest do
       end)
 
       MockStorage
-      |> expect(:has_log_entry?, fn @test_shape_id, 50, _ -> false end)
+      |> expect(:has_log_entry?, fn @test_shape_id, @start_offset_50, _ -> false end)
 
       conn =
-        conn(:get, %{"root_table" => "public.users"}, "?offset=50&shape_id=#{@test_shape_id}")
+        conn(
+          :get,
+          %{"root_table" => "public.users"},
+          "?offset=#{URI.encode(@start_offset_50_str)}&shape_id=#{@test_shape_id}"
+        )
         |> ServeShapePlug.call([])
 
       assert conn.status == 409
@@ -325,7 +389,11 @@ defmodule Electric.Plug.ServeShapePlugTest do
       |> expect(:has_log_entry?, fn "foo", _, _ -> false end)
 
       conn =
-        conn(:get, %{"root_table" => "public.users"}, "?offset=50&shape_id=foo")
+        conn(
+          :get,
+          %{"root_table" => "public.users"},
+          "?offset=#{URI.encode("50/12")}&shape_id=foo"
+        )
         |> ServeShapePlug.call([])
 
       assert conn.status == 409

@@ -1,6 +1,8 @@
 defmodule Electric.Plug.ServeShapePlug do
   require Logger
   alias Electric.Shapes
+  alias Electric.ShapeCache.Storage
+  alias Electric.Postgres.LogOffset
   use Plug.Builder
 
   defmodule Params do
@@ -19,13 +21,11 @@ defmodule Electric.Plug.ServeShapePlug do
     end
 
     def validate(params, opts) do
-      offset_regex = Regex.source(LogOffset.regex())
-
       %__MODULE__{}
       |> cast(params, __schema__(:fields) -- [:shape_definition],
         message: fn _, _ -> "must be %{type}" end
       )
-      |> validate_format(:offset, Regex.compile("(^-1$)|(#{offset_regex})"))
+      |> validate_format(:offset, LogOffset.regex())
       |> cast_offset()
       |> validate_required([:root_table, :offset])
       |> validate_shape_id_with_offset()
@@ -45,18 +45,11 @@ defmodule Electric.Plug.ServeShapePlug do
       end
     end
 
-    # offset for initial sync is -1
-    # but following offsets are LogOffset values
+    def cast_offset(%Ecto.Changeset{valid?: false} = changeset), do: changeset
+
     def cast_offset(%Ecto.Changeset{} = changeset) do
       offset = fetch_change!(changeset, :offset)
-
-      case offset do
-        "-1" ->
-          put_change(changeset, :offset, -1)
-
-        _ ->
-          put_change(changeset, :offset, LogOffset.from_string(offset))
-      end
+      put_change(changeset, :offset, LogOffset.from_string(offset))
     end
 
     def validate_shape_id_with_offset(%Ecto.Changeset{valid?: false} = changeset), do: changeset
@@ -126,11 +119,13 @@ defmodule Electric.Plug.ServeShapePlug do
     {shape_id, last_offset} =
       Shapes.get_or_create_shape_id(conn.assigns.shape_definition, conn.assigns.config)
 
+    serialised_last_offset = LogOffset.to_string(last_offset)
+
     conn
     |> assign(:active_shape_id, shape_id)
     |> assign(:last_offset, last_offset)
     |> put_resp_header("x-electric-shape-id", shape_id)
-    |> put_resp_header("x-electric-chunk-last-offset", "#{last_offset}")
+    |> put_resp_header("x-electric-chunk-last-offset", serialised_last_offset)
   end
 
   # If the offset requested is -1, noop as we can always serve it
@@ -177,7 +172,10 @@ defmodule Electric.Plug.ServeShapePlug do
     } = conn.assigns
 
     conn
-    |> assign(:etag, "#{active_shape_id}:#{offset}:#{last_offset}")
+    |> assign(
+      :etag,
+      "#{active_shape_id}:#{LogOffset.to_string(offset)}:#{LogOffset.to_string(last_offset)}"
+    )
   end
 
   defp validate_and_put_etag(%Plug.Conn{} = conn, _) do
@@ -255,6 +253,7 @@ defmodule Electric.Plug.ServeShapePlug do
        ) do
     log =
       Shapes.get_log_stream(conn.assigns.config, shape_id, since: offset, up_to: last_offset)
+      |> Enum.map(&Storage.serialise_offset_in_log_entry/1)
       |> Enum.to_list()
 
     if log == [] and conn.assigns.live do

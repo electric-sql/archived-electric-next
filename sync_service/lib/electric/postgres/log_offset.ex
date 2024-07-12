@@ -1,6 +1,4 @@
 defmodule Electric.Postgres.LogOffset do
-  import Kernel, except: [to_charlist: 1, to_string: 1]
-
   alias Electric.Postgres.Lsn
 
   @moduledoc """
@@ -9,9 +7,9 @@ defmodule Electric.Postgres.LogOffset do
   """
 
   @type int64 :: 0..0xFFFFFFFFFFFFFFFF
-  @type t :: {int64(), non_neg_integer()}
+  @type t :: -1 | {int64(), non_neg_integer()}
 
-  # Comparison operators on tuples works out of the box
+  # Comparison operators on tuples work out of the box
   # If we change internal representation to something else than a tuple
   # we may need to overload the comparison operators
   # by importing kernel except the operators and define the operators ourselves
@@ -26,13 +24,10 @@ defmodule Electric.Postgres.LogOffset do
 
   ## Examples
 
-      iex> Regex.match?(regex(), "\#{before_all()}")
-      false
-
-      iex> Regex.match?(regex(), "\#{first()}")
+      iex> Regex.match?(regex(), to_string(before_all()))
       true
 
-      iex> Regex.match?(regex(), "\#{last()}")
+      iex> Regex.match?(regex(), to_string(first()))
       true
 
       iex> Regex.match?(regex(), "15/9")
@@ -44,7 +39,7 @@ defmodule Electric.Postgres.LogOffset do
       iex> Regex.match?(regex(), "2/-3")
       false
   """
-  def regex(), do: ~r/^[0-9]+\/[0-9]+$/
+  def regex(), do: ~r/(^-1$)|(^[0-9]+\/[0-9]+$)/
 
   @doc """
   An offset that is smaller than all offsets in the log.
@@ -55,7 +50,7 @@ defmodule Electric.Postgres.LogOffset do
       true
   """
   @spec before_all() :: t
-  def before_all(), do: {-1, 0}
+  def before_all(), do: -1
 
   @doc """
   The first possible offset in the log.
@@ -65,6 +60,14 @@ defmodule Electric.Postgres.LogOffset do
 
   @doc """
   The last possible offset in the log.
+
+  ## Examples
+
+      iex> first() < last()
+      true
+
+      iex> make(Lsn.from_integer(10), 0) < last()
+      true
   """
   @spec last() :: t
   def last(), do: {0xFFFFFFFFFFFFFFFF, :infinity}
@@ -118,6 +121,9 @@ defmodule Electric.Postgres.LogOffset do
 
   ## Examples
 
+      iex> from_string("-1")
+      -1
+
       iex> from_string("0/0")
       {0, 0}
 
@@ -129,21 +135,34 @@ defmodule Electric.Postgres.LogOffset do
   """
   @spec from_string(String.t()) :: t
   def from_string(str) when is_binary(str) do
-    [tx_offset, op_offset] = String.split(str, "/")
-    {String.to_integer(tx_offset), String.to_integer(op_offset)}
-  end
-
-  defimpl Inspect do
-    def inspect(offset, _opts) do
-      "#LogOffset<#{Electric.Postgres.LogOffset.to_iolist(offset)}>"
+    if str == "-1" do
+      -1
+    else
+      [tx_offset, op_offset] = String.split(str, "/")
+      {String.to_integer(tx_offset), String.to_integer(op_offset)}
     end
   end
 
-  defimpl String.Chars do
-    def to_string(lsn), do: "#{Electric.Postgres.LogOffset.to_iolist(lsn)}"
+  @doc """
+  Serialise the LogOffset value to a string.
+
+  ## Examples
+
+      iex> to_string(-1)
+      "-1"
+
+      iex> to_string(first())
+      "0/0"
+
+      iex> to_string(make(Lsn.from_integer(10), 3))
+      "10/3"
+  """
+  @spec to_string(t) :: String.t()
+  def to_string(-1) do
+    "-1"
   end
 
-  defimpl List.Chars do
-    def to_charlist(lsn), do: ~c'#{Electric.Postgres.LogOffset.to_iolist(lsn)}'
+  def to_string(offset) do
+    "#{to_iolist(offset)}"
   end
 end
