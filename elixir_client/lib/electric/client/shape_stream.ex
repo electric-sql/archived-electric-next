@@ -157,14 +157,14 @@ defmodule Electric.Client.ShapeStream do
   defp build_url(%{
          base_url: base_url,
          shape_definition: %{table: table},
-         has_been_up_to_date: has_been_up_to_date,
+         is_up_to_date: is_up_to_date,
          offset: _offset,
          shape_id: shape_id
        }) do
     query =
       %{offset: -1}
       |> Util.map_put_if(:shape_id, shape_id, is_binary(shape_id))
-      |> Util.map_put_if(:live, true, has_been_up_to_date)
+      |> Util.map_put_if(:live, true, is_up_to_date)
       |> URI.encode_query()
 
     "#{base_url}/shape/#{table}?#{query}"
