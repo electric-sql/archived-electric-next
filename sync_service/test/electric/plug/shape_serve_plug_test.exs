@@ -266,7 +266,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
                  "key" => "log",
                  "value" => "foo",
                  "headers" => %{},
-                 "offset" => LogOffset.to_string(next_offset)
+                 "offset" => next_offset_str
                },
                %{"headers" => %{"control" => "up-to-date"}}
              ]

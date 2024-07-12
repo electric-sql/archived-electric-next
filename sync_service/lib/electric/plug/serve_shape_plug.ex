@@ -226,7 +226,7 @@ defmodule Electric.Plug.ServeShapePlug do
   # If offset is -1, we're serving a snapshot
   defp serve_log_or_snapshot(
          %Plug.Conn{
-           assigns: %{offset: -1, last_offset: last_offset, active_shape_id: shape_id}
+           assigns: %{offset: -1, last_offset: _, active_shape_id: shape_id}
          } = conn,
          _
        ) do
@@ -252,14 +252,27 @@ defmodule Electric.Plug.ServeShapePlug do
          _
        ) do
     log =
-      Shapes.get_log_stream(conn.assigns.config, shape_id, since: offset, up_to: last_offset)
+      Shapes.get_log_stream(conn.assigns.config, shape_id, since: offset)
       |> Enum.map(&Storage.serialise_offset_in_log_entry/1)
       |> Enum.to_list()
 
     if log == [] and conn.assigns.live do
       hold_until_change(conn, shape_id)
     else
-      send_resp(conn, 200, Jason.encode_to_iodata!(log ++ @up_to_date))
+      # If we are in live mode we take the last offset from the log
+      # because the `last_offset` in `conn.assigns`
+      # is the last offset from when the request came in
+      # but this may be outdated since new updates may have come in
+      last_offset =
+        if conn.assigns.live do
+          List.last(log).offset
+        else
+          LogOffset.to_string(last_offset)
+        end
+
+      conn
+      |> put_resp_header("x-electric-chunk-last-offset", "#{last_offset}")
+      |> send_resp(200, Jason.encode_to_iodata!(log ++ @up_to_date))
     end
   end
 
