@@ -231,13 +231,15 @@ defmodule Electric.Plug.ServeShapePlug do
   # Otherwise, serve log since that offset
   defp serve_log_or_snapshot(
          %Plug.Conn{
-           assigns: %{offset: offset, last_offset: last_offset, active_shape_id: shape_id}
+           assigns: %{offset: offset, active_shape_id: shape_id}
          } = conn,
          _
        ) do
     log =
-      Shapes.get_log_stream(conn.assigns.config, shape_id, since: offset, up_to: last_offset)
+      Shapes.get_log_stream(conn.assigns.config, shape_id, since: offset)
       |> Enum.to_list()
+
+    Logger.debug("Serving log #{inspect log}")
 
     if log == [] and conn.assigns.live do
       hold_until_change(conn, shape_id)
