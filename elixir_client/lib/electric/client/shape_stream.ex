@@ -131,6 +131,7 @@ defmodule Electric.Client.ShapeStream do
     GenStage.stop(pid)
   end
 
+  @impl true
   def init(opts) do
     state = struct!(State, [instance_id: Util.generate_id()] ++ opts)
 
@@ -139,6 +140,7 @@ defmodule Electric.Client.ShapeStream do
     {:producer, state, dispatcher: GenStage.BroadcastDispatcher}
   end
 
+  @impl true
   def handle_info(:fetch, state) do
     state
     |> fetch()
