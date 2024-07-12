@@ -63,11 +63,20 @@ defmodule Electric.Client.ShapeStream do
     defp accumulate(item, acc) do
       Logger.debug("accumulate")
 
-      item
-      |> Jaxon.Stream.from_binary()
-      |> Jaxon.Stream.query([:root])
-      |> Stream.flat_map(fn messages -> messages end)
-      |> Enum.reduce(acc, &accumulate_message/2)
+      try do
+        item
+        |> Jaxon.Stream.from_binary()
+        |> Jaxon.Stream.query([:root])
+        |> Stream.flat_map(fn messages -> messages end)
+        |> Enum.reduce(acc, &accumulate_message/2)
+      rescue
+        err in Jaxon.ParseError ->
+          err
+          |> inspect()
+          |> Logger.debug()
+
+          acc
+      end
     end
 
     defp accumulate_message(
