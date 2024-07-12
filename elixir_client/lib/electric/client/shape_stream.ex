@@ -180,7 +180,7 @@ defmodule Electric.Client.ShapeStream do
 
     Process.send_after(self(), :fetch, delay)
 
-    %{state | backoff: %{backoff | delay_ms: next_delay}}
+    %{state | backoff: %{backoff | delay_ms: next_delay}, is_up_to_date: false}
   end
 
   defp process(%Resp{body: %{backoff: backoff, queue: queue} = state, headers: headers}, _state) do
