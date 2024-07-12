@@ -183,15 +183,16 @@ defmodule Electric.Client.ShapeStream do
     %{state | backoff: %{backoff | delay_ms: next_delay}, is_up_to_date: false}
   end
 
-  defp process(%Resp{body: %{backoff: backoff, queue: queue} = state, headers: headers}, _state) do
+  defp process(%Resp{body: %State{} = state, headers: headers}, %{backoff: backoff}) do
     backoff = %{backoff | delay_ms: backoff.initial_delay_ms}
     shape_id = Enum.at(headers["x-electric-shape-id"], 0)
 
     Process.send(self(), :fetch, [])
 
-    %{state | backoff: backoff, queue: queue, shape_id: shape_id}
+    %{state | backoff: backoff, shape_id: shape_id}
   end
 
+  @impl true
   def handle_demand(incoming_demand, %{demand: demand} = state) when incoming_demand > 0 do
     dispatch_events(%{state | demand: demand + incoming_demand})
   end
