@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  build_and_test:
     name: Build and test
     runs-on: ubuntu-latest
     steps:
@@ -21,6 +21,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
       - run: npm ci
       - name: Restore dependencies cache
         uses: actions/cache@v4
@@ -62,3 +64,15 @@ jobs:
           sudo chown -R runner:docker /home/runner/work/electric-next/electric-next/
           sudo chmod -R 775 /home/runner/work/electric-next/electric-next/
       - run: npm test
+  type_check:
+    name: Type checking
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
