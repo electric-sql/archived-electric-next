@@ -116,9 +116,11 @@ jobs:
           cache: npm
           cache-dependency-path: |
             package-lock.json
-            examples/${{ matrix.example_folder }}/package-lock.json
-      - run: npm ci
+            ${{ matrix.example_folder }}/package-lock.json
+      - name: npm ci in the repository root
+        run: npm ci
         working-directory: .
-      - run: npm ci
+      - name: npm ci in the ${{ matrix.example_folder }}
+        run: npm ci
       - run: npm run typecheck
       - run: npm run build
