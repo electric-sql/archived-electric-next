@@ -68,11 +68,10 @@ export const testWithIssuesTable = testWithDbClient.extend<{
   insertIssues: ({ issuesTableSql, dbClient }, use) =>
     use(async (...rows) => {
       const placeholders = rows.map((_, i) => `($${i * 2 + 1}, $${i * 2 + 2})`)
-      const { rows: rows_1 } = await dbClient
-        .query(
-          `INSERT INTO ${issuesTableSql} (id, title) VALUES ${placeholders} RETURNING id`,
-          rows.flatMap((x) => [x.id ?? uuidv4(), x.title])
-        )
+      const { rows: rows_1 } = await dbClient.query(
+        `INSERT INTO ${issuesTableSql} (id, title) VALUES ${placeholders} RETURNING id`,
+        rows.flatMap((x) => [x.id ?? uuidv4(), x.title])
+      )
       return rows_1.map((x_1) => x_1.id)
     }),
 })

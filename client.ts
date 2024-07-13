@@ -86,7 +86,10 @@ export class FetchError extends Error {
     public url: string,
     message?: string
   ) {
-    super(message || `HTTP Error ${status} at ${url}: ${text ?? JSON.stringify(json)}`)
+    super(
+      message ||
+        `HTTP Error ${status} at ${url}: ${text ?? JSON.stringify(json)}`
+    )
     this.name = 'FetchError'
     this.status = status
     this.text = text
@@ -105,7 +108,7 @@ export class FetchError extends Error {
 
     const contentType = response.headers.get('content-type')
     if (contentType && contentType.includes('application/json')) {
-      json = await response.json() as object
+      json = (await response.json()) as object
     } else {
       text = await response.text()
     }

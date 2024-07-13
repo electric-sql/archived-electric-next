@@ -239,7 +239,7 @@ defmodule Electric.Plug.ServeShapePlug do
       Shapes.get_log_stream(conn.assigns.config, shape_id, since: offset)
       |> Enum.to_list()
 
-    Logger.debug("Serving log #{inspect log}")
+    Logger.debug("Serving log #{inspect(log)}")
 
     if log == [] and conn.assigns.live do
       hold_until_change(conn, shape_id)
