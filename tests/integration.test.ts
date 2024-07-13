@@ -1,7 +1,7 @@
 import { parse } from 'cache-control-parser'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { v4 as uuidv4 } from 'uuid'
-import { assert, describe, expect, inject, test } from 'vitest'
+import { assert, describe, expect, inject, vi } from 'vitest'
 import { ShapeStream } from '../client'
 import { Message } from '../types'
 import { testWithIssuesTable as it } from './support/test_context'
@@ -198,6 +198,9 @@ describe(`HTTP Sync`, () => {
     issuesTableUrl,
     insertIssues,
   }) => {
+    await insertIssues({ title: 'foo1' }, { title: 'foo2' }, { title: 'foo3' })
+    await sleep(50)
+
     let lastOffset = 0
     const issueStream = new ShapeStream({
       shape: { table: issuesTableUrl },
@@ -218,6 +221,13 @@ describe(`HTTP Sync`, () => {
     await insertIssues(
       ...Array.from({ length: 9 }, (_, i) => ({ title: `foo${i + 5}` }))
     )
+
+    // And wait until it's definitely seen
+    await vi.waitFor(async () => {
+      const res = await fetch(`${BASE_URL}/shape/${issuesTableUrl}?offset=-1`)
+      const body = (await res.json()) as Message[]
+      expect(body).toHaveLength(13)
+    })
 
     let catchupOpsCount = 0
     const newAborter = new AbortController()
