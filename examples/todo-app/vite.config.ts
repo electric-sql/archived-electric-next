@@ -4,6 +4,8 @@ import { capsizeRadixPlugin } from "vite-plugin-capsize-radix"
 import alegreyaSans from "@capsizecss/metrics/alegreyaSans"
 import arial from "@capsizecss/metrics/arial"
 
+console.log(arial)
+
 export default defineConfig({
   plugins: [
     react(),
@@ -11,7 +13,7 @@ export default defineConfig({
       // Import this file into your app after you import Radix's CSS.
       outputPath: `./public/typography.css`,
       // Pass in Capsize font metric objects.
-      defaultFontStack: [alegreyaSans, arial],
+      defaultFontStack: [alegreyaSans as any, arial as any],
     }),
   ],
 })
