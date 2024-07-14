@@ -17,7 +17,7 @@ export type ControlMessage = {
 export type ChangeMessage<T> = {
   key: string
   value: T
-  headers: Header & { action: 'insert' | 'update' | 'delete' }
+  headers: Header & { action: `insert` | `update` | `delete` }
   offset: number
 }
 

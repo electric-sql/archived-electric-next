@@ -9,7 +9,7 @@ export function makePgClient(overrides: ClientConfig = {}) {
     password: `password`,
     user: `postgres`,
     database: `electric`,
-    options: '-csearch_path=testing_electric',
+    options: `-csearch_path=testing_electric`,
     ...overrides,
   })
 }
@@ -37,7 +37,7 @@ export function forEachMessage<T extends JsonSerializable>(
             message as Message<T>,
             messageIdx
           )
-          if ('action' in message.headers) messageIdx++
+          if (`action` in message.headers) messageIdx++
         } catch (e) {
           controller.abort()
           return reject(e)

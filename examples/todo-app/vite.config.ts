@@ -11,6 +11,7 @@ export default defineConfig({
       // Import this file into your app after you import Radix's CSS.
       outputPath: `./public/typography.css`,
       // Pass in Capsize font metric objects.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       defaultFontStack: [alegreyaSans as any, arial as any],
     }),
   ],

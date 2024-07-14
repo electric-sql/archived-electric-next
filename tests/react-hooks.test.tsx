@@ -3,14 +3,14 @@ import 'global-jsdom/register'
 
 import React from 'react'
 import { renderHook, waitFor } from '@testing-library/react'
-import { describe, expect, inject, vi } from 'vitest'
+import { describe, expect, inject } from 'vitest'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { testWithIssuesTable as it } from './support/test_context'
 import { useShape } from '../react-hooks'
 import { Message } from '../types'
 
 type FC = React.FC<React.PropsWithChildren>
-const BASE_URL = inject('baseUrl')
+const BASE_URL = inject(`baseUrl`)
 
 describe(`useShape`, () => {
   it(`should sync an empty shape`, async ({ aborter, issuesTableUrl }) => {
@@ -37,7 +37,7 @@ describe(`useShape`, () => {
     issuesTableUrl,
     insertIssues,
   }) => {
-    const [id] = await insertIssues({ title: 'test row' })
+    const [id] = await insertIssues({ title: `test row` })
 
     const wrapper: FC = ({ children }) => {
       return <div>{children}</div>
@@ -55,7 +55,7 @@ describe(`useShape`, () => {
     )
 
     await waitFor(() =>
-      expect(result.current).toEqual([{ id: id, title: 'test row' }])
+      expect(result.current).toEqual([{ id: id, title: `test row` }])
     )
   })
 
@@ -64,7 +64,7 @@ describe(`useShape`, () => {
     issuesTableUrl,
     insertIssues,
   }) => {
-    const [id] = await insertIssues({ title: 'test row' })
+    const [id] = await insertIssues({ title: `test row` })
 
     const wrapper: FC = ({ children }) => {
       return <div>{children}</div>
@@ -82,15 +82,14 @@ describe(`useShape`, () => {
     )
 
     await waitFor(() => expect(result.current).not.toEqual([]))
-    const initialValue = result.current
 
     // Add an item.
-    const [id2] = await insertIssues({ title: 'other row' })
+    const [id2] = await insertIssues({ title: `other row` })
 
     await waitFor(() =>
       expect(result.current).toEqual([
-        { id: id, title: 'test row' },
-        { id: id2, title: 'other row' },
+        { id: id, title: `test row` },
+        { id: id2, title: `other row` },
       ])
     )
   })
@@ -100,7 +99,7 @@ describe(`useShape`, () => {
     issuesTableUrl,
     insertIssues,
   }) => {
-    await insertIssues({ title: 'test row' })
+    await insertIssues({ title: `test row` })
 
     const wrapper: FC = ({ children }) => {
       return <div>{children}</div>
@@ -122,7 +121,7 @@ describe(`useShape`, () => {
     unmount()
 
     // Add another row to shape
-    const [newId] = await insertIssues({ title: 'other row' })
+    const [newId] = await insertIssues({ title: `other row` })
     // And wait until it's definitely seen
     await waitFor(async () => {
       const res = await fetch(`${BASE_URL}/shape/${issuesTableUrl}?offset=-1`)

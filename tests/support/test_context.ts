@@ -1,3 +1,4 @@
+/* eslint-disable no-empty-pattern */
 import { v4 as uuidv4 } from 'uuid'
 import { Client, QueryResult } from 'pg'
 import { inject, test } from 'vitest'
@@ -23,10 +24,10 @@ export const testWithDbClient = test.extend<{
   aborter: async ({}, use) => {
     const controller = new AbortController()
     await use(controller)
-    controller.abort('Test complete')
+    controller.abort(`Test complete`)
   },
-  baseUrl: async ({}, use) => use(inject('baseUrl')),
-  pgSchema: async ({}, use) => use(inject('testPgSchema')),
+  baseUrl: async ({}, use) => use(inject(`baseUrl`)),
+  pgSchema: async ({}, use) => use(inject(`testPgSchema`)),
 })
 
 export const testWithIssuesTable = testWithDbClient.extend<{
@@ -49,7 +50,7 @@ export const testWithIssuesTable = testWithDbClient.extend<{
     await dbClient.query(`DROP TABLE ${tableName}`)
   },
   issuesTableUrl: async ({ issuesTableSql, pgSchema, baseUrl }, use) => {
-    const urlAppropriateTable = pgSchema + '.' + issuesTableSql.slice(1, -1)
+    const urlAppropriateTable = pgSchema + `.` + issuesTableSql.slice(1, -1)
     await use(urlAppropriateTable)
 
     await fetch(`${baseUrl}/shape/${urlAppropriateTable}`, {

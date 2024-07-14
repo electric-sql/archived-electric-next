@@ -2,7 +2,7 @@ import { describe, expect, inject, vi } from 'vitest'
 import { testWithIssuesTable as it } from './support/test_context'
 import { Shape } from '../client'
 
-const BASE_URL = inject('baseUrl')
+const BASE_URL = inject(`baseUrl`)
 
 describe(`Shape`, () => {
   it(`should sync an empty shape`, async ({ issuesTableUrl }) => {
@@ -20,7 +20,7 @@ describe(`Shape`, () => {
     issuesTableKey,
     insertIssues,
   }) => {
-    const [id] = await insertIssues({ title: 'test title' })
+    const [id] = await insertIssues({ title: `test title` })
 
     const shape = new Shape({
       shape: { table: issuesTableUrl },
@@ -35,7 +35,7 @@ describe(`Shape`, () => {
     const expectedValue = new Map()
     expectedValue.set(`${issuesTableKey}/${id}`, {
       id: id,
-      title: 'test title',
+      title: `test title`,
     })
 
     expect(map).toEqual(expectedValue)
@@ -46,7 +46,7 @@ describe(`Shape`, () => {
     insertIssues,
     issuesTableKey,
   }) => {
-    const [id] = await insertIssues({ title: 'test title' })
+    const [id] = await insertIssues({ title: `test title` })
 
     const shape = new Shape({
       shape: { table: issuesTableUrl },
@@ -57,19 +57,19 @@ describe(`Shape`, () => {
     const expectedValue = new Map()
     expectedValue.set(`${issuesTableKey}/${id}`, {
       id: id,
-      title: 'test title',
+      title: `test title`,
     })
     expect(map).toEqual(expectedValue)
 
     const hasNotified = new Promise((resolve) => {
       shape.subscribe(resolve)
     })
-    const [id2] = await insertIssues({ title: 'other title' })
+    const [id2] = await insertIssues({ title: `other title` })
     await hasNotified
 
     expectedValue.set(`${issuesTableKey}/${id2}`, {
       id: id2,
-      title: 'other title',
+      title: `other title`,
     })
     expect(shape.value).toEqual(expectedValue)
 
@@ -81,7 +81,7 @@ describe(`Shape`, () => {
     insertIssues,
     issuesTableKey,
   }) => {
-    const [id] = await insertIssues({ title: 'test title' })
+    const [id] = await insertIssues({ title: `test title` })
 
     const shape = new Shape({
       shape: { table: issuesTableUrl },
@@ -92,17 +92,17 @@ describe(`Shape`, () => {
       shape.subscribe(resolve)
     })
 
-    const [id2] = await insertIssues({ title: 'other title' })
+    const [id2] = await insertIssues({ title: `other title` })
 
     const value = await hasNotified
     const expectedValue = new Map()
     expectedValue.set(`${issuesTableKey}/${id}`, {
       id: id,
-      title: 'test title',
+      title: `test title`,
     })
     expectedValue.set(`${issuesTableKey}/${id2}`, {
       id: id2,
-      title: 'other title',
+      title: `other title`,
     })
     expect(value).toEqual(expectedValue)
 

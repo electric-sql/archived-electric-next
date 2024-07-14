@@ -73,8 +73,12 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            examples/**/package-lock.json
       - run: npm ci
+      - name: npm ci in each examples dir
+        run: for dir in examples/*/; do (cd "$dir" && npm ci); done
       - run: npm run stylecheck
   type_check:
     name: Type checking

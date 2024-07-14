@@ -7,10 +7,10 @@ import { Message } from '../types'
 import { testWithIssuesTable as it } from './support/test_context'
 import * as h from './support/test_helpers'
 
-const BASE_URL = inject('baseUrl')
-const PG_SCHEMA = inject('testPgSchema')
+const BASE_URL = inject(`baseUrl`)
+const PG_SCHEMA = inject(`testPgSchema`)
 
-it('sanity check', async ({ dbClient, issuesTableSql }) => {
+it(`sanity check`, async ({ dbClient, issuesTableSql }) => {
   const result = await dbClient.query(`SELECT * FROM ${issuesTableSql}`)
 
   expect(result.rows).toEqual([])
@@ -33,7 +33,7 @@ describe(`HTTP Sync`, () => {
     await new Promise<void>((resolve, reject) => {
       issueStream.subscribe((messages) => {
         messages.forEach((message) => {
-          if ('key' in message) {
+          if (`key` in message) {
             shapeData.set(message.key, message.value)
           }
           if (message.headers?.[`control`] === `up-to-date`) {
@@ -77,7 +77,7 @@ describe(`HTTP Sync`, () => {
     await new Promise<void>((resolve) => {
       issueStream.subscribe((messages) => {
         messages.forEach((message) => {
-          if ('key' in message) {
+          if (`key` in message) {
             shapeData.set(message.key, message.value)
           }
           if (message.headers?.[`control`] === `up-to-date`) {
@@ -101,7 +101,7 @@ describe(`HTTP Sync`, () => {
   }) => {
     // With initial data
     const rowId = uuidv4()
-    await insertIssues({ id: rowId, title: 'original insert' })
+    await insertIssues({ id: rowId, title: `original insert` })
 
     const shapeData = new Map()
     const issueStream = new ShapeStream({
@@ -112,7 +112,7 @@ describe(`HTTP Sync`, () => {
     })
     let secondRowId = ``
     await h.forEachMessage(issueStream, aborter, async (res, msg, nth) => {
-      if (!('key' in msg)) return
+      if (!(`key` in msg)) return
       shapeData.set(msg.key, msg.value)
 
       if (nth === 0) {
@@ -146,8 +146,8 @@ describe(`HTTP Sync`, () => {
     const rowId = uuidv4(),
       rowId2 = uuidv4()
     await insertIssues(
-      { id: rowId, title: 'first original insert' },
-      { id: rowId2, title: 'second original insert' }
+      { id: rowId, title: `first original insert` },
+      { id: rowId2, title: `second original insert` }
     )
 
     const shapeData1 = new Map()
@@ -169,7 +169,7 @@ describe(`HTTP Sync`, () => {
     })
 
     const p1 = h.forEachMessage(issueStream1, aborter1, (res, msg, nth) => {
-      if (!('key' in msg)) return
+      if (!(`key` in msg)) return
       shapeData1.set(msg.key, msg.value)
 
       if (nth === 1) {
@@ -179,8 +179,8 @@ describe(`HTTP Sync`, () => {
       }
     })
 
-    const p2 = h.forEachMessage(issueStream1, aborter1, (res, msg, nth) => {
-      if (!('key' in msg)) return
+    const p2 = h.forEachMessage(issueStream2, aborter2, (res, msg, nth) => {
+      if (!(`key` in msg)) return
       shapeData2.set(msg.key, msg.value)
 
       if (nth === 2) {
@@ -198,7 +198,7 @@ describe(`HTTP Sync`, () => {
     issuesTableUrl,
     insertIssues,
   }) => {
-    await insertIssues({ title: 'foo1' }, { title: 'foo2' }, { title: 'foo3' })
+    await insertIssues({ title: `foo1` }, { title: `foo2` }, { title: `foo3` })
     await sleep(50)
 
     let lastOffset = 0
@@ -210,7 +210,7 @@ describe(`HTTP Sync`, () => {
     })
 
     await h.forEachMessage(issueStream, aborter, (res, msg) => {
-      if ('offset' in msg) {
+      if (`offset` in msg) {
         expect(msg.offset).toBeGreaterThanOrEqual(lastOffset)
         lastOffset = msg.offset
       } else if (msg.headers?.[`control`] === `up-to-date`) {
@@ -295,7 +295,7 @@ describe(`HTTP Sync`, () => {
     const messages = (await res.json()) as Message[]
     expect(messages.length).toEqual(10) // 9 inserts + up-to-date
     const midMessage = messages.slice(-6)[0]
-    assert('offset' in midMessage)
+    assert(`offset` in midMessage)
     const midOffset = midMessage.offset
     const shapeId = res.headers.get(`x-electric-shape-id`)
     const etag = res.headers.get(`etag`)

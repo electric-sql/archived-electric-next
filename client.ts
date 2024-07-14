@@ -90,7 +90,7 @@ export class FetchError extends Error {
       message ||
         `HTTP Error ${status} at ${url}: ${text ?? JSON.stringify(json)}`
     )
-    this.name = 'FetchError'
+    this.name = `FetchError`
     this.status = status
     this.text = text
     this.json = json
@@ -106,8 +106,8 @@ export class FetchError extends Error {
     let text: string | undefined = undefined
     let json: object | undefined = undefined
 
-    const contentType = response.headers.get('content-type')
-    if (contentType && contentType.includes('application/json')) {
+    const contentType = response.headers.get(`content-type`)
+    if (contentType && contentType.includes(`application/json`)) {
       json = (await response.json()) as object
     } else {
       text = await response.text()
@@ -174,7 +174,7 @@ export class ShapeStream {
 
     this.backoffOptions = backoffOptions
 
-    console.log('this.lastOffset', this.lastOffset)
+    console.log(`this.lastOffset`, this.lastOffset)
 
     this.start()
   }
@@ -245,7 +245,7 @@ export class ShapeStream {
                   }
                 }
 
-                if ('offset' in message) {
+                if (`offset` in message) {
                   this.lastOffset = message.offset
                 }
               })
@@ -440,7 +440,7 @@ export class Shape {
     let isUpToDate = false
 
     messages.forEach((message) => {
-      if ('key' in message && message.value) {
+      if (`key` in message && message.value) {
         switch (message.headers?.[`action`]) {
           case `insert`:
           case `update`:
