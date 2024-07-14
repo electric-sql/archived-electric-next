@@ -1,0 +1,20 @@
+[
+  {
+    "users": 100,
+    "rate": 3,
+    "config": {
+      "user_class_name": "ElectricClient",
+      "shape_size": 1,
+      "num_shapes": 100
+    }
+  },  
+  {
+      "users": 1000,
+      "rate": 5,
+      "config": {
+        "user_class_name": "ElectricClient",
+        "shape_size": 1,
+        "num_shapes": 100
+      }
+    }
+  ]
