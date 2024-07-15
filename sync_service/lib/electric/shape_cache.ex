@@ -11,7 +11,7 @@ defmodule Electric.ShapeCacheBehaviour do
   @doc "Append changes from one transaction to the log"
   @callback append_to_log!(
               shape_id(),
-              Lsn.t(),
+              LogOffset.t(),
               non_neg_integer(),
               [Changes.change()],
               keyword()
@@ -20,8 +20,6 @@ defmodule Electric.ShapeCacheBehaviour do
   @callback get_or_create_shape_id(shape_def(), opts :: keyword()) ::
               {shape_id(), current_snapshot_offset :: LogOffset.t()}
 
-  @callback update_shape_latest_offset(shape_id(), LogOffset.t(), opts :: keyword()) ::
-              :ok | {:error, term()}
   @callback list_active_shapes(opts :: keyword()) :: [{shape_id(), shape_def(), xmin()}]
   @callback wait_for_snapshot(GenServer.name(), shape_id()) :: :ready | {:error, term()}
   @callback handle_truncate(GenServer.name(), shape_id()) :: :ok
@@ -29,7 +27,6 @@ end
 
 defmodule Electric.ShapeCache do
   require Logger
-  alias Electric.Postgres.Lsn
   alias Electric.ShapeCache.Storage
   alias Electric.Shapes.Querying
   alias Electric.Shapes.Shape
@@ -82,13 +79,22 @@ defmodule Electric.ShapeCache do
     end
   end
 
-  def append_to_log!(shape_id, lsn, xid, relevant_changes, opts) do
-    :ok = Storage.append_to_log!(shape_id, lsn, xid, relevant_changes, opts[:storage])
+  @spec append_to_log!(
+          shape_id(),
+          LogOffset.t(),
+          non_neg_integer(),
+          [Changes.change()],
+          keyword()
+        ) :: :ok
+  def append_to_log!(shape_id, latest_offset, xid, relevant_changes, opts) do
+    :ok = Storage.append_to_log!(shape_id, xid, relevant_changes, opts[:storage])
 
-    update_shape_latest_offset(shape_id, Lsn.to_integer(lsn), opts)
+    update_shape_latest_offset(shape_id, latest_offset, opts)
     :ok
   end
 
+  @spec update_shape_latest_offset(shape_id(), LogOffset.t(), opts :: keyword()) ::
+          :ok | {:error, term()}
   defp update_shape_latest_offset(shape_id, latest_offset, opts) do
     meta_table = Access.get(opts, :shape_meta_table, @default_shape_meta_table)
 

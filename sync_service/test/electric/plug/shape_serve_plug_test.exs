@@ -15,11 +15,13 @@ defmodule Electric.Plug.ServeShapePlugTest do
   @test_shape %Shape{root_table: {"public", "users"}}
   @test_shape_id "test-shape-id"
   @test_offset LogOffset.make(Lsn.from_integer(100), 0)
+  @test_offset_str "#{@test_offset}"
   @registry Registry.ServeShapePlugTest
   @first_offset LogOffset.first()
-  @encoded_first_offset URI.encode("#{@first_offset}")
+  @encoded_first_offset URI.encode("#{@first_offset}", fn _ -> false end)
   @start_offset_50 LogOffset.make(Lsn.from_integer(50), 0)
   @start_offset_50_str "#{@start_offset_50}"
+  @start_offset_50_encoded URI.encode(@start_offset_50_str, fn _ -> false end)
 
   defmodule Inspector do
     def load_table_info({"public", "users"}, _), do: [%{name: "id", type: "int8"}]
@@ -167,7 +169,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
         conn(
           :get,
           %{"root_table" => "public.users"},
-          "?offset=#{URI.encode(@start_offset_50_str)}&shape_id=#{@test_shape_id}"
+          "?offset=#{@start_offset_50_encoded}&shape_id=#{@test_shape_id}"
         )
         |> ServeShapePlug.call([])
 
@@ -207,7 +209,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
         conn(
           :get,
           %{"root_table" => "public.users"},
-          "?offset=#{URI.encode(@start_offset_50_str)}&shape_id=#{@test_shape_id}"
+          "?offset=#{@start_offset_50_encoded}&shape_id=#{@test_shape_id}"
         )
         |> put_req_header(
           "if-none-match",
@@ -243,7 +245,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
           conn(
             :get,
             %{"root_table" => "public.users"},
-            "?offset=#{URI.encode(@test_offset)}&shape_id=#{@test_shape_id}&live=true"
+            "?#{URI.encode_query(%{"offset" => @test_offset_str})}&shape_id=#{@test_shape_id}&live=true"
           )
           |> ServeShapePlug.call([])
         end)
@@ -254,7 +256,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
 
       # Simulate new changes arriving
       Registry.dispatch(@registry, @test_shape_id, fn [{pid, ref}] ->
-        send(pid, {ref, :new_changes, LogOffset.first()})
+        send(pid, {ref, :new_changes, next_offset})
       end)
 
       # The conn process should exit after sending the response
@@ -263,12 +265,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
       assert conn.status == 200
 
       assert Jason.decode!(conn.resp_body) == [
-               %{
-                 "key" => "log",
-                 "value" => "foo",
-                 "headers" => %{},
-                 "offset" => next_offset_str
-               },
+               "test result",
                %{"headers" => %{"control" => "up-to-date"}}
              ]
 
@@ -300,7 +297,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
           conn(
             :get,
             %{"root_table" => "public.users"},
-            "?offset=#{URI.encode(@start_offset_50_str)}&shape_id=#{@test_shape_id}&live=true"
+            "?offset=#{@start_offset_50_encoded}&shape_id=#{@test_shape_id}&live=true"
           )
           |> ServeShapePlug.call([])
         end)
@@ -336,7 +333,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
         conn(
           :get,
           %{"root_table" => "public.users"},
-          "?offset=#{URI.encode(@start_offset_50_str)}&shape_id=#{@test_shape_id}&live=true"
+          "?offset=#{@start_offset_50_encoded}&shape_id=#{@test_shape_id}&live=true"
         )
         |> put_in_config(:long_poll_timeout, 100)
         |> ServeShapePlug.call([])
@@ -365,7 +362,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
         conn(
           :get,
           %{"root_table" => "public.users"},
-          "?offset=#{URI.encode(@start_offset_50_str)}&shape_id=#{@test_shape_id}"
+          "?offset=#{@start_offset_50_encoded}&shape_id=#{@test_shape_id}"
         )
         |> ServeShapePlug.call([])
 

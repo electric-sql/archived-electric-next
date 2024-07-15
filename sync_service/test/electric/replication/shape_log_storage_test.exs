@@ -45,12 +45,8 @@ defmodule Electric.Replication.ShapeLogStorageTest do
 
       MockShapeCache
       |> expect(:list_active_shapes, 2, fn _ -> [{shape_id, shape, xmin}] end)
-      |> expect(:update_shape_latest_offset, 2, fn ^shape_id, ^last_log_offset, _ -> :ok end)
-      |> allow(self(), server)
-
-      MockStorage
-      |> expect(:append_to_log!, fn ^shape_id, ^xmin, _, _ -> :ok end)
-      |> expect(:append_to_log!, fn ^shape_id, ^xid, _, _ -> :ok end)
+      |> expect(:append_to_log!, fn ^shape_id, ^last_log_offset, ^xmin, _, _ -> :ok end)
+      |> expect(:append_to_log!, fn ^shape_id, ^last_log_offset, ^xid, _, _ -> :ok end)
       |> allow(self(), server)
 
       txn = %Transaction{
@@ -155,11 +151,7 @@ defmodule Electric.Replication.ShapeLogStorageTest do
 
       MockShapeCache
       |> expect(:list_active_shapes, fn _ -> [{shape_id, shape, xmin}] end)
-      |> expect(:update_shape_latest_offset, fn ^shape_id, ^last_log_offset, _ -> :ok end)
-      |> allow(self(), server)
-
-      MockStorage
-      |> expect(:append_to_log!, fn ^shape_id, ^xid, _, _ -> :ok end)
+      |> expect(:append_to_log!, fn ^shape_id, ^last_log_offset, ^xid, _, _ -> :ok end)
       |> allow(self(), server)
 
       ref = make_ref()
@@ -191,16 +183,11 @@ defmodule Electric.Replication.ShapeLogStorageTest do
           {shape2, %Shape{root_table: {"public", "other_table"}}, xmin}
         ]
       end)
-      |> expect(:update_shape_latest_offset, fn ^shape1, ^last_log_offset, _ -> :ok end)
-      |> expect(:update_shape_latest_offset, fn ^shape2, ^last_log_offset, _ -> :ok end)
-      |> allow(self(), server)
-
-      MockStorage
-      |> expect(:append_to_log!, fn ^shape1, ^xid, [change], _ ->
+      |> expect(:append_to_log!, fn ^shape1, ^last_log_offset, ^xid, [change], _ ->
         assert change.record["id"] == "1"
         :ok
       end)
-      |> expect(:append_to_log!, fn ^shape2, ^xid, [change], _ ->
+      |> expect(:append_to_log!, fn ^shape2, ^last_log_offset, ^xid, [change], _ ->
         assert change.record["id"] == "2"
         :ok
       end)
