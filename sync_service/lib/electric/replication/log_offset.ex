@@ -171,7 +171,7 @@ defmodule Electric.Replication.LogOffset do
       iex> from_string("10_32.1")
       {:error, "has invalid format"}
   """
-  @spec from_string(String.t()) :: {:ok, t | -1}
+  @spec from_string(String.t()) :: {:ok, t} | {:error, String.t()}
   def from_string(str) when is_binary(str) do
     if str == "-1" do
       {:ok, before_all()}

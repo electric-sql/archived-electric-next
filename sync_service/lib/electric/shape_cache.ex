@@ -4,6 +4,7 @@ defmodule Electric.ShapeCacheBehaviour do
   """
   alias Electric.Shapes.Shape
   alias Electric.Replication.LogOffset
+  alias Electric.Replication.Changes
 
   @type shape_id :: String.t()
   @type shape_def :: Shape.t()
