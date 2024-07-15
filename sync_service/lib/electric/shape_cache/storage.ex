@@ -21,13 +21,12 @@ defmodule Electric.ShapeCache.Storage do
   @doc "Start any processes required to run the storage backend"
   @callback start_link(compiled_opts()) :: GenServer.on_start()
   @callback cleanup_shapes_without_xmins(storage()) :: :ok
-  @callback list_shapes(storage()) ::
-              Enumerable.t(%{
-                shape_id: shape_id(),
-                shape: Shape.t(),
-                latest_offset: non_neg_integer(),
-                snapshot_xmin: non_neg_integer()
-              })
+  @callback list_shapes(storage()) :: [
+              shape_id: shape_id(),
+              shape: Shape.t(),
+              latest_offset: non_neg_integer(),
+              snapshot_xmin: non_neg_integer()
+            ]
   @callback add_shape(shape_id(), Shape.t(), storage()) :: :ok
   @callback set_snapshot_xmin(shape_id(), non_neg_integer(), storage()) :: :ok
   @doc "Check if snapshot for a given shape id already exists"
@@ -68,13 +67,12 @@ defmodule Electric.ShapeCache.Storage do
   def cleanup_shapes_without_xmins({mod, opts}),
     do: apply(mod, :cleanup_shapes_without_xmins, [opts])
 
-  @spec list_shapes(storage()) ::
-          Enumerable.t(%{
-            shape_id: shape_id(),
-            shape: Shape.t(),
-            latest_offset: non_neg_integer(),
-            snapshot_xmin: non_neg_integer()
-          })
+  @spec list_shapes(storage()) :: [
+          shape_id: shape_id(),
+          shape: Shape.t(),
+          latest_offset: non_neg_integer(),
+          snapshot_xmin: non_neg_integer()
+        ]
   def list_shapes({mod, opts}), do: apply(mod, :list_shapes, [opts])
 
   @spec add_shape(shape_id(), Shape.t(), storage()) :: :ok
