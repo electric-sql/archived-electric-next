@@ -1,0 +1,48 @@
+:root {
+  --vp-c-indigo-1: #D0BCFF;
+  --vp-c-indigo-2: #998FE7;
+  --vp-c-indigo-3: #7E78DB;
+
+  --electric-color: #00D2A0;
+  --ddn-color: #D0BCFF;
+  --pglite-color: #F6F95C;
+
+  --vp-nav-logo-height: 30px;
+}
+
+.VPHomeHero .VPImage.image-src {
+  max-width: min(calc(250px + 25vw), 560px);
+  margin-left: -40px;
+  margin-top: 10px;
+}
+@media (max-width: 959px) {
+  .VPHomeHero .image .image-container {
+    height: calc(190px + 15vw) !important;
+    margin-top: -30px;
+  }
+  .VPHomeHero .VPImage.image-src {
+    margin-left: 0px;
+  }
+}
+
+.VPFeatures {
+  padding-top: 15px !important;
+  padding-bottom: 45px;
+}
+.VPFeature .VPImage {
+  width: 50px;
+}
+.VPFeature h2.title {
+  font-size: 20px;
+}
+.VPFeature.link[href="/product/electric"]:hover {
+    border-color: var(--electric-color);
+}
+.VPFeature.link[href="/product/pglite"]:hover {
+    border-color: var(--pglite-color);
+}
+
+.product-icon {
+  width: 84px;
+  margin-bottom: 20px;
+}
