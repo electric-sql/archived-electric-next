@@ -9,7 +9,7 @@ export function makePgClient(overrides: ClientConfig = {}) {
     password: `password`,
     user: `postgres`,
     database: `electric`,
-    options: `-csearch_path=testing_electric`,
+    options: `-csearch_path=electric_test`,
     ...overrides,
   })
 }

@@ -16,7 +16,8 @@ export const testWithDbClient = test.extend<{
   pgSchema: string
 }>({
   dbClient: async ({}, use) => {
-    const client = makePgClient()
+    const searchOption = `-csearch_path=${inject(`testPgSchema`)}`
+    const client = makePgClient({ options: searchOption })
     await client.connect()
     await use(client)
     await client.end()

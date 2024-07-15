@@ -8,7 +8,6 @@ import { testWithIssuesTable as it } from './support/test_context'
 import * as h from './support/test_helpers'
 
 const BASE_URL = inject(`baseUrl`)
-const PG_SCHEMA = inject(`testPgSchema`)
 
 it(`sanity check`, async ({ dbClient, issuesTableSql }) => {
   const result = await dbClient.query(`SELECT * FROM ${issuesTableSql}`)
@@ -95,7 +94,7 @@ describe(`HTTP Sync`, () => {
   it(`should get initial data and then receive updates`, async ({
     aborter,
     issuesTableUrl,
-    issuesTableSql,
+    issuesTableKey,
     updateIssue,
     insertIssues,
   }) => {
@@ -126,12 +125,9 @@ describe(`HTTP Sync`, () => {
 
     expect(shapeData).toEqual(
       new Map([
+        [`${issuesTableKey}/${rowId}`, { id: rowId, title: `foo1` }],
         [
-          `"${PG_SCHEMA}".${issuesTableSql}/` + rowId,
-          { id: rowId, title: `foo1` },
-        ],
-        [
-          `"${PG_SCHEMA}".${issuesTableSql}/` + secondRowId,
+          `${issuesTableKey}/${secondRowId}`,
           { id: secondRowId, title: `foo2` },
         ],
       ])
