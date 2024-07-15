@@ -14,8 +14,8 @@ defmodule Electric.Replication.LogOffset do
 
   @type int64 :: 0..0xFFFFFFFFFFFFFFFF
   @type t :: %LogOffset{
-          tx_offset: int64(),
-          op_offset: non_neg_integer()
+          tx_offset: int64() | -1,
+          op_offset: non_neg_integer() | :infinity
         }
 
   # Comparison operators on tuples work out of the box
@@ -24,6 +24,8 @@ defmodule Electric.Replication.LogOffset do
   # by importing kernel except the operators and define the operators ourselves
 
   @doc """
+  Create a new LogOffset value.
+
   ## Examples
 
       iex> new(Lsn.from_integer(10), 0)
@@ -123,10 +125,10 @@ defmodule Electric.Replication.LogOffset do
 
   ## Examples
       iex> to_iolist(first())
-      ["0", ?/, "0"]
+      ["0", ?_, "0"]
 
       iex> to_iolist(new(Lsn.from_integer(10), 3))
-      ["10", ?/, "3"]
+      ["10", ?_, "3"]
 
       iex> to_iolist(before_all())
       ["-1"]
@@ -137,7 +139,7 @@ defmodule Electric.Replication.LogOffset do
   end
 
   def to_iolist(%LogOffset{tx_offset: tx_offset, op_offset: op_offset}) do
-    [Integer.to_string(tx_offset), ?/, Integer.to_string(op_offset)]
+    [Integer.to_string(tx_offset), ?_, Integer.to_string(op_offset)]
   end
 
   @doc """
@@ -148,25 +150,25 @@ defmodule Electric.Replication.LogOffset do
       iex> from_string("-1")
       {:ok, %LogOffset{tx_offset: -1, op_offset: 0}}
 
-      iex> from_string("0/0")
+      iex> from_string("0_0")
       {:ok, %LogOffset{tx_offset: 0, op_offset: 0}}
 
-      iex> from_string("11/13")
+      iex> from_string("11_13")
       {:ok, %LogOffset{tx_offset: 11, op_offset: 13}}
 
-      iex> from_string("0/02")
+      iex> from_string("0_02")
       {:ok, %LogOffset{tx_offset: 0, op_offset: 2}}
 
-      iex> from_string("1/2/3")
+      iex> from_string("1_2_3")
       {:error, "has invalid format"}
 
-      iex> from_string("1/2 ")
+      iex> from_string("1_2 ")
       {:error, "has invalid format"}
 
       iex> from_string("10")
       {:error, "has invalid format"}
 
-      iex> from_string("10/32.1")
+      iex> from_string("10_32.1")
       {:error, "has invalid format"}
   """
   @spec from_string(String.t()) :: {:ok, t | -1}
@@ -174,7 +176,7 @@ defmodule Electric.Replication.LogOffset do
     if str == "-1" do
       {:ok, before_all()}
     else
-      with [tx_offset_str, op_offset_str] <- String.split(str, "/"),
+      with [tx_offset_str, op_offset_str] <- String.split(str, "_"),
            {tx_offset, ""} <- Integer.parse(tx_offset_str),
            {op_offset, ""} <- Integer.parse(op_offset_str),
            offset <- new(tx_offset, op_offset) do

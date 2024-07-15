@@ -4,5 +4,5 @@ defmodule Electric.Replication.LogOffsetTest do
 
   use ExUnit.Case, async: true
 
-  doctest LogOffset, import: true
+  doctest Electric.Replication.LogOffset, import: true
 end

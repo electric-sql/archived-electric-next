@@ -18,10 +18,10 @@ defmodule Electric.Plug.ServeShapePlugTest do
   @test_offset_str "#{@test_offset}"
   @registry Registry.ServeShapePlugTest
   @first_offset LogOffset.first()
-  @encoded_first_offset URI.encode("#{@first_offset}", fn _ -> false end)
+  @encoded_first_offset "#{@first_offset}"
   @start_offset_50 LogOffset.new(Lsn.from_integer(50), 0)
   @start_offset_50_str "#{@start_offset_50}"
-  @start_offset_50_encoded URI.encode(@start_offset_50_str, fn _ -> false end)
+  @start_offset_50_encoded @start_offset_50_str
 
   defmodule Inspector do
     def load_table_info({"public", "users"}, _), do: [%{name: "id", type: "int8"}]
@@ -245,7 +245,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
           conn(
             :get,
             %{"root_table" => "public.users"},
-            "?#{URI.encode_query(%{"offset" => @test_offset_str})}&shape_id=#{@test_shape_id}&live=true"
+            "?offset=#{@test_offset_str}&shape_id=#{@test_shape_id}&live=true"
           )
           |> ServeShapePlug.call([])
         end)
@@ -390,7 +390,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
         conn(
           :get,
           %{"root_table" => "public.users"},
-          "?offset=#{URI.encode("50/12")}&shape_id=foo"
+          "?offset=#{"50_12"}&shape_id=foo"
         )
         |> ServeShapePlug.call([])
 

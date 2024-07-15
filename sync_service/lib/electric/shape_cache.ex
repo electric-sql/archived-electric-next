@@ -31,6 +31,7 @@ defmodule Electric.ShapeCache do
   alias Electric.Shapes.Querying
   alias Electric.Shapes.Shape
   alias Electric.Replication.LogOffset
+  alias Electric.Replication.Changes
   use GenServer
   @behaviour Electric.ShapeCacheBehaviour
 
