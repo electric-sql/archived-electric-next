@@ -11,8 +11,6 @@ defmodule Electric.ShapeCacheTest do
   alias Electric.Postgres.Lsn
   alias Electric.Replication.Changes
 
-  @moduletag :tmp_dir
-
   @basic_query_meta %Postgrex.Query{columns: ["id"], result_types: [:text], name: "key_prefix"}
   @changes [
     %Changes.NewRecord{
@@ -417,6 +415,8 @@ defmodule Electric.ShapeCacheTest do
   describe "after restart" do
     # Capture the log to hide the GenServer exit messages
     @describetag capture_log: true
+
+    @describetag :tmp_dir
 
     @shape %Shape{root_table: {"public", "items"}}
     @snapshot_xmin 10
