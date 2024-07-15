@@ -375,9 +375,9 @@ export class ShapeStream {
  *
  *     const shape = new Shape({table: `foo`, baseUrl: 'http://localhost:3000'})
  *
- * `isUpToDate` resolves once the Shape has been fully loaded (and when resuming from being offline):
+ * `value` resolves once the Shape has been fully loaded (and when resuming from being offline):
  *
- *     const value = await shape.isUpToDate
+ *     const value = await shape.value
  *
  *  Subscribe to updates. Called whenever the shape updates in Postgres.
  *
@@ -390,31 +390,37 @@ export class Shape {
 
   private data: ShapeData = new Map()
   private subscribers = new Map<string, ShapeChangedCallback>()
+  public isUpToDate: boolean = false
 
   constructor(options: ShapeOptions, backoffOptions?: BackoffOptions) {
     this.stream = new ShapeStream(options, backoffOptions)
     this.stream.subscribe(this.process.bind(this))
+    const unsubscribe = this.stream.subscribeOnceToUpToDate(() => {
+      unsubscribe()
+      this.isUpToDate = true
+    })
   }
 
-  get value() {
-    return this.data
-  }
-
-  get isUpToDate(): Promise<ShapeData> {
-    return new Promise((resolve, reject) => {
+  get value(): Promise<ShapeData> {
+    return new Promise((resolve) => {
       if (this.stream.isUpToDate) {
-        resolve(this.value)
+        // resolve(this.value)
+        resolve(new Map())
       } else {
         const unsubscribe = this.stream.subscribeOnceToUpToDate(() => {
           unsubscribe()
-          resolve(this.value)
-        }, reject)
+          resolve(this.valueSync)
+        })
       }
     })
   }
 
+  get valueSync() {
+    return this.data
+  }
+
   subscribe(callback: ShapeChangedCallback): () => void {
-    const subscriptionId = uuidv4()
+    const subscriptionId = Math.random()
 
     this.subscribers.set(subscriptionId, callback)
 
@@ -465,7 +471,7 @@ export class Shape {
 
   private notify(): void {
     this.subscribers.forEach((callback) => {
-      callback(this.value)
+      callback(this.valueSync)
     })
   }
 }
