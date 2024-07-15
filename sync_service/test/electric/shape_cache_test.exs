@@ -8,22 +8,21 @@ defmodule Electric.ShapeCacheTest do
   alias Electric.ShapeCache.Storage
   alias Electric.ShapeCache
   alias Electric.Shapes.Shape
-  alias Electric.Postgres.Lsn
   alias Electric.Replication.Changes
   alias Electric.Replication.LogOffset
 
   @basic_query_meta %Postgrex.Query{columns: ["id"], result_types: [:text], name: "key_prefix"}
+  @change_offset LogOffset.new(13, 2)
   @changes [
     %Changes.NewRecord{
       relation: {"public", "test_table"},
-      record: %{"id" => "123", "name" => "Test"}
+      record: %{"id" => "123", "name" => "Test"},
+      log_offset: @change_offset
     }
   ]
   @xid 99
 
   @zero_offset LogOffset.first()
-
-  setup :with_in_memory_storage
 
   describe "get_or_create_shape_id/2" do
     setup :with_in_memory_storage
@@ -461,11 +460,11 @@ defmodule Electric.ShapeCacheTest do
     end
 
     test "restores latest offset", %{shape_cache_opts: opts} = context do
-      offset = 23
+      offset = @change_offset
       {shape_id, _} = ShapeCache.get_or_create_shape_id(@shape, opts)
       :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id)
 
-      :ok = ShapeCache.append_to_log!(shape_id, Lsn.from_integer(offset), @xid, @changes, opts)
+      :ok = ShapeCache.append_to_log!(shape_id, offset, @xid, @changes, opts)
 
       {^shape_id, ^offset} = ShapeCache.get_or_create_shape_id(@shape, opts)
       restart_shape_cache(context)

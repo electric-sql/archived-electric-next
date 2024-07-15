@@ -72,7 +72,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
         offset(key)
 
       _ ->
-        0
+        LogOffset.first()
     end
   end
 
