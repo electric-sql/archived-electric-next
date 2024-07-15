@@ -11,7 +11,7 @@ defmodule Electric.Replication.Changes do
   """
 
   alias Electric.Replication.Changes
-  alias Electric.Postgres.LogOffset
+  alias Electric.Replication.LogOffset
 
   require Logger
 

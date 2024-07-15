@@ -1,4 +1,4 @@
-defmodule Electric.Postgres.LogOffset do
+defmodule Electric.Replication.LogOffset do
   alias Electric.Postgres.Lsn
 
   @moduledoc """
@@ -39,10 +39,10 @@ defmodule Electric.Postgres.LogOffset do
       %LogOffset{tx_offset: 11, op_offset: 3}
 
       iex> new({11, 3.2})
-      ** (FunctionClauseError) no function clause matching in Electric.Postgres.LogOffset.new/2
+      ** (FunctionClauseError) no function clause matching in Electric.Replication.LogOffset.new/2
 
       iex> new(10, -2)
-      ** (FunctionClauseError) no function clause matching in Electric.Postgres.LogOffset.new/2
+      ** (FunctionClauseError) no function clause matching in Electric.Replication.LogOffset.new/2
   """
   def new(tx_offset, op_offset)
       when is_integer(tx_offset) and tx_offset >= 0 and is_integer(op_offset) and op_offset >= 0 do
@@ -187,16 +187,16 @@ defmodule Electric.Postgres.LogOffset do
 
   defimpl Inspect do
     def inspect(offset, _opts) do
-      "#LogOffset<#{Electric.Postgres.LogOffset.to_iolist(offset)}>"
+      "#LogOffset<#{Electric.Replication.LogOffset.to_iolist(offset)}>"
     end
   end
 
   defimpl String.Chars do
-    def to_string(offset), do: "#{Electric.Postgres.LogOffset.to_iolist(offset)}"
+    def to_string(offset), do: "#{Electric.Replication.LogOffset.to_iolist(offset)}"
   end
 
   defimpl List.Chars do
-    def to_charlist(offset), do: ~c'#{Electric.Postgres.LogOffset.to_iolist(offset)}'
+    def to_charlist(offset), do: ~c'#{Electric.Replication.LogOffset.to_iolist(offset)}'
   end
 
   defimpl Jason.Encoder, for: LogOffset do

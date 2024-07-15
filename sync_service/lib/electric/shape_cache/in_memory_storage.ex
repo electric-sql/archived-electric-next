@@ -1,5 +1,5 @@
 defmodule Electric.ShapeCache.InMemoryStorage do
-  alias Electric.Postgres.LogOffset
+  alias Electric.Replication.LogOffset
   alias Electric.Replication.Changes
   alias Electric.Utils
   use Agent

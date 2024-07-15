@@ -8,7 +8,7 @@ defmodule Electric.Replication.ShapeLogStorageTest do
   alias Electric.Replication.ShapeLogStorage
   alias Electric.Replication.Changes.Transaction
   alias Electric.Replication.Changes
-  alias Electric.Postgres.LogOffset
+  alias Electric.Replication.LogOffset
 
   @moduletag :capture_log
 

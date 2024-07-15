@@ -1,7 +1,8 @@
 defmodule Electric.ShapeCache.Storage do
   alias Electric.Replication.Changes
   alias Electric.Shapes.Shape
-  alias Electric.Postgres.LogOffset
+  alias Electric.Replication.LogOffset
+
   @type shape_id :: String.t()
   @type compiled_opts :: term()
 

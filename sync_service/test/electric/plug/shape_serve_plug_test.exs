@@ -3,7 +3,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
   import Plug.Conn
 
   alias Electric.Postgres.Lsn
-  alias Electric.Postgres.LogOffset
+  alias Electric.Replication.LogOffset
   alias Electric.Plug.ServeShapePlug
   alias Electric.Shapes.Shape
   alias Electric.ShapeCache.MockStorage

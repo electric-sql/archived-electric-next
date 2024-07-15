@@ -3,7 +3,7 @@ defmodule Electric.ShapeCacheBehaviour do
   Behaviour defining the ShapeCache functions to be used in mocks
   """
   alias Electric.Shapes.Shape
-  alias Electric.Postgres.LogOffset
+  alias Electric.Replication.LogOffset
 
   @type shape_id :: String.t()
   @type shape_def :: Shape.t()
@@ -30,7 +30,7 @@ defmodule Electric.ShapeCache do
   alias Electric.ShapeCache.Storage
   alias Electric.Shapes.Querying
   alias Electric.Shapes.Shape
-  alias Electric.Postgres.LogOffset
+  alias Electric.Replication.LogOffset
   use GenServer
   @behaviour Electric.ShapeCacheBehaviour
 

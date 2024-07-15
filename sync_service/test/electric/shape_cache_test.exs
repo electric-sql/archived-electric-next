@@ -10,7 +10,7 @@ defmodule Electric.ShapeCacheTest do
   alias Electric.Shapes.Shape
   alias Electric.Postgres.Lsn
   alias Electric.Replication.Changes
-  alias Electric.Postgres.LogOffset
+  alias Electric.Replication.LogOffset
 
   @basic_query_meta %Postgrex.Query{columns: ["id"], result_types: [:text], name: "key_prefix"}
   @changes [

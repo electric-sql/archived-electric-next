@@ -5,7 +5,7 @@ defmodule Electric.Postgres.ReplicationClient.Collector do
   """
 
   require Logger
-  alias Electric.Postgres.LogOffset
+  alias Electric.Replication.LogOffset
   alias Electric.Replication.Changes
   alias Electric.Postgres.LogicalReplication.Messages, as: LR
 

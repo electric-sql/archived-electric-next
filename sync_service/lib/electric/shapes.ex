@@ -1,5 +1,5 @@
 defmodule Electric.Shapes do
-  alias Electric.Postgres.LogOffset
+  alias Electric.Replication.LogOffset
   alias Electric.ShapeCache.Storage
   alias Electric.ShapeCache
   alias Electric.Shapes.Shape

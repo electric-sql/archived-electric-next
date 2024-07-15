@@ -1,6 +1,6 @@
-defmodule Electric.Postgres.LogOffsetTest do
+defmodule Electric.Replication.LogOffsetTest do
   alias Electric.Postgres.Lsn
-  alias Electric.Postgres.LogOffset
+  alias Electric.Replication.LogOffset
 
   use ExUnit.Case, async: true
 

@@ -1,6 +1,6 @@
 defmodule Electric.ShapeCache.StorageImplimentationsTest do
   alias Electric.Postgres.Lsn
-  alias Electric.Postgres.LogOffset
+  alias Electric.Replication.LogOffset
   alias Electric.Replication.Changes
   alias Electric.ShapeCache.CubDbStorage
   alias Electric.ShapeCache.InMemoryStorage

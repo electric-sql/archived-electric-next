@@ -1,7 +1,7 @@
 defmodule Electric.Plug.ServeShapePlug do
   require Logger
   alias Electric.Shapes
-  alias Electric.Postgres.LogOffset
+  alias Electric.Replication.LogOffset
   use Plug.Builder
 
   # Aliasing for pattern matching
@@ -10,7 +10,7 @@ defmodule Electric.Plug.ServeShapePlug do
   defmodule Params do
     use Ecto.Schema
     import Ecto.Changeset
-    alias Electric.Postgres.LogOffset
+    alias Electric.Replication.LogOffset
 
     @primary_key false
     embedded_schema do
