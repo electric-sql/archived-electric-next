@@ -11,17 +11,18 @@ export type ShapeDefinition = {
   table: string
 }
 
+export interface BackoffOptions {
+  initialDelay: number
+  maxDelay: number
+  multiplier: number
+}
+
 export interface ShapeOptions {
   baseUrl: string
   offset?: Offset
   shapeId?: string
   shape: ShapeDefinition
-}
-
-export interface BackoffOptions {
-  initialDelay: number
-  maxDelay: number
-  multiplier: number
+  backoffOptions: BackoffOptions
 }
 
 export const BackoffDefaults = {
@@ -124,7 +125,6 @@ export class FetchError extends Error {
  *
  * @constructor
  * @param {ShapeStreamOptions} options
- * @param {BackoffOptions} [backoffOptions]
  *
  * Register a callback function to subscribe to the messages.
  *
@@ -163,16 +163,13 @@ export class ShapeStream {
 
   shapeId?: string
 
-  constructor(
-    options: ShapeStreamOptions,
-    backoffOptions: BackoffOptions = BackoffDefaults
-  ) {
+  constructor(options: ShapeStreamOptions) {
     this.validateOptions(options)
     this.options = { subscribe: true, ...options }
     this.lastOffset = this.options.offset ?? `-1`
     this.shapeId = this.options.shapeId
 
-    this.backoffOptions = backoffOptions
+    this.backoffOptions = options.backoffOptions ?? BackoffDefaults
 
     console.log(`this.lastOffset`, this.lastOffset)
 
