@@ -27,9 +27,8 @@ defmodule Electric.Plug.ServeShapePlug do
       |> cast(params, __schema__(:fields) -- [:shape_definition],
         message: fn _, _ -> "must be %{type}" end
       )
-      |> validate_format(:offset, LogOffset.regex())
-      |> cast_offset()
       |> validate_required([:root_table, :offset])
+      |> cast_offset()
       |> validate_shape_id_with_offset()
       |> cast_root_table(opts)
       |> apply_action(:validate)
@@ -51,7 +50,14 @@ defmodule Electric.Plug.ServeShapePlug do
 
     def cast_offset(%Ecto.Changeset{} = changeset) do
       offset = fetch_change!(changeset, :offset)
-      put_change(changeset, :offset, LogOffset.from_string(offset))
+
+      case LogOffset.from_string(offset) do
+        {:ok, offset} ->
+          put_change(changeset, :offset, offset)
+
+        {:error, message} ->
+          add_error(changeset, :offset, message)
+      end
     end
 
     def validate_shape_id_with_offset(%Ecto.Changeset{valid?: false} = changeset), do: changeset

@@ -39,42 +39,23 @@ defmodule Electric.Postgres.LogOffset do
       %LogOffset{tx_offset: 11, op_offset: 3}
 
       iex> new({11, 3.2})
-      ** (FunctionClauseError) no function clause matching in Electric.Postgres.LogOffset.new/1
-  """
-  def new(%Lsn{} = lsn, op_offset) when is_integer(op_offset) do
-    %LogOffset{tx_offset: Lsn.to_integer(lsn), op_offset: op_offset}
-  end
+      ** (FunctionClauseError) no function clause matching in Electric.Postgres.LogOffset.new/2
 
-  def new(tx_offset, op_offset) when is_integer(tx_offset) and is_integer(op_offset) do
+      iex> new(10, -2)
+      ** (FunctionClauseError) no function clause matching in Electric.Postgres.LogOffset.new/2
+  """
+  def new(tx_offset, op_offset)
+      when is_integer(tx_offset) and tx_offset >= 0 and is_integer(op_offset) and op_offset >= 0 do
     %LogOffset{tx_offset: tx_offset, op_offset: op_offset}
   end
 
-  def new({tx_offset, op_offset}) when is_integer(tx_offset) and is_integer(op_offset) do
-    %LogOffset{tx_offset: tx_offset, op_offset: op_offset}
+  def new(%Lsn{} = lsn, op_offset) do
+    new(Lsn.to_integer(lsn), op_offset)
   end
 
-  @doc """
-  Regex for validating a stringified LogOffset.
-  Checks that the tx_offset and op_offset are non-negative integers.
-
-  ## Examples
-
-      iex> Regex.match?(regex(), to_string(before_all()))
-      true
-
-      iex> Regex.match?(regex(), to_string(first()))
-      true
-
-      iex> Regex.match?(regex(), "15/9")
-      true
-
-      iex> Regex.match?(regex(), "-2/1")
-      false
-
-      iex> Regex.match?(regex(), "2/-3")
-      false
-  """
-  def regex(), do: ~r/(^-1$)|(^[0-9]+\/[0-9]+$)/
+  def new({tx_offset, op_offset}) do
+    new(tx_offset, op_offset)
+  end
 
   @doc """
   An offset that is smaller than all offsets in the log.
@@ -165,24 +146,42 @@ defmodule Electric.Postgres.LogOffset do
   ## Examples
 
       iex> from_string("-1")
-      %LogOffset{tx_offset: -1, op_offset: 0}
+      {:ok, %LogOffset{tx_offset: -1, op_offset: 0}}
 
       iex> from_string("0/0")
-      %LogOffset{tx_offset: 0, op_offset: 0}
+      {:ok, %LogOffset{tx_offset: 0, op_offset: 0}}
 
       iex> from_string("11/13")
-      %LogOffset{tx_offset: 11, op_offset: 13}
+      {:ok, %LogOffset{tx_offset: 11, op_offset: 13}}
 
       iex> from_string("0/02")
-      %LogOffset{tx_offset: 0, op_offset: 2}
+      {:ok, %LogOffset{tx_offset: 0, op_offset: 2}}
+
+      iex> from_string("1/2/3")
+      {:error, "has invalid format"}
+
+      iex> from_string("1/2 ")
+      {:error, "has invalid format"}
+
+      iex> from_string("10")
+      {:error, "has invalid format"}
+
+      iex> from_string("10/32.1")
+      {:error, "has invalid format"}
   """
-  @spec from_string(String.t()) :: -1 | t
+  @spec from_string(String.t()) :: {:ok, t | -1}
   def from_string(str) when is_binary(str) do
     if str == "-1" do
-      before_all()
+      {:ok, before_all()}
     else
-      [tx_offset, op_offset] = String.split(str, "/")
-      %LogOffset{tx_offset: String.to_integer(tx_offset), op_offset: String.to_integer(op_offset)}
+      with [tx_offset_str, op_offset_str] <- String.split(str, "/"),
+           {tx_offset, ""} <- Integer.parse(tx_offset_str),
+           {op_offset, ""} <- Integer.parse(op_offset_str),
+           offset <- new(tx_offset, op_offset) do
+        {:ok, offset}
+      else
+        _ -> {:error, "has invalid format"}
+      end
     end
   end
 
