@@ -6,20 +6,45 @@ defmodule Electric.Postgres.LogOffset do
   Combines a transaction ID with operation ID.
   """
 
+  import Kernel, except: [to_charlist: 1, to_string: 1]
+
+  alias __MODULE__, as: LogOffset
+
+  defstruct tx_offset: 0, op_offset: 0
+
   @type int64 :: 0..0xFFFFFFFFFFFFFFFF
-  @type t :: -1 | {int64(), non_neg_integer()}
+  @type t :: %LogOffset{
+          tx_offset: int64(),
+          op_offset: non_neg_integer()
+        }
 
   # Comparison operators on tuples work out of the box
   # If we change internal representation to something else than a tuple
   # we may need to overload the comparison operators
   # by importing kernel except the operators and define the operators ourselves
 
+  @doc """
+  ## Examples
+
+      iex> make(Lsn.from_integer(10), 0)
+      %LogOffset{tx_offset: 10, op_offset: 0}
+
+      iex> make(11, 3)
+      %LogOffset{tx_offset: 11, op_offset: 3}
+
+      iex> make(tx_offset(make(Lsn.from_integer(5), 1)), op_offset(make(Lsn.from_integer(5), 1)))
+      %LogOffset{tx_offset: 5, op_offset: 1}
+  """
   def make(%Lsn{} = lsn, op_index) do
-    {Lsn.to_integer(lsn), op_index}
+    %LogOffset{tx_offset: Lsn.to_integer(lsn), op_offset: op_index}
+  end
+
+  def make(tx_offset, op_offset) do
+    %LogOffset{tx_offset: tx_offset, op_offset: op_offset}
   end
 
   @doc """
-  Regex for validating LogOffset values.
+  Regex for validating a stringified LogOffset.
   Checks that the tx_offset and op_offset are non-negative integers.
 
   ## Examples
@@ -50,13 +75,13 @@ defmodule Electric.Postgres.LogOffset do
       true
   """
   @spec before_all() :: t
-  def before_all(), do: -1
+  def before_all(), do: %LogOffset{tx_offset: -1, op_offset: 0}
 
   @doc """
   The first possible offset in the log.
   """
   @spec first() :: t
-  def first(), do: {0, 0}
+  def first(), do: %LogOffset{tx_offset: 0, op_offset: 0}
 
   @doc """
   The last possible offset in the log.
@@ -70,7 +95,7 @@ defmodule Electric.Postgres.LogOffset do
       true
   """
   @spec last() :: t
-  def last(), do: {0xFFFFFFFFFFFFFFFF, :infinity}
+  def last(), do: %LogOffset{tx_offset: 0xFFFFFFFFFFFFFFFF, op_offset: :infinity}
 
   @doc """
   ## Examples
@@ -78,7 +103,7 @@ defmodule Electric.Postgres.LogOffset do
       iex> tx_offset(make(Lsn.from_integer(10), 0))
       10
   """
-  def tx_offset({tx_offset, _}), do: tx_offset
+  def tx_offset(%LogOffset{tx_offset: tx_offset, op_offset: _}), do: tx_offset
 
   @doc """
   ## Examples
@@ -86,7 +111,7 @@ defmodule Electric.Postgres.LogOffset do
       iex> op_offset(make(Lsn.from_integer(10), 5))
       5
   """
-  def op_offset({_, op_offset}), do: op_offset
+  def op_offset(%LogOffset{tx_offset: _, op_offset: op_offset}), do: op_offset
 
   @doc """
   Increments the offset of the change inside the transaction.
@@ -94,12 +119,14 @@ defmodule Electric.Postgres.LogOffset do
   ## Examples
 
       iex> increment(make(Lsn.from_integer(10), 5))
-      {10, 6}
+      %LogOffset{tx_offset: 10, op_offset: 6}
 
       iex> make(Lsn.from_integer(10), 5) |> increment > make(Lsn.from_integer(10), 5)
       true
   """
-  def increment({tx_offset, op_offset}), do: {tx_offset, op_offset + 1}
+  def increment(%LogOffset{tx_offset: tx_offset, op_offset: op_offset}) do
+    %LogOffset{tx_offset: tx_offset, op_offset: op_offset + 1}
+  end
 
   @doc """
   Format a LogOffset value to its text representation in an iolist.
@@ -110,9 +137,16 @@ defmodule Electric.Postgres.LogOffset do
 
       iex> to_iolist(make(Lsn.from_integer(10), 3))
       ["10", ?/, "3"]
+
+      iex> to_iolist(before_all())
+      ["-1"]
   """
   @spec to_iolist(t) :: iolist
-  def to_iolist({tx_offset, op_offset}) do
+  def to_iolist(%LogOffset{tx_offset: -1, op_offset: _}) do
+    [Integer.to_string(-1)]
+  end
+
+  def to_iolist(%LogOffset{tx_offset: tx_offset, op_offset: op_offset}) do
     [Integer.to_string(tx_offset), ?/, Integer.to_string(op_offset)]
   end
 
@@ -122,47 +156,44 @@ defmodule Electric.Postgres.LogOffset do
   ## Examples
 
       iex> from_string("-1")
-      -1
+      %LogOffset{tx_offset: -1, op_offset: 0}
 
       iex> from_string("0/0")
-      {0, 0}
+      %LogOffset{tx_offset: 0, op_offset: 0}
 
       iex> from_string("11/13")
-      {11, 13}
+      %LogOffset{tx_offset: 11, op_offset: 13}
 
       iex> from_string("0/02")
-      {0, 2}
+      %LogOffset{tx_offset: 0, op_offset: 2}
   """
-  @spec from_string(String.t()) :: t
+  @spec from_string(String.t()) :: -1 | t
   def from_string(str) when is_binary(str) do
     if str == "-1" do
-      -1
+      before_all()
     else
       [tx_offset, op_offset] = String.split(str, "/")
-      {String.to_integer(tx_offset), String.to_integer(op_offset)}
+      %LogOffset{tx_offset: String.to_integer(tx_offset), op_offset: String.to_integer(op_offset)}
     end
   end
 
-  @doc """
-  Serialise the LogOffset value to a string.
-
-  ## Examples
-
-      iex> to_string(-1)
-      "-1"
-
-      iex> to_string(first())
-      "0/0"
-
-      iex> to_string(make(Lsn.from_integer(10), 3))
-      "10/3"
-  """
-  @spec to_string(t) :: String.t()
-  def to_string(-1) do
-    "-1"
+  defimpl Inspect do
+    def inspect(offset, _opts) do
+      "#LogOffset<#{Electric.Postgres.LogOffset.to_iolist(offset)}>"
+    end
   end
 
-  def to_string(offset) do
-    "#{to_iolist(offset)}"
+  defimpl String.Chars do
+    def to_string(offset), do: "#{Electric.Postgres.LogOffset.to_iolist(offset)}"
+  end
+
+  defimpl List.Chars do
+    def to_charlist(offset), do: ~c'#{Electric.Postgres.LogOffset.to_iolist(offset)}'
+  end
+
+  defimpl Jason.Encoder, for: LogOffset do
+    def encode(value, opts) do
+      Jason.Encode.string("#{value}", opts)
+    end
   end
 end

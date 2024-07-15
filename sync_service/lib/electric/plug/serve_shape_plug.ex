@@ -5,6 +5,8 @@ defmodule Electric.Plug.ServeShapePlug do
   alias Electric.Postgres.LogOffset
   use Plug.Builder
 
+  @before_all_offset LogOffset.before_all()
+
   defmodule Params do
     use Ecto.Schema
     import Ecto.Changeset
@@ -57,12 +59,10 @@ defmodule Electric.Plug.ServeShapePlug do
     def validate_shape_id_with_offset(%Ecto.Changeset{} = changeset) do
       offset = fetch_change!(changeset, :offset)
 
-      case offset do
-        -1 ->
-          changeset
-
-        _ ->
-          validate_required(changeset, [:shape_id], message: "can't be blank when offset != -1")
+      if offset == LogOffset.before_all() do
+        changeset
+      else
+        validate_required(changeset, [:shape_id], message: "can't be blank when offset != -1")
       end
     end
 
@@ -119,17 +119,15 @@ defmodule Electric.Plug.ServeShapePlug do
     {shape_id, last_offset} =
       Shapes.get_or_create_shape_id(conn.assigns.shape_definition, conn.assigns.config)
 
-    serialised_last_offset = LogOffset.to_string(last_offset)
-
     conn
     |> assign(:active_shape_id, shape_id)
     |> assign(:last_offset, last_offset)
     |> put_resp_header("x-electric-shape-id", shape_id)
-    |> put_resp_header("x-electric-chunk-last-offset", serialised_last_offset)
+    |> put_resp_header("x-electric-chunk-last-offset", "#{last_offset}")
   end
 
   # If the offset requested is -1, noop as we can always serve it
-  def validate_shape_offset(%Plug.Conn{assigns: %{offset: -1}} = conn, _) do
+  def validate_shape_offset(%Plug.Conn{assigns: %{offset: @before_all_offset}} = conn, _) do
     # noop
     conn
   end
@@ -174,7 +172,7 @@ defmodule Electric.Plug.ServeShapePlug do
     conn
     |> assign(
       :etag,
-      "#{active_shape_id}:#{LogOffset.to_string(offset)}:#{LogOffset.to_string(last_offset)}"
+      "#{active_shape_id}:#{offset}:#{last_offset}"
     )
   end
 
@@ -226,7 +224,7 @@ defmodule Electric.Plug.ServeShapePlug do
   # If offset is -1, we're serving a snapshot
   defp serve_log_or_snapshot(
          %Plug.Conn{
-           assigns: %{offset: -1, last_offset: _, active_shape_id: shape_id}
+           assigns: %{offset: @before_all_offset, last_offset: _, active_shape_id: shape_id}
          } = conn,
          _
        ) do
@@ -253,7 +251,6 @@ defmodule Electric.Plug.ServeShapePlug do
        ) do
     log =
       Shapes.get_log_stream(conn.assigns.config, shape_id, since: offset)
-      |> Enum.map(&Storage.serialise_offset_in_log_entry/1)
       |> Enum.to_list()
 
     if log == [] and conn.assigns.live do
@@ -267,7 +264,7 @@ defmodule Electric.Plug.ServeShapePlug do
         if conn.assigns.live do
           List.last(log).offset
         else
-          LogOffset.to_string(last_offset)
+          last_offset
         end
 
       conn

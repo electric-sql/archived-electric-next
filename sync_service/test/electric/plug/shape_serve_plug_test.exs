@@ -17,9 +17,9 @@ defmodule Electric.Plug.ServeShapePlugTest do
   @test_offset LogOffset.make(Lsn.from_integer(100), 0)
   @registry Registry.ServeShapePlugTest
   @first_offset LogOffset.first()
-  @encoded_first_offset URI.encode(LogOffset.to_string(@first_offset))
+  @encoded_first_offset URI.encode("#{@first_offset}")
   @start_offset_50 LogOffset.make(Lsn.from_integer(50), 0)
-  @start_offset_50_str LogOffset.to_string(@start_offset_50)
+  @start_offset_50_str "#{@start_offset_50}"
 
   defmodule Inspector do
     def load_table_info({"public", "users"}, _), do: [%{name: "id", type: "int8"}]
@@ -101,13 +101,13 @@ defmodule Electric.Plug.ServeShapePlugTest do
                  "key" => "log",
                  "value" => "foo",
                  "headers" => %{},
-                 "offset" => LogOffset.to_string(next_offset)
+                 "offset" => "#{next_offset}"
                },
                %{"headers" => %{"control" => "up-to-date"}}
              ]
 
       assert Plug.Conn.get_resp_header(conn, "etag") == [
-               "#{@test_shape_id}:-1:#{LogOffset.to_string(@test_offset)}"
+               "#{@test_shape_id}:-1:#{@test_offset}"
              ]
 
       assert Plug.Conn.get_resp_header(conn, "x-electric-shape-id") == [@test_shape_id]
@@ -178,19 +178,19 @@ defmodule Electric.Plug.ServeShapePlugTest do
                  "key" => "log1",
                  "value" => "foo",
                  "headers" => %{},
-                 "offset" => LogOffset.to_string(next_offset)
+                 "offset" => "#{next_offset}"
                },
                %{
                  "key" => "log2",
                  "value" => "bar",
                  "headers" => %{},
-                 "offset" => LogOffset.to_string(next_next_offset)
+                 "offset" => "#{next_next_offset}"
                },
                %{"headers" => %{"control" => "up-to-date"}}
              ]
 
       assert Plug.Conn.get_resp_header(conn, "etag") == [
-               "#{@test_shape_id}:#{@start_offset_50_str}:#{LogOffset.to_string(@test_offset)}"
+               "#{@test_shape_id}:#{@start_offset_50_str}:#{@test_offset}"
              ]
 
       assert Plug.Conn.get_resp_header(conn, "x-electric-shape-id") == [@test_shape_id]
@@ -211,7 +211,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
         )
         |> put_req_header(
           "if-none-match",
-          ~s("#{@test_shape_id}:#{@start_offset_50_str}:#{LogOffset.to_string(@test_offset)}")
+          ~s("#{@test_shape_id}:#{@start_offset_50_str}:#{@test_offset}")
         )
         |> ServeShapePlug.call([])
 
@@ -225,7 +225,8 @@ defmodule Electric.Plug.ServeShapePlugTest do
       end)
 
       test_pid = self()
-      next_offset = @test_offset + 1
+      next_offset = LogOffset.increment(@test_offset)
+      next_offset_str = "#{next_offset}"
 
       MockStorage
       |> expect(:has_log_entry?, fn @test_shape_id, @test_offset, _ -> true end)
@@ -277,7 +278,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
 
       assert Plug.Conn.get_resp_header(conn, "pragma") == ["no-cache"]
       assert Plug.Conn.get_resp_header(conn, "expires") == ["0"]
-      assert Plug.Conn.get_resp_header(conn, "x-electric-chunk-last-offset") == ["#{next_offset}"]
+      assert Plug.Conn.get_resp_header(conn, "x-electric-chunk-last-offset") == [next_offset_str]
     end
 
     test "handles shape rotation" do

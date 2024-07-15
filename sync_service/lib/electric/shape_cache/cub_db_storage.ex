@@ -165,7 +165,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
   end
 
   defp log_key(shape_id, offset) do
-    {shape_id, @log_key_type, offset}
+    {shape_id, @log_key_type, LogOffset.tx_offset(offset), LogOffset.op_offset(offset)}
   end
 
   defp shape_key(shape_id) do
@@ -181,7 +181,9 @@ defmodule Electric.ShapeCache.CubDbStorage do
 
   # FIXME: this is naive while we don't have snapshot metadata to get real offsets
   defp offset({_shape_id, @snapshot_key_type, _index}), do: LogOffset.first()
-  defp offset({_shape_id, @log_key_type, offset}), do: offset
+
+  defp offset({_shape_id, @log_key_type, tx_offset, op_offset}),
+    do: LogOffset.make(tx_offset, op_offset)
 
   defp log_start(shape_id), do: log_key(shape_id, LogOffset.first())
   defp log_end(shape_id), do: log_key(shape_id, LogOffset.last())

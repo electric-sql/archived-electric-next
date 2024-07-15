@@ -414,7 +414,7 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
 
         assert storage.has_log_entry?(@shape_id, LogOffset.make(lsn, 0), opts)
         refute storage.has_log_entry?(@shape_id, LogOffset.make(lsn, 1), opts)
-        refute storage.has_log_entry?(@shape_id, LogOffset.make(Lsn.from_integer(1001), 0), opts)
+        refute storage.has_log_entry?(@shape_id, LogOffset.make(1001, 0), opts)
       end
 
       test "should detect whether there is a snapshot with given offset", %{
@@ -427,7 +427,7 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
       end
 
       test "should return false when there is no log", %{module: storage, opts: opts} do
-        refute storage.has_log_entry?("another_shape_id", 1001, opts)
+        refute storage.has_log_entry?("another_shape_id", LogOffset.make(1001, 0), opts)
       end
     end
   end
