@@ -25,7 +25,7 @@ defmodule Electric.ShapeCache.InMemoryStorage do
   end
 
   # Service restart recovery functions that are pointless implimenting for in memory storage
-  def shapes(_opts), do: []
+  def list_shapes(_opts), do: []
   def add_shape(_shape_id, _shape, _opts), do: :ok
   def set_snapshot_xmin(_shape_id, _xmin, _opts), do: :ok
   def cleanup_shapes_without_xmins(_opts), do: :ok

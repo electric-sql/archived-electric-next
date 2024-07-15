@@ -310,7 +310,7 @@ defmodule Electric.ShapeCache do
     Storage.cleanup_shapes_without_xmins(state.storage)
 
     state.storage
-    |> Storage.shapes()
+    |> Storage.list_shapes()
     |> Enum.each(fn %{
                       shape: shape,
                       shape_id: shape_id,

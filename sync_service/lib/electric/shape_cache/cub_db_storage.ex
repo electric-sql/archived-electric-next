@@ -36,7 +36,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
     |> Enum.each(&cleanup!(&1, opts))
   end
 
-  def shapes(opts) do
+  def list_shapes(opts) do
     opts.db
     |> CubDB.select(min_key: shapes_start(), max_key: shapes_end())
     |> Stream.map(fn {{:shapes, shape_id}, shape} ->

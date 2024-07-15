@@ -407,7 +407,7 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
   for module <- [CubDbStorage] do
     module_name = module |> Module.split() |> List.last()
 
-    describe "#{module_name}.shapes/1" do
+    describe "#{module_name}.list_shapes/1" do
       @shape %Shape{root_table: {"public", "items"}}
       @changes [
         %Changes.NewRecord{
@@ -432,7 +432,7 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
                  %{shape_id: "shape-1", snapshot_xmin: 11},
                  %{shape_id: "shape-2", snapshot_xmin: 22}
                ] =
-                 storage.shapes(opts) |> Enum.to_list()
+                 storage.list_shapes(opts) |> Enum.to_list()
       end
 
       test "returns shapes with it's latest offset", %{module: storage, opts: opts} do
@@ -450,7 +450,7 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
                  %{shape_id: "shape-2", latest_offset: 0},
                  %{shape_id: "shape-3", latest_offset: 0}
                ] =
-                 storage.shapes(opts) |> Enum.to_list()
+                 storage.list_shapes(opts) |> Enum.to_list()
       end
 
       test "does not return cleaned up shape", %{module: storage, opts: opts} do
@@ -461,7 +461,7 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
         storage.cleanup!("shape-2", opts)
 
         assert [%{shape_id: "shape-1"}, %{shape_id: "shape-3"}] =
-                 storage.shapes(opts) |> Enum.to_list()
+                 storage.list_shapes(opts) |> Enum.to_list()
       end
     end
 
