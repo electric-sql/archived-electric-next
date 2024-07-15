@@ -4,6 +4,7 @@ defmodule Electric.Plug.ServeShapePlug do
   alias Electric.Postgres.LogOffset
   use Plug.Builder
 
+  # Aliasing for pattern matching
   @before_all_offset LogOffset.before_all()
 
   defmodule Params do
