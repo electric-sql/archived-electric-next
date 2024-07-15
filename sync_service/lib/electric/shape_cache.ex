@@ -130,7 +130,7 @@ defmodule Electric.ShapeCache do
     shape_meta_table =
       :ets.new(opts.shape_meta_table, [:named_table, :public, :ordered_set])
 
-    opts = %{
+    state = %{
       storage: opts.storage,
       shape_meta_table: shape_meta_table,
       waiting_for_creation: %{},
@@ -138,32 +138,9 @@ defmodule Electric.ShapeCache do
       create_snapshot_fn: opts.create_snapshot_fn
     }
 
-    {:ok, opts, {:continue, :recover_shapes}}
-  end
+    recover_shapes(state)
 
-  def handle_continue(:recover_shapes, state) do
-    Storage.cleanup_shapes_without_xmins(state.storage)
-
-    state.storage
-    |> Storage.shapes()
-    |> Enum.each(fn %{
-                      shape: shape,
-                      shape_id: shape_id,
-                      latest_offset: latest_offset,
-                      snapshot_xmin: snapshot_xmin
-                    } ->
-      hash = Shape.hash(shape)
-
-      :ets.insert_new(
-        state.shape_meta_table,
-        [
-          {{@shape_hash_lookup, hash}, shape_id},
-          {{@shape_meta_data, shape_id}, shape, snapshot_xmin, latest_offset}
-        ]
-      )
-    end)
-
-    {:noreply, state}
+    {:ok, state}
   end
 
   def handle_call({:create_or_wait_shape_id, shape}, _from, state) do
@@ -327,5 +304,28 @@ defmodule Electric.ShapeCache do
     GenServer.cast(parent, {:snapshot_ready, shape_id})
   rescue
     error -> GenServer.cast(parent, {:snapshot_failed, shape_id, error, __STACKTRACE__})
+  end
+
+  defp recover_shapes(state) do
+    Storage.cleanup_shapes_without_xmins(state.storage)
+
+    state.storage
+    |> Storage.shapes()
+    |> Enum.each(fn %{
+                      shape: shape,
+                      shape_id: shape_id,
+                      latest_offset: latest_offset,
+                      snapshot_xmin: snapshot_xmin
+                    } ->
+      hash = Shape.hash(shape)
+
+      :ets.insert_new(
+        state.shape_meta_table,
+        [
+          {{@shape_hash_lookup, hash}, shape_id},
+          {{@shape_meta_data, shape_id}, shape, snapshot_xmin, latest_offset}
+        ]
+      )
+    end)
   end
 end
