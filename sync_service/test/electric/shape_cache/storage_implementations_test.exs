@@ -127,7 +127,7 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
           %Changes.NewRecord{
             relation: {"public", "test_table"},
             record: %{"id" => "123", "name" => "Test"},
-            log_offset: LogOffset.make(Lsn.from_integer(1000), 0)
+            log_offset: LogOffset.new(Lsn.from_integer(1000), 0)
           }
         ]
 
@@ -147,7 +147,7 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
       test "adds changes to the log", %{module: storage, opts: opts} do
         xid = 1
         lsn = Lsn.from_integer(1000)
-        offset = LogOffset.make(lsn, 0)
+        offset = LogOffset.new(lsn, 0)
 
         changes = [
           %Changes.NewRecord{
@@ -186,7 +186,7 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
           %Changes.NewRecord{
             relation: {"public", "test_table"},
             record: %{"id" => "123", "name" => "Test1"},
-            log_offset: LogOffset.make(lsn1, 0)
+            log_offset: LogOffset.new(lsn1, 0)
           }
         ]
 
@@ -195,12 +195,12 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
             relation: {"public", "test_table"},
             old_record: %{"id" => "123", "name" => "Test1"},
             record: %{"id" => "123", "name" => "Test2"},
-            log_offset: LogOffset.make(lsn2, 0)
+            log_offset: LogOffset.new(lsn2, 0)
           },
           %Changes.DeletedRecord{
             relation: {"public", "test_table"},
             old_record: %{"id" => "123", "name" => "Test1"},
-            log_offset: LogOffset.make(lsn2, 1)
+            log_offset: LogOffset.new(lsn2, 1)
           }
         ]
 
@@ -226,7 +226,7 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
           %Changes.NewRecord{
             relation: {"public", "test_table"},
             record: %{"id" => "123", "name" => "Test1"},
-            log_offset: LogOffset.make(lsn1, 0)
+            log_offset: LogOffset.new(lsn1, 0)
           }
         ]
 
@@ -235,12 +235,12 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
             relation: {"public", "test_table"},
             old_record: %{"id" => "123", "name" => "Test1"},
             record: %{"id" => "123", "name" => "Test2"},
-            log_offset: LogOffset.make(lsn2, 0)
+            log_offset: LogOffset.new(lsn2, 0)
           },
           %Changes.DeletedRecord{
             relation: {"public", "test_table"},
             old_record: %{"id" => "123", "name" => "Test1"},
-            log_offset: LogOffset.make(lsn2, 1)
+            log_offset: LogOffset.new(lsn2, 1)
           }
         ]
 
@@ -248,7 +248,7 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
         :ok = storage.append_to_log!(@shape_id, xid, changes2, opts)
 
         stream =
-          storage.get_log_stream(@shape_id, LogOffset.make(lsn1, 0), LogOffset.last(), opts)
+          storage.get_log_stream(@shape_id, LogOffset.new(lsn1, 0), LogOffset.last(), opts)
 
         entries = Enum.to_list(stream)
 
@@ -270,7 +270,7 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
           %Changes.NewRecord{
             relation: {"public", "test_table"},
             record: %{"id" => "123", "name" => "Test1"},
-            log_offset: LogOffset.make(lsn1, 0)
+            log_offset: LogOffset.new(lsn1, 0)
           }
         ]
 
@@ -279,12 +279,12 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
             relation: {"public", "test_table"},
             old_record: %{"id" => "123", "name" => "Test1"},
             record: %{"id" => "123", "name" => "Test2"},
-            log_offset: LogOffset.make(lsn2, 0)
+            log_offset: LogOffset.new(lsn2, 0)
           },
           %Changes.DeletedRecord{
             relation: {"public", "test_table"},
             old_record: %{"id" => "123", "name" => "Test1"},
-            log_offset: LogOffset.make(lsn2, 1)
+            log_offset: LogOffset.new(lsn2, 1)
           }
         ]
 
@@ -294,8 +294,8 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
         stream =
           storage.get_log_stream(
             @shape_id,
-            LogOffset.make(lsn1, 0),
-            LogOffset.make(lsn2, 0),
+            LogOffset.new(lsn1, 0),
+            LogOffset.new(lsn2, 0),
             opts
           )
 
@@ -315,7 +315,7 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
           %Changes.NewRecord{
             relation: {"public", "test_table"},
             record: %{"id" => "123", "name" => "Test A"},
-            log_offset: LogOffset.make(lsn1, 0)
+            log_offset: LogOffset.new(lsn1, 0)
           }
         ]
 
@@ -323,7 +323,7 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
           %Changes.NewRecord{
             relation: {"public", "test_table"},
             record: %{"id" => "456", "name" => "Test B"},
-            log_offset: LogOffset.make(lsn2, 0)
+            log_offset: LogOffset.new(lsn2, 0)
           }
         ]
 
@@ -375,7 +375,7 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
           %Changes.NewRecord{
             relation: {"public", "test_table"},
             record: %{"id" => "123", "name" => "Test"},
-            log_offset: LogOffset.make(lsn, 0)
+            log_offset: LogOffset.new(lsn, 0)
           }
         ]
 
@@ -406,15 +406,15 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
           %Changes.NewRecord{
             relation: {"public", "test_table"},
             record: %{"id" => "123", "name" => "Test"},
-            log_offset: LogOffset.make(lsn, 0)
+            log_offset: LogOffset.new(lsn, 0)
           }
         ]
 
         :ok = storage.append_to_log!(@shape_id, xid, changes, opts)
 
-        assert storage.has_log_entry?(@shape_id, LogOffset.make(lsn, 0), opts)
-        refute storage.has_log_entry?(@shape_id, LogOffset.make(lsn, 1), opts)
-        refute storage.has_log_entry?(@shape_id, LogOffset.make(1001, 0), opts)
+        assert storage.has_log_entry?(@shape_id, LogOffset.new(lsn, 0), opts)
+        refute storage.has_log_entry?(@shape_id, LogOffset.new(lsn, 1), opts)
+        refute storage.has_log_entry?(@shape_id, LogOffset.new(1001, 0), opts)
       end
 
       test "should detect whether there is a snapshot with given offset", %{
@@ -427,7 +427,7 @@ defmodule Electric.ShapeCache.StorageImplimentationsTest do
       end
 
       test "should return false when there is no log", %{module: storage, opts: opts} do
-        refute storage.has_log_entry?("another_shape_id", LogOffset.make(1001, 0), opts)
+        refute storage.has_log_entry?("another_shape_id", LogOffset.new(1001, 0), opts)
       end
     end
   end

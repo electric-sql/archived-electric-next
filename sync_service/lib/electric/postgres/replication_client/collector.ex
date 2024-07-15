@@ -62,7 +62,7 @@ defmodule Electric.Postgres.ReplicationClient.Collector do
     relation = Map.fetch!(state.relations, msg.relation_id)
 
     data = data_tuple_to_map(relation.columns, msg.tuple_data)
-    offset = LogOffset.make(state.transaction.lsn, state.tx_op_index)
+    offset = LogOffset.new(state.transaction.lsn, state.tx_op_index)
 
     %NewRecord{relation: {relation.namespace, relation.name}, record: data, log_offset: offset}
     |> prepend_change(state)
@@ -83,7 +83,7 @@ defmodule Electric.Postgres.ReplicationClient.Collector do
 
     old_data = data_tuple_to_map(relation.columns, msg.old_tuple_data)
     data = data_tuple_to_map(relation.columns, msg.tuple_data)
-    offset = LogOffset.make(state.transaction.lsn, state.tx_op_index)
+    offset = LogOffset.new(state.transaction.lsn, state.tx_op_index)
 
     UpdatedRecord.new(
       relation: {relation.namespace, relation.name},
@@ -103,7 +103,7 @@ defmodule Electric.Postgres.ReplicationClient.Collector do
         msg.old_tuple_data || msg.changed_key_tuple_data
       )
 
-    offset = LogOffset.make(state.transaction.lsn, state.tx_op_index)
+    offset = LogOffset.new(state.transaction.lsn, state.tx_op_index)
 
     %DeletedRecord{
       relation: {relation.namespace, relation.name},
@@ -114,7 +114,7 @@ defmodule Electric.Postgres.ReplicationClient.Collector do
   end
 
   def handle_message(%LR.Truncate{} = msg, state) do
-    offset = LogOffset.make(state.transaction.lsn, state.tx_op_index)
+    offset = LogOffset.new(state.transaction.lsn, state.tx_op_index)
 
     msg.truncated_relations
     |> Enum.map(&Map.get(state.relations, &1))
@@ -132,7 +132,7 @@ defmodule Electric.Postgres.ReplicationClient.Collector do
     {%Transaction{
        txn
        | changes: Enum.reverse(txn.changes),
-         last_log_offset: LogOffset.make(txn.lsn, state.tx_op_index - 1)
+         last_log_offset: LogOffset.new(txn.lsn, state.tx_op_index - 1)
      }, %__MODULE__{state | transaction: nil, tx_op_index: nil}}
   end
 

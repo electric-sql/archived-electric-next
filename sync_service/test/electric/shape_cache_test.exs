@@ -127,7 +127,7 @@ defmodule Electric.ShapeCacheTest do
       assert {^shape_id, offset_after_snapshot} = ShapeCache.get_or_create_shape_id(shape, opts)
 
       expected_offset_after_log_entry =
-        LogOffset.make(Electric.Postgres.Lsn.from_integer(1000), 0)
+        LogOffset.new(Electric.Postgres.Lsn.from_integer(1000), 0)
 
       :ok =
         ShapeCache.append_to_log!(
@@ -348,7 +348,7 @@ defmodule Electric.ShapeCacheTest do
           %Electric.Replication.Changes.NewRecord{
             relation: {"public", "items"},
             record: %{"id" => "1", "name" => "Alice"},
-            log_offset: LogOffset.make(Electric.Postgres.Lsn.from_integer(1000), 0)
+            log_offset: LogOffset.new(Electric.Postgres.Lsn.from_integer(1000), 0)
           }
         ],
         storage
@@ -396,7 +396,7 @@ defmodule Electric.ShapeCacheTest do
           %Electric.Replication.Changes.NewRecord{
             relation: {"public", "items"},
             record: %{"id" => "1", "name" => "Alice"},
-            log_offset: LogOffset.make(Electric.Postgres.Lsn.from_integer(1000), 0)
+            log_offset: LogOffset.new(Electric.Postgres.Lsn.from_integer(1000), 0)
           }
         ],
         storage

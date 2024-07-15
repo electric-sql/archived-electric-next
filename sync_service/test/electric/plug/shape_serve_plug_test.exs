@@ -14,12 +14,12 @@ defmodule Electric.Plug.ServeShapePlugTest do
 
   @test_shape %Shape{root_table: {"public", "users"}}
   @test_shape_id "test-shape-id"
-  @test_offset LogOffset.make(Lsn.from_integer(100), 0)
+  @test_offset LogOffset.new(Lsn.from_integer(100), 0)
   @test_offset_str "#{@test_offset}"
   @registry Registry.ServeShapePlugTest
   @first_offset LogOffset.first()
   @encoded_first_offset URI.encode("#{@first_offset}", fn _ -> false end)
-  @start_offset_50 LogOffset.make(Lsn.from_integer(50), 0)
+  @start_offset_50 LogOffset.new(Lsn.from_integer(50), 0)
   @start_offset_50_str "#{@start_offset_50}"
   @start_offset_50_encoded URI.encode(@start_offset_50_str, fn _ -> false end)
 

@@ -41,7 +41,7 @@ defmodule Electric.Replication.ShapeLogStorageTest do
       xmin = 100
       xid = 150
       lsn = Lsn.from_string("0/10")
-      last_log_offset = LogOffset.make(lsn, 0)
+      last_log_offset = LogOffset.new(lsn, 0)
 
       MockShapeCache
       |> expect(:list_active_shapes, 2, fn _ -> [{shape_id, shape, xmin}] end)
@@ -74,7 +74,7 @@ defmodule Electric.Replication.ShapeLogStorageTest do
       xmin = 200
       xid = 150
       lsn = Lsn.from_string("0/10")
-      last_log_offset = LogOffset.make(lsn, 0)
+      last_log_offset = LogOffset.new(lsn, 0)
 
       MockShapeCache
       |> expect(:list_active_shapes, fn _ -> [{shape_id, shape, xmin}] end)
@@ -101,7 +101,7 @@ defmodule Electric.Replication.ShapeLogStorageTest do
       xmin = 100
       xid = 150
       lsn = Lsn.from_string("0/10")
-      last_log_offset = LogOffset.make(lsn, 0)
+      last_log_offset = LogOffset.new(lsn, 0)
 
       MockShapeCache
       |> expect(:list_active_shapes, fn _ -> [{shape_id, shape, xmin}] end)
@@ -123,7 +123,7 @@ defmodule Electric.Replication.ShapeLogStorageTest do
       xmin = 100
       xid = 150
       lsn = Lsn.from_string("0/10")
-      last_log_offset = LogOffset.make(lsn, 0)
+      last_log_offset = LogOffset.new(lsn, 0)
 
       # The fact that we don't expect `append_to_log` is enough to prove that it wasn't called.
       MockShapeCache
@@ -147,7 +147,7 @@ defmodule Electric.Replication.ShapeLogStorageTest do
       xmin = 100
       xid = 150
       lsn = Lsn.from_string("0/10")
-      last_log_offset = LogOffset.make(lsn, 0)
+      last_log_offset = LogOffset.new(lsn, 0)
 
       MockShapeCache
       |> expect(:list_active_shapes, fn _ -> [{shape_id, shape, xmin}] end)
@@ -174,7 +174,7 @@ defmodule Electric.Replication.ShapeLogStorageTest do
       xmin = 100
       xid = 150
       lsn = Lsn.from_string("0/10")
-      last_log_offset = LogOffset.make(lsn, 0)
+      last_log_offset = LogOffset.new(lsn, 0)
 
       MockShapeCache
       |> expect(:list_active_shapes, fn _ ->

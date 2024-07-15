@@ -26,30 +26,30 @@ defmodule Electric.Postgres.LogOffset do
   @doc """
   ## Examples
 
-      iex> make(Lsn.from_integer(10), 0)
+      iex> new(Lsn.from_integer(10), 0)
       %LogOffset{tx_offset: 10, op_offset: 0}
 
-      iex> make(11, 3)
+      iex> new(11, 3)
       %LogOffset{tx_offset: 11, op_offset: 3}
 
-      iex> make(tx_offset(make(Lsn.from_integer(5), 1)), op_offset(make(Lsn.from_integer(5), 1)))
+      iex> new(to_tuple(new(Lsn.from_integer(5), 1)))
       %LogOffset{tx_offset: 5, op_offset: 1}
 
-      iex> make({11, 3})
+      iex> new({11, 3})
       %LogOffset{tx_offset: 11, op_offset: 3}
 
-      iex> make({11, 3.2})
-      ** (FunctionClauseError) no function clause matching in Electric.Postgres.LogOffset.make/1
+      iex> new({11, 3.2})
+      ** (FunctionClauseError) no function clause matching in Electric.Postgres.LogOffset.new/1
   """
-  def make(%Lsn{} = lsn, op_offset) when is_integer(op_offset) do
+  def new(%Lsn{} = lsn, op_offset) when is_integer(op_offset) do
     %LogOffset{tx_offset: Lsn.to_integer(lsn), op_offset: op_offset}
   end
 
-  def make(tx_offset, op_offset) when is_integer(tx_offset) and is_integer(op_offset) do
+  def new(tx_offset, op_offset) when is_integer(tx_offset) and is_integer(op_offset) do
     %LogOffset{tx_offset: tx_offset, op_offset: op_offset}
   end
 
-  def make({tx_offset, op_offset}) when is_integer(tx_offset) and is_integer(op_offset) do
+  def new({tx_offset, op_offset}) when is_integer(tx_offset) and is_integer(op_offset) do
     %LogOffset{tx_offset: tx_offset, op_offset: op_offset}
   end
 
@@ -101,7 +101,7 @@ defmodule Electric.Postgres.LogOffset do
       iex> first() < last()
       true
 
-      iex> make(Lsn.from_integer(10), 0) < last()
+      iex> new(Lsn.from_integer(10), 0) < last()
       true
   """
   @spec last() :: t
@@ -112,10 +112,10 @@ defmodule Electric.Postgres.LogOffset do
 
   ## Examples
 
-      iex> increment(make(Lsn.from_integer(10), 5))
+      iex> increment(new(Lsn.from_integer(10), 5))
       %LogOffset{tx_offset: 10, op_offset: 6}
 
-      iex> make(Lsn.from_integer(10), 5) |> increment > make(Lsn.from_integer(10), 5)
+      iex> new(Lsn.from_integer(10), 5) |> increment > new(Lsn.from_integer(10), 5)
       true
   """
   def increment(%LogOffset{tx_offset: tx_offset, op_offset: op_offset}) do
@@ -129,7 +129,7 @@ defmodule Electric.Postgres.LogOffset do
       iex> to_tuple(first())
       {0, 0}
 
-      iex> to_tuple(make(Lsn.from_integer(10), 3))
+      iex> to_tuple(new(Lsn.from_integer(10), 3))
       {10, 3}
   """
   @spec to_tuple(t) :: {int64(), non_neg_integer()}
@@ -144,7 +144,7 @@ defmodule Electric.Postgres.LogOffset do
       iex> to_iolist(first())
       ["0", ?/, "0"]
 
-      iex> to_iolist(make(Lsn.from_integer(10), 3))
+      iex> to_iolist(new(Lsn.from_integer(10), 3))
       ["10", ?/, "3"]
 
       iex> to_iolist(before_all())

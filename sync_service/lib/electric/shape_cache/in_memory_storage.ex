@@ -147,7 +147,7 @@ defmodule Electric.ShapeCache.InMemoryStorage do
   # by modifying the turning the tuple offset
   # back into a LogOffset value.
   defp log_storage_item_to_log_item({_shape_id, position}, {_, xid, key, action, value}) do
-    offset = LogOffset.make(position)
+    offset = LogOffset.new(position)
     %{key: key, value: value, headers: %{action: action, txid: xid}, offset: offset}
   end
 

@@ -183,7 +183,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
   defp offset({_shape_id, @snapshot_key_type, _index}), do: LogOffset.first()
 
   defp offset({_shape_id, @log_key_type, tuple_offset}),
-    do: LogOffset.make(tuple_offset)
+    do: LogOffset.new(tuple_offset)
 
   defp log_start(shape_id), do: log_key(shape_id, LogOffset.first())
   defp log_end(shape_id), do: log_key(shape_id, LogOffset.last())
