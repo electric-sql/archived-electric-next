@@ -147,14 +147,13 @@ defmodule Electric.ShapeCache.InMemoryStorage do
   # by modifying the turning the tuple offset
   # back into a LogOffset value.
   defp log_storage_item_to_log_item({_shape_id, position}, {_, xid, key, action, value}) do
-    {tx_offset, op_offset} = position
-    offset = LogOffset.make(tx_offset, op_offset)
+    offset = LogOffset.make(position)
     %{key: key, value: value, headers: %{action: action, txid: xid}, offset: offset}
   end
 
   # Turns a LogOffset into a tuple representation
   # for storing in the ETS table
   defp storage_offset(offset) do
-    {LogOffset.tx_offset(offset), LogOffset.op_offset(offset)}
+    LogOffset.to_tuple(offset)
   end
 end

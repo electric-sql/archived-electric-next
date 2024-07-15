@@ -34,12 +34,22 @@ defmodule Electric.Postgres.LogOffset do
 
       iex> make(tx_offset(make(Lsn.from_integer(5), 1)), op_offset(make(Lsn.from_integer(5), 1)))
       %LogOffset{tx_offset: 5, op_offset: 1}
+
+      iex> make({11, 3})
+      %LogOffset{tx_offset: 11, op_offset: 3}
+
+      iex> make({11, 3.2})
+      ** (FunctionClauseError) no function clause matching in Electric.Postgres.LogOffset.make/1
   """
-  def make(%Lsn{} = lsn, op_index) do
-    %LogOffset{tx_offset: Lsn.to_integer(lsn), op_offset: op_index}
+  def make(%Lsn{} = lsn, op_offset) when is_integer(op_offset) do
+    %LogOffset{tx_offset: Lsn.to_integer(lsn), op_offset: op_offset}
   end
 
-  def make(tx_offset, op_offset) do
+  def make(tx_offset, op_offset) when is_integer(tx_offset) and is_integer(op_offset) do
+    %LogOffset{tx_offset: tx_offset, op_offset: op_offset}
+  end
+
+  def make({tx_offset, op_offset}) when is_integer(tx_offset) and is_integer(op_offset) do
     %LogOffset{tx_offset: tx_offset, op_offset: op_offset}
   end
 
@@ -98,22 +108,6 @@ defmodule Electric.Postgres.LogOffset do
   def last(), do: %LogOffset{tx_offset: 0xFFFFFFFFFFFFFFFF, op_offset: :infinity}
 
   @doc """
-  ## Examples
-
-      iex> tx_offset(make(Lsn.from_integer(10), 0))
-      10
-  """
-  def tx_offset(%LogOffset{tx_offset: tx_offset, op_offset: _}), do: tx_offset
-
-  @doc """
-  ## Examples
-
-      iex> op_offset(make(Lsn.from_integer(10), 5))
-      5
-  """
-  def op_offset(%LogOffset{tx_offset: _, op_offset: op_offset}), do: op_offset
-
-  @doc """
   Increments the offset of the change inside the transaction.
 
   ## Examples
@@ -126,6 +120,21 @@ defmodule Electric.Postgres.LogOffset do
   """
   def increment(%LogOffset{tx_offset: tx_offset, op_offset: op_offset}) do
     %LogOffset{tx_offset: tx_offset, op_offset: op_offset + 1}
+  end
+
+  @doc """
+  Returns a tuple with the tx_offset and the op_offset.
+
+  ## Examples
+      iex> to_tuple(first())
+      {0, 0}
+
+      iex> to_tuple(make(Lsn.from_integer(10), 3))
+      {10, 3}
+  """
+  @spec to_tuple(t) :: {int64(), non_neg_integer()}
+  def to_tuple(%LogOffset{tx_offset: tx_offset, op_offset: op_offset}) do
+    {tx_offset, op_offset}
   end
 
   @doc """
