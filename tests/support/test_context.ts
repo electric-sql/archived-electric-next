@@ -42,10 +42,12 @@ export const testWithIssuesTable = testWithDbClient.extend<{
   issuesTableSql: async ({ dbClient, task }, use) => {
     const tableName = `"issues for ${task.id}"`
     await dbClient.query(`
+    DROP TABLE IF EXISTS ${tableName};
     CREATE TABLE ${tableName} (
       id UUID PRIMARY KEY,
       title TEXT NOT NULL
     );
+    ALTER TABLE ${tableName} REPLICA IDENTITY FULL;
     COMMENT ON TABLE ${tableName} IS 'Created for ${task.file.name} - ${task.name}';
   `)
     await use(tableName)
