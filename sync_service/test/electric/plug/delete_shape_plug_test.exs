@@ -23,7 +23,7 @@ defmodule Electric.Plug.DeleteShapePlugTest do
     :ok
   end
 
-  def conn(method, "?" <> _ = query_string) do
+  def conn(method, "?" <> _ = query_string, allow \\ true) do
     # Pass mock dependencies to the plug
     config = %{
       shape_cache: {Electric.ShapeCacheMock, []},
@@ -31,7 +31,8 @@ defmodule Electric.Plug.DeleteShapePlugTest do
       registry: @registry,
       long_poll_timeout: 20_000,
       max_age: 60,
-      stale_age: 300
+      stale_age: 300,
+      allow_shape_deletion: allow
     }
 
     Plug.Test.conn(method, "/" <> query_string)
@@ -39,6 +40,18 @@ defmodule Electric.Plug.DeleteShapePlugTest do
   end
 
   describe "DeleteShapePlug" do
+    test "returns 404 if shape deletion is not allowed" do
+      conn =
+        conn("DELETE", "?root_table=.invalid_shape", false)
+        |> DeleteShapePlug.call([])
+
+      assert conn.status == 404
+
+      assert Jason.decode!(conn.resp_body) == %{
+               "status" => "Not found"
+             }
+    end
+
     test "returns 400 for invalid params" do
       conn =
         conn("DELETE", "?root_table=.invalid_shape")
