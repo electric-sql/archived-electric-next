@@ -7,8 +7,7 @@ import {
   beforeEach,
   afterAll,
 } from 'vitest'
-import fs from 'fs/promises'
-import path from 'path'
+import { exec } from 'child_process'
 import { Client } from 'pg'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -22,6 +21,12 @@ const dbClient = new Client({
 
 const PROXY_URL = `http://localhost:3002`
 
+// name of proxy cache container to execute commands against,
+// see docker-compose.yml that spins it up for details
+const NGINX_CONTAINER_NAME = `electric_dev-nginx-1`
+// path pattern for cache files inside proxy cache to clear
+const NGINX_CACHE_MATCH = `/var/cache/nginx/*`
+
 // see https://blog.nginx.org/blog/nginx-caching-guide for details
 enum CacheStatus {
   MISS = `MISS`, // item was not in the cache
@@ -31,6 +36,18 @@ enum CacheStatus {
   UPDATING = `UPDATING`, // same as STALE but indicates proxy is updating stale entry
   REVALIDATED = `REVALIDATED`, // you this request revalidated at the server
   HIT = `HIT`, // cache hit
+}
+
+/**
+ * Clear the proxy cache files to simulate an empty cache
+ */
+async function clearCache(): Promise<void> {
+  return new Promise((res) =>
+    exec(
+      `docker exec ${NGINX_CONTAINER_NAME} sh -c 'rm -rf ${NGINX_CACHE_MATCH}'`,
+      (_) => res()
+    )
+  )
 }
 
 function getCacheStatus(res: Response): CacheStatus {
@@ -107,15 +124,6 @@ async function clearShape(table: string, shapeId?: string) {
 
 async function sleep(time: number) {
   await new Promise((resolve) => setTimeout(resolve, time))
-}
-
-async function clearCache(): Promise<void> {
-  const cacheDir = path.join(__dirname, `./nginx_cache`)
-  await fs.rm(cacheDir, {
-    recursive: true,
-    force: true,
-  })
-  await fs.mkdir(cacheDir, { recursive: true })
 }
 
 const maxAge = 1 // seconds
@@ -263,8 +271,8 @@ describe.skip(`HTTP Initial Data Caching`, { timeout: 30000 }, () => {
     )
     expect(liveRes.status).toBe(409)
     const liveBody = (await liveRes.json()) as { message: string }
-    expect(liveBody.message).toBe(
-      `Shape offset too far behind. Resync with latest shape ID.`
+    expect(liveBody.message).toContain(
+      `The shape associated with this shape_id and offset was not found.`
     )
     const redirectLocation = liveRes.headers.get(`location`)
     assert(redirectLocation)
@@ -292,20 +300,3 @@ describe.skip(`HTTP Initial Data Caching`, { timeout: 30000 }, () => {
     )
   })
 })
-
-// 1. problematic case
-// shape for table 'foo' is GCed
-// cache for /shape/foo?offset=-1 is still valid
-// user gets the shape id from the cached response
-// it will get all the data for the shape until getting to live phase
-// but then the live endpoint returns a different shape_id
-
-// /shape/foo?offset=-1 should extend the shape life enough that it
-// remains active at least until the user gets live (to refresh shape
-// continuously)
-
-// 2. handover between shape_ids
-// if you know there is a new shape_id for a shape definition, you
-// need to catchup up-to the LSN that the new shape_id starts and
-// move from old shape_id to the new shape_id. This is all done by
-// the client > write an 'shape_id handover' test
