@@ -21,6 +21,11 @@ paths:
           required: true
           description: The shape definition, currently the name of the table.
         # Query parameters
+        - name: where
+          in: query
+          schema:
+            type: string
+          description: Optional where clause to filter rows belonging to the shape.
         - name: shape_id
           in: query
           schema:
