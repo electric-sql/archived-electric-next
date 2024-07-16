@@ -6,9 +6,9 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, inject, it as bareIt } from 'vitest'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { testWithIssuesTable as it } from './support/test-context'
-import { useShape, ShapesProvider, sortedOptionsHash } from '../react-hooks'
-import { Shape } from '../client'
-import { Message } from '../types'
+import { useShape, ShapesProvider, sortedOptionsHash } from '../src/react-hooks'
+import { Shape } from '../src/client'
+import { Message } from '../src/types'
 
 type FC = React.FC<React.PropsWithChildren>
 const BASE_URL = inject(`baseUrl`)

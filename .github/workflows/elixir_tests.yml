@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: sync_service
+        working-directory: packages/sync_service
     env:
       MIX_ENV: test
     services:
@@ -42,15 +42,15 @@ jobs:
       - name: Restore dependencies cache
         uses: actions/cache@v3
         with:
-          path: sync_service/deps
+          path: packages/sync_service/deps
           key: ${{ runner.os }}-mix-${{ hashFiles('sync_service/**/mix.lock') }}
           restore-keys: ${{ runner.os }}-mix-
       - name: Restore compiled code
         uses: actions/cache/restore@v4
         with:
           path: |
-            sync_service/_build/*/lib
-            !sync_service/_build/*/lib/electric
+            packages/sync_service/_build/*/lib
+            !packages/sync_service/_build/*/lib/electric
           key: ${{ runner.os }}-build-${{ hashFiles('sync_service/**/mix.lock') }}
       - name: Install dependencies
         run: mix deps.get && mix deps.compile
@@ -58,8 +58,8 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: |
-            sync_service/_build/*/lib
-            !sync_service/_build/*/lib/electric
+            packages/sync_service/_build/*/lib
+            !packages/sync_service/_build/*/lib/electric
           key: ${{ runner.os }}-build-${{ hashFiles('sync_service/**/mix.lock') }}
       - name: Compiles without warnings
         run: mix compile --force --all-warnings --warnings-as-errors
@@ -70,7 +70,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: sync_service
+        working-directory: packages/sync_service
     steps:
       - uses: actions/checkout@v4
       - uses: erlef/setup-beam@v1

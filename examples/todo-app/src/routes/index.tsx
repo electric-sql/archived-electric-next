@@ -7,7 +7,7 @@ import {
   TextField,
   Link,
 } from "@radix-ui/themes"
-import { useShape } from "../../../../react-hooks"
+import { useShape } from "../../../../packages/typescript_client/src/react-hooks"
 import { v4 as uuidv4 } from "uuid"
 
 type ToDo = {

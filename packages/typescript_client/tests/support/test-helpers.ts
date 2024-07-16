@@ -1,6 +1,6 @@
-import { ShapeStream } from '../../client'
+import { ShapeStream } from '../../src/client'
 import { Client, ClientConfig } from 'pg'
-import { JsonSerializable, Message } from '../../types'
+import { JsonSerializable, Message } from '../../src/types'
 
 export function makePgClient(overrides: ClientConfig = {}) {
   return new Client({

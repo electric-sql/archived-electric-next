@@ -1,4 +1,4 @@
-import { useShape } from '../../../react-hooks'
+import { useShape } from '../../../packages/typescript_client/src/react-hooks'
 
 import './Example.css'
 
