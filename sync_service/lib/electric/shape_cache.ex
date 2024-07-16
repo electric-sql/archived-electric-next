@@ -24,6 +24,7 @@ defmodule Electric.ShapeCacheBehaviour do
   @callback list_active_shapes(opts :: keyword()) :: [{shape_id(), shape_def(), xmin()}]
   @callback wait_for_snapshot(GenServer.name(), shape_id()) :: :ready | {:error, term()}
   @callback handle_truncate(GenServer.name(), shape_id()) :: :ok
+  @callback clean_shape(GenServer.name(), shape_id()) :: :ok
 end
 
 defmodule Electric.ShapeCache do
