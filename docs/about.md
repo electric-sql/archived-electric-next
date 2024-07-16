@@ -74,11 +74,11 @@ To go from core database replication technology to a viable solution for buildin
   </figcaption>
 </figure>
 
-The stack was ambitious and vertically integrated. Coming from a research perspective, we naturally wanted the system to be optimal. We often picked the more complex solution from the design space and, as a vertically integrated system, that solution became the only one available to use with Electric.
+Coming from a research perspective, we naturally wanted the system to be optimal. We often picked the more complex solution from the design space and, as a vertically integrated system, that solution became the only one available to use with Electric.
 
-For example, we designed the DDLX rule system in a certain way, because we wanted authorization that supported finality of local writes. However, rules (and our rules) are only one way to do authorization in a local-first system. Many applications would be happy with a simpler solution.
+For example, we designed the [DDLX rule system](https://electric-sql/docs/api/ddlx) in a certain way, because we wanted authorization that supported finality of local writes. However, rules (and our rules) are only one way to do authorization in a local-first system. Many applications would be happy with a simpler solution, such as Postgres RLS or a server authoritative middleware.
 
-This all added complexity, to the point where Electric has become not only complex to use but also complex to develop. This has slowed us down and tested the patience of even the most forgiving of our early adopters.
+These decisions not only made Electric more complex to use but also more complex to develop. Despite our best efforts, this has slowed us down and tested the patience of even the most forgiving of our early adopters.
 
 <Tweet tweet-id="1762620966256210174"
     align="center"
@@ -100,26 +100,27 @@ The danger, articulated by [Teej](https://x.com/teej_m) in the tweet below, is b
     theme="dark"
 />
 
-### Refocusing
+### Refocusing our product strategy
 
-Delivering on the opportunity
-So far we’ve focused on negatives. Let's take stock of the positives.
-Building on the BEAM with Elixir is a rock solid foundation. A lot of the engineering and algorithms are sound. Valter's solutions to building a conflict-free system directly on Postgres (a database which has MVCC internally but doesn't allow you to query a snapshot externally) remain a work of art.
-We've learned a lot about the design space and trade-offs from developing in public. With our early adopter community and from other awesome projects and people, like @schinkling and @tantaman. In the case of Kyle Mathews, our most active user also joined the team. Bringing all his experience and insight from building and scaling Gatsby. One of the most loved and used developer platforms of the last decade.
-Most importantly, the promise is still there. As Jack McCloy eloquently points out, the opportunity here is bigger that you think.
-Bigger than you think talk embed
-The prize here, if we can deliver a reliable, usable platform, is to change the way most software is built in the future. An opportunity that doesn't come around very often.
-
-Worse is better
 One of the many insights that Kyle has brought is that successful systems evolve from simple systems that work. This is Gall's law:
-“A complex system that works is invariably found to have evolved from a simple system that worked. The inverse proposition also appears to be true: A complex system designed from scratch never works and cannot be made to work. You have to start over, beginning with a working simple system.” -- John Gall: General systemantics, an essay on how systems work, and especially how they fail, 1975
-Echoed in conversations we've had with Paul Copplestone at Supabase. His approach to successfully building this type of software is to make the system incremental and composable. This is reflected in the Supabase Architecture docs's Product Principles:
-Supabase is composable. Even though every product works in isolation, each product on the platform needs to 10x the other products.
-To make a system that's incremental and composable, we need to find a way to pare Electric down to its core. To make a simple system that is valuable and bulletproof -- and then iterate on that. Incrementally adding layers whilst maintaining the same standards of usability and reliability.
-This aligns with the principle of "Worse is Better", defined in 1989 by Richard P. Gabriel:
-Software quality does not necessarily increase with functionality: there is a point where less functionality ("worse") is a preferable option ("better") in terms of practicality and usability.
-Gabriel contrasts "Worse is Better" with a make the "Right Thing" approach that aims to create the optimal solution. Which sounds painfully like our ambitions to make an optimal local-first platform. Whereas worse is better, moving functionality out of scope, will actually allow us to make the core better and deliver on the opportunity.
 
+> “A complex system that works is invariably found to have evolved from a simple system that worked. The inverse proposition also appears to be true: A complex system designed from scratch never works and cannot be made to work. You have to start over, beginning with a working simple system.” -- [John Gall: Systemantics, how systems work, and especially how they fail](https://archive.org/details/systemanticshows00gall)
+
+This has been echoed in conversations we've had with [Paul Copplestone](https://linkedin.com/in/paulcopplestone) at [Supabase](https://supabase.com). His approach to successfully building our type of software is to make the system incremental and composable, as reflected in the [Supabase Architecture](https://supabase.com/docs/guides/getting-started/architecture) guide's product principles:
+
+> Supabase is composable. Even though every product works in isolation, each product on the platform needs to 10x the other products.
+
+To make a system that's incremental and composable, we need to decouple the Electric stack. So it's not a one-size-fits-all vertical stack but, instead, more of a loosely coupled set of primitives around a smaller core.
+
+This aligns with the principle of [Worse is Better](https://en.wikipedia.org/wiki/Worse_is_better), defined by Richard P. Gabriel:
+
+> Software quality does not necessarily increase with functionality: there is a point where less functionality ("worse") is a preferable option ("better") in terms of practicality and usability.
+
+Gabriel contrasts "Worse is Better" with a make the "Right Thing" approach that aims to create the optimal solution. Which sounds painfully like our ambitions to make an optimal local-first platform. Whereas moving functionality out of scope, will actually allow us to make the core better and deliver on the opportunity.
+
+So, hopefully now our motivation is clear. We need to find a way to simplify Electric, make it more loosely coupled, bring it back to it's core and iterate on solid foundations.
+
+That's what we've done and are trying to do with `electric-next`.
 
 
 ## What's changed?

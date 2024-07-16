@@ -95,3 +95,7 @@ iframe {
     margin: -35px auto 30px;
   }
 }
+
+.vp-doc blockquote {
+  margin: 25px 10px 30px;
+}
