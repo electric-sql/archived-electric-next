@@ -119,7 +119,7 @@ export class FetchError extends Error {
 }
 
 /**
- * Consumes a shape stream from Electric using HTTP requests and long polling. Notifies subscribers
+ * Reads updates to a shape from Electric using HTTP requests and long polling. Notifies subscribers
  * when new messages come in. Doesn't maintain any history of the
  * log but does keep track of the offset position and is the best way
  * to consume the HTTP `GET /shape` api.
@@ -130,7 +130,9 @@ export class FetchError extends Error {
  * Register a callback function to subscribe to the messages.
  *
  *     const stream = new ShapeStream(options)
- *     stream.subscribe(console.log)
+ *     stream.subscribe(messages => {
+ *       // messages is 1 or more row updates
+ *     })
  *
  * To abort the stream, abort the `signal`
  * passed in via the `ShapeStreamOptions`.
@@ -218,8 +220,6 @@ export class ShapeStream {
             return response.json() as Promise<Message[]>
           })
           .then((batch: Message[]) => {
-            this.publish(batch)
-
             // Update isUpToDate & lastOffset
             if (batch.length > 0) {
               const lastMessages = batch.slice(-2)
@@ -241,6 +241,8 @@ export class ShapeStream {
                   this.lastOffset = message.offset
                 }
               })
+
+              this.publish(batch)
             }
           })
       } catch (e) {
@@ -370,7 +372,8 @@ export class ShapeStream {
  * @constructor
  * @param {ShapeOptions}
  *
- *     const shape = new Shape({table: `foo`, baseUrl: 'http://localhost:3000'})
+ *     const shapeStream = new ShapeStream({table: `foo`, baseUrl: 'http://localhost:3000'})
+ *     const shape = new Shape(shapeStream)
  *
  * `value` returns a promise that resolves the Shape data once the Shape has been
  * fully loaded (and when resuming from being offline):
@@ -392,7 +395,8 @@ export class Shape {
 
   private data: ShapeData = new Map()
   private subscribers = new Map<number, ShapeChangedCallback>()
-  public isUpToDate: boolean = false
+  public error: FetchError | false = false
+  private hasNotifiedSubscribersUpToDate: boolean = false
 
   constructor(stream: ShapeStream) {
     this.stream = stream
@@ -400,12 +404,15 @@ export class Shape {
     const unsubscribe = this.stream.subscribeOnceToUpToDate(
       () => {
         unsubscribe()
-        this.isUpToDate = true
       },
       (e) => {
         throw e
       }
     )
+  }
+
+  get isUpToDate(): boolean {
+    return this.stream.isUpToDate
   }
 
   get value(): Promise<ShapeData> {
@@ -451,6 +458,7 @@ export class Shape {
   private process(messages: Message[]): void {
     let dataMayHaveChanged = false
     let isUpToDate = false
+    let newlyUpToDate = false
 
     messages.forEach((message) => {
       if (`key` in message && message.value) {
@@ -472,10 +480,16 @@ export class Shape {
 
       if (message.headers?.[`control`] === `up-to-date`) {
         isUpToDate = true
+        if (!this.hasNotifiedSubscribersUpToDate) {
+          newlyUpToDate = true
+        }
       }
     })
 
-    if (isUpToDate && dataMayHaveChanged) {
+    // Always notify subscribers when the Shape first is up to date.
+    // FIXME this would be cleaner with a simple state machine.
+    if (newlyUpToDate || (isUpToDate && dataMayHaveChanged)) {
+      this.hasNotifiedSubscribersUpToDate = true
       this.notify()
     }
   }
