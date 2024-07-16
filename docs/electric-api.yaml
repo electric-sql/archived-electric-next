@@ -26,6 +26,14 @@ paths:
           schema:
             type: string
           description: Optional where clause to filter rows belonging to the shape.
+                       This should be a valid PostgreSQL WHERE clause.
+          examples:
+            title_filter:
+              value: "\"this.title='Electric'\""
+              summary: Only include rows where the title is 'Electric'.
+            status_filter:
+              value: "\"this.status IN ('backlog', 'todo')\""
+              summary: Only include rows whose status is either 'backlog' or 'todo'.
         - name: shape_id
           in: query
           schema:
