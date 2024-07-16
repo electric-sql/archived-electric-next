@@ -1,11 +1,67 @@
-import { describe, expect, assert } from 'vitest'
+/* eslint-disable no-empty-pattern */
+import { describe, expect, assert, inject } from 'vitest'
+import { exec } from 'child_process'
 import { setTimeout as sleep } from 'node:timers/promises'
-import { testWithCacheAndIssuesTable as it } from './support/test-context'
-import { CacheStatus, getCacheStatus } from './support/test-helpers'
+import { testWithIssuesTable } from './support/test-context'
 
 // FIXME: pull from environment?
 const maxAge = 1 // seconds
 const staleAge = 3 // seconds
+
+// see https://blog.nginx.org/blog/nginx-caching-guide for details
+enum CacheStatus {
+  MISS = `MISS`, // item was not in the cache
+  BYPASS = `BYPASS`, // not used by us
+  EXPIRED = `EXPIRED`, // there was a cache entry but was expired, so we got a fresh response
+  STALE = `STALE`, // cache entry > max age but < stale-while-revalidate so we got a stale response
+  UPDATING = `UPDATING`, // same as STALE but indicates proxy is updating stale entry
+  REVALIDATED = `REVALIDATED`, // you this request revalidated at the server
+  HIT = `HIT`, // cache hit
+}
+
+/**
+ * Retrieve the {@link CacheStatus} from the provided response
+ */
+function getCacheStatus(res: Response): CacheStatus {
+  return res.headers.get(`X-Proxy-Cache`) as CacheStatus
+}
+
+/**
+ * Clear the proxy cache files to simulate an empty cache
+ */
+export async function clearProxyCache({
+  proxyCacheContainerName,
+  proxyCachePath,
+}: {
+  proxyCacheContainerName: string
+  proxyCachePath: string
+}): Promise<void> {
+  return new Promise((res) =>
+    exec(
+      `docker exec ${proxyCacheContainerName} sh -c 'rm -rf ${proxyCachePath}'`,
+      (_) => res()
+    )
+  )
+}
+
+const it = testWithIssuesTable.extend<{
+  proxyCacheBaseUrl: string
+  clearCache: () => Promise<void>
+}>({
+  proxyCacheBaseUrl: async ({ clearCache }, use) => {
+    await clearCache()
+    use(inject(`proxyCacheBaseUrl`))
+  },
+  clearCache: async ({}, use) => {
+    use(
+      async () =>
+        await clearProxyCache({
+          proxyCacheContainerName: inject(`proxyCacheContainerName`),
+          proxyCachePath: inject(`proxyCachePath`),
+        })
+    )
+  },
+})
 
 describe(`HTTP Proxy Cache`, { timeout: 30000 }, () => {
   it(`should always get non-cached response in live mode`, async ({

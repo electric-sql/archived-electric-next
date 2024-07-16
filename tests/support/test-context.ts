@@ -2,7 +2,7 @@
 import { v4 as uuidv4 } from 'uuid'
 import { Client, QueryResult } from 'pg'
 import { inject, test } from 'vitest'
-import { clearProxyCache, makePgClient } from './test-helpers'
+import { makePgClient } from './test-helpers'
 import { FetchError } from '../../client'
 
 export type IssueRow = { id: string; title: string }
@@ -11,7 +11,6 @@ export type UpdateIssueFn = (row: IssueRow) => Promise<QueryResult<IssueRow>>
 export type InsertIssuesFn = (...rows: GeneratedIssueRow[]) => Promise<string[]>
 export type ClearIssuesShapeFn = (shapeId?: string) => Promise<void>
 export type ClearShapeFn = (table: string, shapeId?: string) => Promise<void>
-export type ClearCacheFn = () => Promise<void>
 
 export const testWithDbClient = test.extend<{
   dbClient: Client
@@ -104,24 +103,5 @@ export const testWithIssuesTable = testWithDbClient.extend<{
 
   clearIssuesShape: async ({ clearShape, issuesTableUrl }, use) => {
     use((shapeId?: string) => clearShape(issuesTableUrl, shapeId))
-  },
-})
-
-export const testWithCacheAndIssuesTable = testWithIssuesTable.extend<{
-  proxyCacheBaseUrl: string
-  clearCache: ClearCacheFn
-}>({
-  proxyCacheBaseUrl: async ({ clearCache }, use) => {
-    await clearCache()
-    use(inject(`proxyCacheBaseUrl`))
-  },
-  clearCache: async ({}, use) => {
-    use(
-      async () =>
-        await clearProxyCache({
-          proxyCacheContainerName: inject(`proxyCacheContainerName`),
-          proxyCachePath: inject(`proxyCachePath`),
-        })
-    )
   },
 })
