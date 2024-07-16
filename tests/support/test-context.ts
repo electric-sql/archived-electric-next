@@ -80,7 +80,12 @@ export const testWithIssuesTable = testWithDbClient.extend<{
   issuesTableUrl: async ({ issuesTableSql, pgSchema, clearShape }, use) => {
     const urlAppropriateTable = pgSchema + `.` + issuesTableSql.slice(1, -1)
     await use(urlAppropriateTable)
-    await clearShape(urlAppropriateTable)
+    try {
+      await clearShape(urlAppropriateTable)
+    } catch (_) {
+      // ignore - clearShape has its own logging
+      // we don't want to interrupt cleanup
+    }
   },
   issuesTableKey: ({ issuesTableSql, pgSchema }, use) =>
     use(`"${pgSchema}".${issuesTableSql}`),
