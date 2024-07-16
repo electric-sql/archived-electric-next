@@ -6,5 +6,5 @@
 # Electric Sync Engine
 
 Sync partial replicas of your data into local
-apps and environments.
+apps and services.
 

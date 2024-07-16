@@ -6,5 +6,5 @@
 # PGlite
 
 Embed a lightweight client Postgres with
-realtime, reactive bindings.
+real-time, reactive bindings.
 

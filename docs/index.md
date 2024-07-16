@@ -21,7 +21,7 @@ features:
   - title: Sync Engine
     details: >-
       Sync partial replicas of your data into local
-      apps and environments.
+      apps and services.
     icon:
       src: '/img/icons/electric.svg'
     link: '/product/electric'
@@ -35,7 +35,7 @@ features:
   - title: PGlite
     details: >-
       Embed a lightweight client Postgres with
-      realtime, reactive bindings. 
+      real-time, reactive bindings.
     icon:
       src: '/img/icons/pglite.svg'
     link: '/product/pglite'
