@@ -52,8 +52,24 @@ export default defineConfig({
         text: 'API',
         items: [
           { text: 'HTTP', link: '/api/http' },
-          { text: 'JavaScript', link: '/api/js' },
-          { text: 'Connectors', link: '/api/other' }
+          {
+            text: 'Clients',
+            items: [
+              { text: 'JavaScript', link: '/api/clients/js' },
+              { text: 'Elixir', link: '/api/clients/elixir' },
+            ],
+            collapsed: false
+          },
+          {
+            text: 'Connectors',
+            items: [
+              { text: 'MobX', link: '/api/connectors/mobx' },
+              { text: 'React', link: '/api/connectors/react' },
+              { text: 'Redis', link: '/api/connectors/redis' },
+              { text: 'TanStack', link: '/api/connectors/tanstack' },
+            ],
+            collapsed: false
+          }
         ]
       }
     ],

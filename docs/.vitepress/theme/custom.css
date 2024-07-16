@@ -10,6 +10,40 @@
   --vp-nav-logo-height: 30px;
 }
 
+.img-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  flex-direction: row;
+  margin: 20px 0;
+  gap: 10px;
+}
+.img-border {
+  border: 1px #ccc solid;
+  border-radius: 10px;
+  padding: 10px;
+  background: rgb(20, 21, 23);
+}
+figure {
+  margin: 40px 0;
+}
+figcaption {
+  text-align: right;
+  font-size: 90%;
+  max-width: 420px;
+  margin-left: auto;
+}
+
+iframe {
+  color-scheme: auto;
+}
+.twitter-tweet {
+  margin: 35px auto -95px !important;
+}
+.twitter-tweet iframe {
+  transform: scale(0.8);
+  transform-origin: top left;
+}
+
 .VPHomeHero .VPImage.image-src {
   max-width: min(calc(250px + 25vw), 560px);
   margin-left: -40px;
@@ -45,4 +79,19 @@
 .product-icon {
   width: 84px;
   margin-bottom: 20px;
+}
+
+.about-zap {
+  max-width: min(calc(250px + 25vw), 420px);
+  margin: -20px 0 30px;
+}
+@media (max-width: 959px) {
+  .about-zap {
+    margin: -35px 0 30px;
+  }
+}
+@media (max-width: 767px) {
+  .about-zap {
+    margin: -35px auto 30px;
+  }
 }

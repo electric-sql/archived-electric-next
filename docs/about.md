@@ -1,44 +1,169 @@
 ---
 outline: deep
+title: About
+description: >-
+  Electric Next is an experimental new approach to
+  building the ElectricSQL sync engine.
 ---
+
+<script setup>
+import Tweet from 'vue-tweet'
+</script>
+
+<img src="/img/home/zap-with-halo.svg"
+    alt="Electric zap with halo"
+    class="about-zap"
+/>
 
 # A new approach to building Electric
 
-S:
+| Authored by | Published on |
+| ----------- | ------------ |
+| [James Arthur](https://electric-sql.com/about/team#kyle) | 17th July 2024 |
 
-- last few weeks we've jumped into an experimental new approach to engineering the Electric sync layer
-- informed by
-  - challenges and DX pain points we're aware of;
-  - new ideas, insight and experience brought by Kyle Mathews
+<br /> [`electric-next`](https://github.com/electric-sql/electric-next) is an experimental new approach to building ElectricSQL.
 
-- something we've been brewing as a team in private for a few weeks
-- initially it was just ideas and an experiment, so we kept the initial exploration private
+One that's informed by the lessons learned building the [previous system](https://electric-sql.com) and inspired by new insight from [Kyle&nbsp;Mathews](https://electric-sql.com/about/team#kyle).
 
-C:
+What started as tinkering in private now looks like the way forward for Electric. So, what it is, what's changed and what does it mean for you?
 
-- we're increasingly convinced it's the way forward
-- and our focus on it is affecting our responsiveness and velocity on the current product
 
-- so it's time to explain what we're doing
+## What is `electric-next`?
 
-Q:
+[`electric-next`](https://github.com/electric-sql/electric-next) is a clean rebuild. We created a new repo at [electric-sql/electric-next](https://github.com/electric-sql/electric-next) and started by porting the absolute minimum code necessary from the previous repo.
 
-- what's going on?
-- what's changed?
-- what does this mean for you as a developer using Electric?
+It provides an [HTTP API](/api/http) for syncing [Shapes](https://electric-sql.com/docs/usage/data-access/shapes) of data from Postgres. This can be used directly or via [client libraries](/api/clients/js) and [connectors](/api/connectors/mobx).
 
-A:
+It's also simple to [write your own client](/guides/write-your-own-client) in any language.
 
-- what is electric-next
-- why have we changed our approach?
-- what's the difference?
-  - design / nature of the system
-  - what you can us it for
-  - what makes it special
-- where does this leave the current system? should you use it?
-- where we are in the implementation of the next system?
-- what can you use it for?
-- is there a roadmap?
-- can you get involved in development?
+## Why build a new system?
+
+Electric has its [heritage](https://electric-sql.com/about/team#advisors) in [distributed database research](https://electric-sql.com/docs/reference/literature).
+
+When we started, our plan was to use this research to build a next-generation distributed database. Cockroach for the AP side of the CAP theorem. The adoption dynamics of building a new database from scratch are tough. So we pivoted to use our core technology as a replication layer for existing databases.
+
+This gave us active-active Postgres at the edge. Which is cool. However, we kept seeing that it was more optimal to take the database-grade replication guarantees all the way into the client, rather than stopping at the cloud edge. So we built a system to sync data to the client in a way that solved the concurrency challenges with local-first software architecture.
+
+Thus, ElectricSQL was born, as an [open source platform for building local-first software](https://electric-sql.com).
+
+### Optimality and complexity
+
+To go from core database replication technology to a viable solution for building local-first software, we had to build a lot of stuff. Tooling for [migrations](https://electric-sql.com/docs/usage/data-modelling/migrations), [permissions](https://electric-sql.com/docs/usage/data-modelling/permissions), [client generation](https://electric-sql.com/docs/api/cli#generate), [type-safe data access](https://electric-sql.com/docs/usage/data-access/client), [live queries](https://electric-sql.com/docs/integrations/frontend/react#uselivequery), [reactivity](https://electric-sql.com/docs/reference/architecture#reactivity), [drivers](https://electric-sql.com/docs/integrations/drivers), etc.
+
+<figure>
+  <div class="img-row">
+    <div class="img-border">
+      <a href="/img/previous-system/data-flow.jpg">
+        <img src="/img/previous-system/data-flow.jpg"
+            alt="Data flow diagramme"
+        />
+      </a>
+    </div>
+    <div class="img-border">
+      <a href="/img/previous-system/schema-evolution.jpg">
+        <img src="/img/previous-system/schema-evolution.jpg"
+            alt="Schema evolution diagramme"
+        />
+      </a>
+    </div>
+  </div>
+  <figcaption className="figure-caption text-end">
+    Diagrammes illustrating data flow and schema evolution from the previous
+    <a href="https://electric-sql/docs/reference/architecture" target="_blank">
+      architecture&nbsp;page</a>
+  </figcaption>
+</figure>
+
+The stack was ambitious and vertically integrated. Coming from a research perspective, we naturally wanted the system to be optimal. We often picked the more complex solution from the design space and, as a vertically integrated system, that solution became the only one available to use with Electric.
+
+For example, we designed the DDLX rule system in a certain way, because we wanted authorization that supported finality of local writes. However, rules (and our rules) are only one way to do authorization in a local-first system. Many applications would be happy with a simpler solution.
+
+This all added complexity, to the point where Electric has become not only complex to use but also complex to develop. This has slowed us down and tested the patience of even the most forgiving of our early adopters.
+
+<Tweet tweet-id="1762620966256210174"
+    align="center"
+    conversation="none"
+    theme="dark"
+/>
+
+### Skirting the demoware trap
+
+Many of those early adopters have also reported performance and reliability issues.
+
+The complexity of the stack has provided a wide surface for bugs. So where we've wanted to be focusing on core features, performance and stability, we've ended up fixing issues with things like [docker networking](https://github.com/electric-sql/electric/issues/582), [migration tooling](https://github.com/electric-sql/electric/issues/668) and [client-side build tools](https://github.com/electric-sql/electric/issues/798).
+
+The danger, articulated by [Teej](https://x.com/teej_m) in the tweet below, is building a system that demos well, with magic sync APIs but that never actually scales out reliably. Because the very features and choices that make the demo magic, prevent the system from being simple enough to be bulletproof in production.
+
+<Tweet tweet-id="1804944389715952118"
+    align="center"
+    conversation="none"
+    theme="dark"
+/>
+
+### Refocusing
+
+Delivering on the opportunity
+So far we’ve focused on negatives. Let's take stock of the positives.
+Building on the BEAM with Elixir is a rock solid foundation. A lot of the engineering and algorithms are sound. Valter's solutions to building a conflict-free system directly on Postgres (a database which has MVCC internally but doesn't allow you to query a snapshot externally) remain a work of art.
+We've learned a lot about the design space and trade-offs from developing in public. With our early adopter community and from other awesome projects and people, like @schinkling and @tantaman. In the case of Kyle Mathews, our most active user also joined the team. Bringing all his experience and insight from building and scaling Gatsby. One of the most loved and used developer platforms of the last decade.
+Most importantly, the promise is still there. As Jack McCloy eloquently points out, the opportunity here is bigger that you think.
+Bigger than you think talk embed
+The prize here, if we can deliver a reliable, usable platform, is to change the way most software is built in the future. An opportunity that doesn't come around very often.
+
+Worse is better
+One of the many insights that Kyle has brought is that successful systems evolve from simple systems that work. This is Gall's law:
+“A complex system that works is invariably found to have evolved from a simple system that worked. The inverse proposition also appears to be true: A complex system designed from scratch never works and cannot be made to work. You have to start over, beginning with a working simple system.” -- John Gall: General systemantics, an essay on how systems work, and especially how they fail, 1975
+Echoed in conversations we've had with Paul Copplestone at Supabase. His approach to successfully building this type of software is to make the system incremental and composable. This is reflected in the Supabase Architecture docs's Product Principles:
+Supabase is composable. Even though every product works in isolation, each product on the platform needs to 10x the other products.
+To make a system that's incremental and composable, we need to find a way to pare Electric down to its core. To make a simple system that is valuable and bulletproof -- and then iterate on that. Incrementally adding layers whilst maintaining the same standards of usability and reliability.
+This aligns with the principle of "Worse is Better", defined in 1989 by Richard P. Gabriel:
+Software quality does not necessarily increase with functionality: there is a point where less functionality ("worse") is a preferable option ("better") in terms of practicality and usability.
+Gabriel contrasts "Worse is Better" with a make the "Right Thing" approach that aims to create the optimal solution. Which sounds painfully like our ambitions to make an optimal local-first platform. Whereas worse is better, moving functionality out of scope, will actually allow us to make the core better and deliver on the opportunity.
+
+
+
+## What's changed?
+
+### Nature of the system
+
+In the design / nature of the system.
+
+### Use cases
+
+What you can use it for.
+
+### Differentiation
+
+What makes Electric different / special.
+
+
+## Where does this leave the current/previous system?
+
+Should you use it?
 
 ...
+
+
+## Where we are in the implementation of the next system?
+
+...
+
+### What can you use it for already?
+
+...
+
+### Is there a roadmap?
+
+...
+
+### Can you get involved in development?
+
+...
+
+
+***
+
+## Next steps
+
+...
+
