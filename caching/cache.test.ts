@@ -137,7 +137,7 @@ afterAll(async () => {
   await dbClient.end()
 })
 
-describe.skip(`HTTP Proxy Cache`, { timeout: 30000 }, () => {
+describe(`HTTP Proxy Cache`, { timeout: 30000 }, () => {
   beforeAll(async () => await initializeDb())
   beforeEach(async () => await clearCache())
 
@@ -224,7 +224,7 @@ describe.skip(`HTTP Proxy Cache`, { timeout: 30000 }, () => {
   })
 })
 
-describe.skip(`HTTP Initial Data Caching`, { timeout: 30000 }, () => {
+describe(`HTTP Initial Data Caching`, { timeout: 30000 }, () => {
   beforeAll(async () => await initializeDb())
   beforeEach(async () => {
     await clearAllItems()
