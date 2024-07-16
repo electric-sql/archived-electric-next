@@ -94,7 +94,6 @@ defmodule Electric.ShapeCache do
     :ok = Storage.append_to_log!(shape_id, xid, relevant_changes, opts[:storage])
 
     update_shape_latest_offset(shape_id, latest_offset, opts)
-    :ok
   end
 
   @spec update_shape_latest_offset(shape_id(), LogOffset.t(), opts :: keyword()) ::

@@ -44,13 +44,14 @@ defmodule Support.ComponentSetup do
          [ctx.publication_name]}
       end)
 
-    {:ok, _pid} = ShapeCache.start_link(start_opts)
+    {:ok, pid} = ShapeCache.start_link(start_opts)
 
     %{
       shape_cache_opts: [
         server: server,
         shape_meta_table: shape_meta_table,
-        storage: ctx.storage
+        storage: ctx.storage,
+        link_pid: pid
       ]
     }
   end
