@@ -22,7 +22,8 @@ defmodule Electric.Postgres.ReplicationClient do
       txn_collector: %Collector{},
       step: :disconnected,
       # Keep track of the latest received and applied WAL offsets so that we can report them
-      # back to Postgres in standby status update messages.
+      # back to Postgres in standby status update messages -
+      # https://www.postgresql.org/docs/current/protocol-replication.html#PROTOCOL-REPLICATION-STANDBY-STATUS-UPDATE
       #
       # Postgres defines separate "flushed" and "applied" offsets but we merge those into one
       # concept of "applied WAL" which is defined as the offset we have successfully processed
@@ -80,6 +81,16 @@ defmodule Electric.Postgres.ReplicationClient do
     send(client, :start_streaming)
   end
 
+  # The Postgrex.ReplicationConnection behaviour does not adhere to gen server conventions and
+  # establishes its own. Unless the `sync_connet: true` option is passed to `start_link()`, the
+  # connection process will try opening a replication connection to Postgres before returning
+  # from its `init()` callback.
+  #
+  # The callbacks `init()`, `handle_connect()` and `handle_result()` defined in this module
+  # below are all invoked inside the connection process' `init()` callback. Once any of our
+  # callbacks returns `{:stream, ...}`, the connection process finishes its initialization and
+  # starts receiving replication messages from Postgres, invoking the `handle_data()` callback
+  # for each one.
   @impl true
   def init(replication_opts) do
     {:ok, State.new(replication_opts)}
@@ -98,6 +109,7 @@ defmodule Electric.Postgres.ReplicationClient do
     end
   end
 
+  # Successful creation of the replication slot.
   @impl true
   def handle_result(
         [%Postgrex.Result{command: :create_publication}],
@@ -132,6 +144,7 @@ defmodule Electric.Postgres.ReplicationClient do
     maybe_start_streaming(state)
   end
 
+  # Error while trying to create the replication slot.
   def handle_result(%Postgrex.Error{} = error, %State{step: :create_slot} = state) do
     error_msg = "replication slot \"#{state.slot_name}\" already exists"
 
@@ -182,10 +195,15 @@ defmodule Electric.Postgres.ReplicationClient do
 
         case apply(m, f, [txn | args]) do
           :ok ->
+            # We currently process incoming replicatino messages sequentially, persisting each
+            # new transaction into the relevant shape log stores. So, when the applied function
+            # returns, we can safely advance the replication slot past the transaction's commit
+            # LSN.
             state = update_applied_wal(state, wal_end)
             {:noreply, [encode_standby_status_update(state)], state}
 
           _ ->
+            # TODO(alco): error handling
             {:noreply, state}
         end
     end
