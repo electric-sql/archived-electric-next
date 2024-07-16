@@ -1,68 +1,20 @@
-import { describe, expect, assert, beforeEach } from 'vitest'
-import { testWithIssuesTable as it } from './support/test_context'
-import { exec } from 'child_process'
+import { describe, expect, assert } from 'vitest'
+import { setTimeout as sleep } from 'node:timers/promises'
+import { testWithCacheAndIssuesTable as it } from './support/test_context'
+import { CacheStatus, getCacheStatus } from './support/test_helpers'
 
-const PROXY_URL = `http://localhost:3002`
-
-// name of proxy cache container to execute commands against,
-// see docker-compose.yml that spins it up for details
-const NGINX_CONTAINER_NAME = `electric_dev-nginx-1`
-// path pattern for cache files inside proxy cache to clear
-const NGINX_CACHE_MATCH = `/var/cache/nginx/*`
-
-// see https://blog.nginx.org/blog/nginx-caching-guide for details
-enum CacheStatus {
-  MISS = `MISS`, // item was not in the cache
-  BYPASS = `BYPASS`, // not used by us
-  EXPIRED = `EXPIRED`, // there was a cache entry but was expired, so we got a fresh response
-  STALE = `STALE`, // cache entry > max age but < stale-while-revalidate so we got a stale response
-  UPDATING = `UPDATING`, // same as STALE but indicates proxy is updating stale entry
-  REVALIDATED = `REVALIDATED`, // you this request revalidated at the server
-  HIT = `HIT`, // cache hit
-}
-
-/**
- * Clear the proxy cache files to simulate an empty cache
- */
-async function clearCache(): Promise<void> {
-  return new Promise((res) =>
-    exec(
-      `docker exec ${NGINX_CONTAINER_NAME} sh -c 'rm -rf ${NGINX_CACHE_MATCH}'`,
-      (_) => res()
-    )
-  )
-}
-
-function getCacheStatus(res: Response): CacheStatus {
-  return res.headers.get(`X-Proxy-Cache`) as CacheStatus
-}
-
-async function clearShape(table: string, shapeId?: string) {
-  const res = await fetch(
-    `${PROXY_URL}/shape/${table}${shapeId ? `?shape_id=${shapeId}` : ``}`,
-    {
-      method: `DELETE`,
-    }
-  )
-  if (!res.ok) {
-    throw new Error(`Could not delete shape ${table} with ID ${shapeId}`)
-  }
-}
-
-async function sleep(time: number) {
-  await new Promise((resolve) => setTimeout(resolve, time))
-}
-
+// FIXME: pull from environment?
 const maxAge = 1 // seconds
 const staleAge = 3 // seconds
 
 describe(`HTTP Proxy Cache`, { timeout: 30000 }, () => {
-  beforeEach(async () => await clearCache())
-
-  it(`should always get non-cached response in live mode`, async () => {
+  it(`should always get non-cached response in live mode`, async ({
+    proxyCacheBaseUrl,
+    issuesTableUrl,
+  }) => {
     // First request gets non-cached response
     const originalRes = await fetch(
-      `${PROXY_URL}/shape/issues?offset=-1&live`,
+      `${proxyCacheBaseUrl}/shape/${issuesTableUrl}?offset=-1&live`,
       {}
     )
 
@@ -71,7 +23,7 @@ describe(`HTTP Proxy Cache`, { timeout: 30000 }, () => {
 
     // Second request still gets non-cached response
     const cachedRes = await fetch(
-      `${PROXY_URL}/shape/issues?offset=-1&live`,
+      `${proxyCacheBaseUrl}/shape/${issuesTableUrl}?offset=-1&live`,
       {}
     )
     expect(cachedRes.status).toBe(200)
@@ -79,54 +31,82 @@ describe(`HTTP Proxy Cache`, { timeout: 30000 }, () => {
     expect(getCacheStatus(cachedRes)).toBe(CacheStatus.MISS)
   })
 
-  it(`should get cached response on second request`, async () => {
+  it(`should get cached response on second request`, async ({
+    proxyCacheBaseUrl,
+    issuesTableUrl,
+  }) => {
     // First request gets non-cached response
-    const originalRes = await fetch(`${PROXY_URL}/shape/issues?offset=-1`, {})
+    const originalRes = await fetch(
+      `${proxyCacheBaseUrl}/shape/${issuesTableUrl}?offset=-1`,
+      {}
+    )
 
     expect(originalRes.status).toBe(200)
     expect(getCacheStatus(originalRes)).toBe(CacheStatus.MISS)
 
     // Second request gets cached response
-    const cachedRes = await fetch(`${PROXY_URL}/shape/issues?offset=-1`, {})
+    const cachedRes = await fetch(
+      `${proxyCacheBaseUrl}/shape/${issuesTableUrl}?offset=-1`,
+      {}
+    )
     expect(cachedRes.status).toBe(200)
 
     expect(getCacheStatus(cachedRes)).toBe(CacheStatus.HIT)
   })
 
-  it(`should get stale response when max age is passed but cache is not yet revalidated`, async () => {
+  it(`should get stale response when max age is passed but cache is not yet revalidated`, async ({
+    proxyCacheBaseUrl,
+    issuesTableUrl,
+  }) => {
     // Make a first request such that response is cached
-    const originalRes = await fetch(`${PROXY_URL}/shape/issues?offset=-1`, {})
+    const originalRes = await fetch(
+      `${proxyCacheBaseUrl}/shape/${issuesTableUrl}?offset=-1`,
+      {}
+    )
 
     expect(originalRes.status).toBe(200)
     expect(getCacheStatus(originalRes)).toBe(CacheStatus.MISS)
 
     // Second request gets cached response
-    const cachedRes = await fetch(`${PROXY_URL}/shape/issues?offset=-1`, {})
+    const cachedRes = await fetch(
+      `${proxyCacheBaseUrl}/shape/${issuesTableUrl}?offset=-1`,
+      {}
+    )
     expect(cachedRes.status).toBe(200)
 
     expect(getCacheStatus(cachedRes)).toBe(CacheStatus.HIT)
 
     // Now wait for the response to be passed its max-age but before the stale-while-revalidate
-    await new Promise((resolve) =>
-      setTimeout(resolve, maxAge * 1000 + ((staleAge - maxAge) / 2) * 1000)
-    )
+    await sleep(maxAge * 1000 + ((staleAge - maxAge) / 2) * 1000)
 
     // Third request gets cached response
-    const staleRes = await fetch(`${PROXY_URL}/shape/issues?offset=-1`, {})
+    const staleRes = await fetch(
+      `${proxyCacheBaseUrl}/shape/${issuesTableUrl}?offset=-1`,
+      {}
+    )
 
     expect(staleRes.status).toBe(200)
     expect(getCacheStatus(staleRes)).toBe(CacheStatus.STALE)
   })
 
-  it(`should get fresh response when age is passed the stale age`, async () => {
+  it(`should get fresh response when age is passed the stale age`, async ({
+    proxyCacheBaseUrl,
+    issuesTableUrl,
+  }) => {
     // Make a first request such that response is cached
-    const originalRes = await fetch(`${PROXY_URL}/shape/issues?offset=-1`, {})
+    const originalRes = await fetch(
+      `${proxyCacheBaseUrl}/shape/${issuesTableUrl}?offset=-1`,
+      {}
+    )
 
     expect(originalRes.status).toBe(200)
     expect(getCacheStatus(originalRes)).toBe(CacheStatus.MISS)
 
     // Second request gets cached response
-    const cachedRes = await fetch(`${PROXY_URL}/shape/issues?offset=-1`, {})
+    const cachedRes = await fetch(
+      `${proxyCacheBaseUrl}/shape/${issuesTableUrl}?offset=-1`,
+      {}
+    )
     expect(cachedRes.status).toBe(200)
 
     expect(getCacheStatus(cachedRes)).toBe(CacheStatus.HIT)
@@ -135,7 +115,10 @@ describe(`HTTP Proxy Cache`, { timeout: 30000 }, () => {
     await sleep(staleAge * 1000 + 2000)
 
     // Third request gets cached response
-    const staleRes = await fetch(`${PROXY_URL}/shape/issues?offset=-1`, {})
+    const staleRes = await fetch(
+      `${proxyCacheBaseUrl}/shape/${issuesTableUrl}?offset=-1`,
+      {}
+    )
 
     expect(staleRes.status).toBe(200)
     expect(getCacheStatus(staleRes)).toBe(CacheStatus.REVALIDATED)
@@ -143,11 +126,10 @@ describe(`HTTP Proxy Cache`, { timeout: 30000 }, () => {
 })
 
 describe(`HTTP Initial Data Caching`, { timeout: 30000 }, () => {
-  beforeEach(async () => {
-    await clearCache()
-  })
-
   it(`tells client to resync when shape is out of scope`, async ({
+    proxyCacheBaseUrl,
+    issuesTableUrl,
+    clearIssuesShape,
     insertIssues,
   }) => {
     // add some data
@@ -155,7 +137,10 @@ describe(`HTTP Initial Data Caching`, { timeout: 30000 }, () => {
 
     // Make a client that fetches a shape
     // which forces the shape data to be cached
-    const client1Res = await fetch(`${PROXY_URL}/shape/issues?offset=-1`, {})
+    const client1Res = await fetch(
+      `${proxyCacheBaseUrl}/shape/${issuesTableUrl}?offset=-1`,
+      {}
+    )
     expect(client1Res.status).toBe(200)
     const originalShapeId =
       client1Res.headers.get(`x-electric-shape-id`) ?? undefined
@@ -165,7 +150,10 @@ describe(`HTTP Initial Data Caching`, { timeout: 30000 }, () => {
 
     // Make a 2nd client that fetches the shape
     // check that it is served from cached data
-    const client2Res = await fetch(`${PROXY_URL}/shape/issues?offset=-1`, {})
+    const client2Res = await fetch(
+      `${proxyCacheBaseUrl}/shape/${issuesTableUrl}?offset=-1`,
+      {}
+    )
     expect(client2Res.status).toBe(200)
     const shapeId2 = client2Res.headers.get(`x-electric-shape-id`) ?? undefined
 
@@ -180,13 +168,13 @@ describe(`HTTP Initial Data Caching`, { timeout: 30000 }, () => {
     assert(latestOffset, `latestOffset should be defined`)
 
     // Now GC the shape
-    await clearShape(`issues`, originalShapeId)
+    await clearIssuesShape(originalShapeId)
 
     // Now try to go live
     // should tell you to go back to initial sync
     // because the shape is out of scope
     const liveRes = await fetch(
-      `${PROXY_URL}/shape/issues?offset=${latestOffset}&shape_id=${originalShapeId}&live`,
+      `${proxyCacheBaseUrl}/shape/${issuesTableUrl}?offset=${latestOffset}&shape_id=${originalShapeId}&live`,
       {}
     )
     expect(liveRes.status).toBe(409)
@@ -198,7 +186,7 @@ describe(`HTTP Initial Data Caching`, { timeout: 30000 }, () => {
     assert(redirectLocation)
 
     const newCacheIgnoredSyncRes = await fetch(
-      `${PROXY_URL}${redirectLocation}`,
+      `${proxyCacheBaseUrl}${redirectLocation}`,
       {}
     )
 
@@ -210,7 +198,10 @@ describe(`HTTP Initial Data Caching`, { timeout: 30000 }, () => {
     expect(cacheBustedShapeId).not.toBe(originalShapeId)
 
     // Then try do that and check that we get new shape id
-    const newInitialSyncRes = await fetch(`${PROXY_URL}${redirectLocation}`, {})
+    const newInitialSyncRes = await fetch(
+      `${proxyCacheBaseUrl}${redirectLocation}`,
+      {}
+    )
     const cachedShapeId =
       newInitialSyncRes.headers.get(`x-electric-shape-id`) ?? undefined
     expect(newInitialSyncRes.status).toBe(200)
