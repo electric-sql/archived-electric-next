@@ -1,1 +1,1 @@
-CREATE PUBLICATION electric_publication;
+-- CREATE PUBLICATION electric_publication;
