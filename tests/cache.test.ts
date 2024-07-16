@@ -1,7 +1,7 @@
 import { describe, expect, assert } from 'vitest'
 import { setTimeout as sleep } from 'node:timers/promises'
-import { testWithCacheAndIssuesTable as it } from './support/test_context'
-import { CacheStatus, getCacheStatus } from './support/test_helpers'
+import { testWithCacheAndIssuesTable as it } from './support/test-context'
+import { CacheStatus, getCacheStatus } from './support/test-helpers'
 
 // FIXME: pull from environment?
 const maxAge = 1 // seconds

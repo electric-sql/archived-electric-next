@@ -1,6 +1,6 @@
 import type { GlobalSetupContext } from 'vitest/node'
 import { FetchError } from '../../client'
-import { makePgClient } from './test_helpers'
+import { makePgClient } from './test-helpers'
 
 const url = process.env.ELECTRIC_URL ?? `http://localhost:3000`
 const proxyUrl = process.env.ELECTRIC_PROXY_CACHE_URL ?? `http://localhost:3002`
