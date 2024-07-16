@@ -391,7 +391,6 @@ export class Shape {
   public isUpToDate: boolean = false
 
   constructor(stream: ShapeStream) {
-    console.log({ stream })
     this.stream = stream
     this.stream.subscribe(this.process.bind(this))
     const unsubscribe = this.stream.subscribeOnceToUpToDate(
