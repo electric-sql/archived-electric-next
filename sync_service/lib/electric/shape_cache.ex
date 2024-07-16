@@ -28,6 +28,7 @@ end
 
 defmodule Electric.ShapeCache do
   require Logger
+  alias Electric.Utils
   alias Electric.ShapeCache.Storage
   alias Electric.Shapes.Querying
   alias Electric.Shapes.Shape
@@ -303,6 +304,25 @@ defmodule Electric.ShapeCache do
 
   @doc false
   def query_in_readonly_txn(parent, shape_id, shape, db_pool, storage) do
+    Postgrex.transaction(db_pool, fn conn ->
+      for relation <- Shape.affected_tables(shape),
+          table = Utils.relation_to_sql(relation),
+          do: Postgrex.query!(conn, "ALTER TABLE #{table} REPLICA IDENTITY FULL", [])
+    end)
+
+    for relation <- Shape.affected_tables(shape), table = Utils.relation_to_sql(relation) do
+      case Postgrex.query(
+             db_pool,
+             "ALTER PUBLICATION electric_publication ADD TABLE #{table}",
+             []
+           ) do
+        {:ok, _} -> :ok
+        # Duplicate object error is raised if we're trying to add a table to the publication when it's already there.
+        {:error, %{postgres: %{code: :duplicate_object}}} -> :ok
+        {:error, reason} -> raise reason
+      end
+    end
+
     {:ok, _} =
       Postgrex.transaction(db_pool, fn conn ->
         Postgrex.query!(

@@ -175,4 +175,22 @@ defmodule Electric.Utils do
       |> Enum.map(&String.trim/1)
     end)
   end
+
+
+  @doc """
+  Format a relation tuple to be correctly escaped for use in SQL queries.
+
+  ## Examples
+
+      iex> relation_to_sql({"public", "items"})
+      ~S|"public"."items"|
+
+      iex> relation_to_sql({"with spaces", ~S|and "quoted"!|})
+      ~S|"with spaces"."and ""quoted""!"|
+  """
+  def relation_to_sql({schema, table}) do
+    ~s|"#{escape_quotes(schema)}"."#{escape_quotes(table)}"|
+  end
+
+  defp escape_quotes(text), do: :binary.replace(text, ~S|"|, ~S|""|, [:global])
 end
