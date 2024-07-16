@@ -3,7 +3,7 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { v4 as uuidv4 } from 'uuid'
 import { assert, describe, expect, inject, vi } from 'vitest'
 import { ShapeStream } from '../client'
-import { Message } from '../types'
+import { Message, Offset } from '../types'
 import { testWithIssuesTable as it } from './support/test_context'
 import * as h from './support/test_helpers'
 
@@ -197,7 +197,7 @@ describe(`HTTP Sync`, () => {
     await insertIssues({ title: `foo1` }, { title: `foo2` }, { title: `foo3` })
     await sleep(50)
 
-    let lastOffset = 0
+    let lastOffset: Offset = `-1`
     const issueStream = new ShapeStream({
       shape: { table: issuesTableUrl },
       baseUrl: `${BASE_URL}`,
@@ -207,7 +207,7 @@ describe(`HTTP Sync`, () => {
 
     await h.forEachMessage(issueStream, aborter, (res, msg) => {
       if (`offset` in msg) {
-        expect(msg.offset).toBeGreaterThanOrEqual(lastOffset)
+        expect(msg.offset).to.not.eq(`0_`)
         lastOffset = msg.offset
       } else if (msg.headers?.[`control`] === `up-to-date`) {
         res()

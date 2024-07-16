@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { Client, QueryResult } from 'pg'
 import { inject, test } from 'vitest'
 import { makePgClient } from './test_helpers'
+import { FetchError } from '../../client'
 
 export type IssueRow = { id: string; title: string }
 export type GeneratedIssueRow = { id?: string; title: string }
@@ -54,9 +55,17 @@ export const testWithIssuesTable = testWithDbClient.extend<{
     const urlAppropriateTable = pgSchema + `.` + issuesTableSql.slice(1, -1)
     await use(urlAppropriateTable)
 
-    await fetch(`${baseUrl}/shape/${urlAppropriateTable}`, {
+    const resp = await fetch(`${baseUrl}/shape/${urlAppropriateTable}`, {
       method: `DELETE`,
     })
+
+    if (!resp.ok)
+      console.error(
+        await FetchError.fromResponse(
+          resp,
+          `DELETE ${baseUrl}/shape/${urlAppropriateTable}`
+        )
+      )
   },
   issuesTableKey: ({ issuesTableSql, pgSchema }, use) =>
     use(`"${pgSchema}".${issuesTableSql}`),

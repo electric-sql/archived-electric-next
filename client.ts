@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid'
 
-import { Message, JsonSerializable } from './types'
+import { Message, JsonSerializable, Offset } from './types'
 
 export type ShapeData = Map<string, JsonSerializable>
 export type ShapeChangedCallback = (value: ShapeData) => void
@@ -13,7 +13,7 @@ export type ShapeDefinition = {
 
 export interface ShapeOptions {
   baseUrl: string
-  offset?: number
+  offset?: Offset
   shapeId?: string
   shape: ShapeDefinition
 }
@@ -157,7 +157,7 @@ export class ShapeStream {
     [() => void, (error: FetchError | Error) => void]
   >()
 
-  private lastOffset: number
+  private lastOffset: Offset
   public hasBeenUpToDate: boolean = false
   public isUpToDate: boolean = false
 
@@ -169,7 +169,7 @@ export class ShapeStream {
   ) {
     this.validateOptions(options)
     this.options = { subscribe: true, ...options }
-    this.lastOffset = this.options.offset ?? -1
+    this.lastOffset = this.options.offset ?? `-1`
     this.shapeId = this.options.shapeId
 
     this.backoffOptions = backoffOptions
@@ -190,7 +190,7 @@ export class ShapeStream {
 
     while ((!signal?.aborted && !this.isUpToDate) || this.options.subscribe) {
       const url = new URL(`${baseUrl}/shape/${shape.table}`)
-      url.searchParams.set(`offset`, this.lastOffset.toString())
+      url.searchParams.set(`offset`, this.lastOffset)
       if (this.isUpToDate) {
         url.searchParams.set(`live`, `true`)
       }
@@ -356,7 +356,7 @@ export class ShapeStream {
 
     if (
       options.offset !== undefined &&
-      options.offset > -1 &&
+      options.offset !== `-1` &&
       !options.shapeId
     ) {
       throw new Error(
