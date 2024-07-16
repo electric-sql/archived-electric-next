@@ -1,23 +1,6 @@
-import {
-  describe,
-  it,
-  expect,
-  assert,
-  beforeAll,
-  beforeEach,
-  afterAll,
-} from 'vitest'
+import { describe, expect, assert, beforeEach } from 'vitest'
+import { testWithIssuesTable as it } from './support/test_context'
 import { exec } from 'child_process'
-import { Client } from 'pg'
-import { v4 as uuidv4 } from 'uuid'
-
-const dbClient = new Client({
-  host: `localhost`,
-  port: 54321,
-  password: `password`,
-  user: `postgres`,
-  database: `electric`,
-})
 
 const PROXY_URL = `http://localhost:3002`
 
@@ -54,62 +37,6 @@ function getCacheStatus(res: Response): CacheStatus {
   return res.headers.get(`X-Proxy-Cache`) as CacheStatus
 }
 
-async function initializeDb(): Promise<void> {
-  await dbClient.query(`DROP TABLE IF EXISTS issues;`)
-  await dbClient.query(`DROP TABLE IF EXISTS foo;`)
-
-  // Add an initial row.
-  const uuid = uuidv4()
-  try {
-    await dbClient.query(
-      `CREATE TABLE IF NOT EXISTS issues (
-        id UUID PRIMARY KEY,
-        title TEXT NOT NULL
-    );`,
-      []
-    )
-    await dbClient.query(
-      `CREATE TABLE IF NOT EXISTS foo (
-      id UUID PRIMARY KEY,
-      title TEXT NOT NULL
-  );`,
-      []
-    )
-    await dbClient.query(`insert into foo(id, title) values($1, $2)`, [
-      uuid,
-      `I AM FOO TABLE`,
-    ])
-  } catch (e) {
-    console.log(e)
-    throw e
-  }
-}
-
-async function clearAllItems() {
-  await Promise.all([
-    dbClient.query(`TRUNCATE TABLE issues;`),
-    dbClient.query(`TRUNCATE TABLE foo;`),
-  ])
-}
-
-async function addItems(table: `issues` | `foo`, numItems: number) {
-  try {
-    await dbClient.query(`BEGIN`)
-    const inserts = Array.from({ length: numItems }, (_, idx) => {
-      const uuid = uuidv4()
-      return dbClient.query(`INSERT INTO ${table}(id, title) VALUES($1, $2)`, [
-        uuid,
-        `Item ${idx}`,
-      ])
-    })
-    await Promise.all(inserts)
-    await dbClient.query(`COMMIT`)
-  } catch (e) {
-    await dbClient.query(`ROLLBACK`)
-    throw e
-  }
-}
-
 async function clearShape(table: string, shapeId?: string) {
   const res = await fetch(
     `${PROXY_URL}/shape/${table}${shapeId ? `?shape_id=${shapeId}` : ``}`,
@@ -129,16 +56,7 @@ async function sleep(time: number) {
 const maxAge = 1 // seconds
 const staleAge = 3 // seconds
 
-beforeAll(async () => {
-  await dbClient.connect()
-})
-
-afterAll(async () => {
-  await dbClient.end()
-})
-
 describe(`HTTP Proxy Cache`, { timeout: 30000 }, () => {
-  beforeAll(async () => await initializeDb())
   beforeEach(async () => await clearCache())
 
   it(`should always get non-cached response in live mode`, async () => {
@@ -225,14 +143,16 @@ describe(`HTTP Proxy Cache`, { timeout: 30000 }, () => {
 })
 
 describe(`HTTP Initial Data Caching`, { timeout: 30000 }, () => {
-  beforeAll(async () => await initializeDb())
   beforeEach(async () => {
-    await clearAllItems()
     await clearCache()
-    await addItems(`issues`, 10)
   })
 
-  it(`tells client to resync when shape is out of scope`, async () => {
+  it(`tells client to resync when shape is out of scope`, async ({
+    insertIssues,
+  }) => {
+    // add some data
+    await insertIssues({ title: `foo1` }, { title: `foo2` })
+
     // Make a client that fetches a shape
     // which forces the shape data to be cached
     const client1Res = await fetch(`${PROXY_URL}/shape/issues?offset=-1`, {})
