@@ -8,6 +8,13 @@ export default defineConfig({
   appearance: 'force-dark',
   base: '/',
   cleanUrls: true,
+  head: [
+    ['link', {
+      rel: 'icon',
+      type: 'image/svg+xml',
+      href: '/img/brand/favicon.svg'
+    }]
+  ],
   // https://vitepress.dev/reference/default-theme-config
   themeConfig: {
     logo: '/img/brand/logo.svg',
