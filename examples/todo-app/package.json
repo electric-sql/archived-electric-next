@@ -43,6 +43,9 @@
     "vite-plugin-top-level-await": "^1.4.1",
     "wa-sqlite": "rhashimoto/wa-sqlite#master"
   },
+  "devDependencies": {
+    "@types/uuid": "^10.0.0"
+  },
   "homepage": "https://github.com/KyleAMathews/vite-react-router-electric-sql-starter#readme",
   "keywords": [
     "electric-sql",
