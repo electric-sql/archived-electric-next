@@ -46,6 +46,7 @@ export default defineConfig({
           { text: 'Quickstart', link: '/guides/quickstart' },
           { text: 'Usage', link: '/guides/usage' },
           { text: 'Deployment', link: '/guides/deployment' },
+          { text: 'Write your own client', link: '/guides/write-your-own-client' }
         ]
       },
       {
