@@ -124,10 +124,7 @@ defmodule Electric.ShapeCacheTest do
 
       log =
         capture_log(fn ->
-          Task.start(fn ->
-            GenServer.cast(Access.get(opts, :link_pid), {:snapshot_xmin_known, shape_id, 10})
-          end)
-
+          GenServer.cast(Access.get(opts, :link_pid), {:snapshot_xmin_known, shape_id, 10})
           Process.sleep(10)
         end)
 
