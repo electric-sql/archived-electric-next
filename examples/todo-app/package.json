@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@databases/pg-migrations": "^5.0.3",
+    "@electric-sql/react": "workspace:*",
     "@fontsource/alegreya-sans": "^5.0.13",
     "@radix-ui/themes": "^3.1.0",
     "@types/react": "^18.3.3",

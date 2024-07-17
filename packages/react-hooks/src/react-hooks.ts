@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Shape, ShapeStreamOptions } from './client'
+import { Shape, ShapeStreamOptions } from 'electric-sql'
 
 export function useShape(options: ShapeStreamOptions) {
   const [shapeData, setShapeData] = useState<unknown[]>([])

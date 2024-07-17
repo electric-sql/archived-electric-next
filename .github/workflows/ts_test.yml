@@ -100,6 +100,23 @@ jobs:
           cache-dependency-path: packages/typescript-client/package-lock.json
       - run: npm ci
       - run: npm run typecheck
+  check_and_build_react_hooks:
+    name: Check and build React hooks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/react-hooks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: packages/react-hooks/package-lock.json
+      - run: npm ci
+      - run: npm run stylecheck
+      - run: npm run typecheck
+      - run: npm run build
   list_examples:
     name: List examples
     runs-on: ubuntu-latest

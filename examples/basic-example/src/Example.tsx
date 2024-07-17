@@ -1,10 +1,11 @@
-import { useShape } from '../../../packages/typescript_client/src/react-hooks'
+import { useShape } from '@electric-sql/react'
 
 import './Example.css'
 
 type Item = { id: string }
 
 const baseUrl = import.meta.env.ELECTRIC_URL ?? `http://localhost:3000`
+//const { useShape } = reactHooks
 
 export const Example = () => {
   const { data: items } = useShape({
