@@ -1,8 +1,9 @@
 {
-  "name": "linearlite",
+  "name": "@electric-examples/linearlite",
   "version": "0.0.1",
   "license": "Apache-2.0",
   "type": "module",
+  "private": true,
   "scripts": {
     "backend:up": "PROJECT_NAME=linearlite pnpm -C ../../ run example-backend:up && pnpm db:migrate && pnpm db:load-data",
     "backend:down": "PROJECT_NAME=linearlite pnpm -C ../../ run example-backend:down",

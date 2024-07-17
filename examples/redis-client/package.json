@@ -1,5 +1,5 @@
 {
-  "name": "electric-sql-redis-client",
+  "name": "@electric-examples/redis-client",
   "version": "0.0.1",
   "description": "An example Redis client for ElectricSQL",
   "main": "dist/index.js",
