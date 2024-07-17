@@ -11,7 +11,8 @@
     "test": "npx vitest",
     "typecheck": "tsc -p tsconfig.json",
     "build": "shx rm -rf dist && concurrently \"tsup\" \"tsc -p tsconfig.build.json\"",
-    "stylecheck": "eslint './*.{ts,js,tsx,jsx}' './tests/**/*.{ts,tsx}' './examples/**/*.{ts,tsx}' --no-error-on-unmatched-pattern",
+    "stylecheck": "eslint . --quiet",
+    "format": "eslint . --fix",
     "docs:generate": "redocly build-docs ./docs/electric-api.yaml --output=./docs/dist/electric-api.html"
   },
   "repository": {
