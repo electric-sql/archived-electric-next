@@ -4,8 +4,8 @@ defmodule Electric.Postgres.ReplicationClient do
   """
   use Postgrex.ReplicationConnection
 
-  alias Electric.Postgres.ReplicationClient.Collector
   alias Electric.Postgres.LogicalReplication.Decoder
+  alias Electric.Postgres.ReplicationClient.Collector
 
   require Logger
 
@@ -195,15 +195,19 @@ defmodule Electric.Postgres.ReplicationClient do
 
         case apply(m, f, [txn | args]) do
           :ok ->
-            # We currently process incoming replicatino messages sequentially, persisting each
-            # new transaction into the relevant shape log stores. So, when the applied function
+            # We currently process incoming replication messages sequentially, persisting each
+            # new transaction into the shape log store. So, when the applied function
             # returns, we can safely advance the replication slot past the transaction's commit
             # LSN.
             state = update_applied_wal(state, wal_end)
             {:noreply, [encode_standby_status_update(state)], state}
 
-          _ ->
-            # TODO(alco): error handling
+          other ->
+            # TODO(alco): crash the connection process here?
+            # If we keep going and a subsequent transaction is processed successfully, Electric
+            # will acknowledge the later LSN to Postgres and so the next time it opens a
+            # replication connection, it will no longer receive the failed transaction.
+            Logger.error("Unexpected result from calling #{inspect(m)}.#{f}(): #{inspect(other)}")
             {:noreply, state}
         end
     end
@@ -287,14 +291,31 @@ defmodule Electric.Postgres.ReplicationClient do
     end)
   end
 
-  defp update_received_wal(state, wal) when wal > state.received_wal,
-    do: %{state | received_wal: wal}
+  # This is an edge case that seems to be caused by the documented requirement to respond to `Primary
+  # keepalive message`[1] with a `Standby status update`[2] message that has all of the WAL byte
+  # offset values incremented by 1. Perhaps, it is a bug in Postgres: when Electric opens a new
+  # replication connection, Postgres immediately sends a "keepalive" message where the value of
+  # `wal_end` is the last "flushed to disk" WAL offset that Electric reported prior to closing
+  # the replication connection. This looks suspicious because in subsequent "keepalive"
+  # messages that Postgres sends to Electric throughout the lifetime of the replication
+  # connection it *does not* use the incremented value reported by Electric for `wal_end` but
+  # instead uses the original offset that does not have 1 added to it.
+  #
+  # [1]: https://www.postgresql.org/docs/current/protocol-replication.html#PROTOCOL-REPLICATION-PRIMARY-KEEPALIVE-MESSAGE
+  # [2]: https://www.postgresql.org/docs/current/protocol-replication.html#PROTOCOL-REPLICATION-STANDBY-STATUS-UPDATE
+  defp update_received_wal(state, wal) when wal == state.received_wal - 1, do: state
+
+  # wal can be 0 if the incoming logical message is e.g. Relation.
+  defp update_received_wal(state, 0), do: state
 
   defp update_received_wal(%{received_wal: wal} = state, wal), do: state
-  defp update_received_wal(state, 0), do: state
+
+  defp update_received_wal(state, wal) when wal > state.received_wal,
+    do: %{state | received_wal: wal}
 
   defp update_applied_wal(state, wal) when wal > state.applied_wal,
     do: %{state | applied_wal: wal}
 
+  # wal can be 0 if the incoming logical message is e.g. Relation.
   defp update_applied_wal(state, 0), do: state
 end

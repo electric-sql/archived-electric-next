@@ -50,11 +50,7 @@ defmodule Electric.Postgres.ReplicationClientTest do
          %{db_config: config, replication_opts: replication_opts, db_conn: conn} do
       assert {:ok, _pid} = ReplicationClient.start_link(config, replication_opts)
 
-      {:ok, _} =
-        Postgrex.query(conn, "INSERT INTO items (id, value) VALUES ($1, $2)", [
-          Ecto.UUID.bingenerate(),
-          "test value"
-        ])
+      insert_item(conn, "test value")
 
       assert_receive {:from_replication, %Transaction{changes: [change]}}
       assert %NewRecord{record: %{"value" => "test value"}} = change
@@ -66,11 +62,7 @@ defmodule Electric.Postgres.ReplicationClientTest do
         ExUnit.CaptureLog.capture_log(fn ->
           assert {:ok, _pid} = ReplicationClient.start_link(config, replication_opts)
 
-          {:ok, _} =
-            Postgrex.query(conn, "INSERT INTO items (id, value) VALUES ($1, $2)", [
-              Ecto.UUID.bingenerate(),
-              "test value"
-            ])
+          insert_item(conn, "test value")
 
           assert_receive {:from_replication, %Transaction{changes: [change]}}
           assert %NewRecord{record: %{"value" => "test value"}} = change
@@ -104,20 +96,76 @@ defmodule Electric.Postgres.ReplicationClientTest do
       true = Process.unlink(pid)
       true = Process.exit(pid, :kill)
 
-      assert %{
-               "slot_name" => @slot_name,
-               "temporary" => false,
-               "confirmed_flush_lsn" => ^flush_lsn
-             } = fetch_slot_info(conn)
+      assert %{"slot_name" => @slot_name, "confirmed_flush_lsn" => ^flush_lsn} =
+               fetch_slot_info(conn)
 
       # Check that the replication client works when the replication slot already exists
       {:ok, _pid} = ReplicationClient.start_link(config, replication_opts)
 
-      assert %{
-               "slot_name" => @slot_name,
-               "temporary" => false,
-               "confirmed_flush_lsn" => ^flush_lsn
-             } = fetch_slot_info(conn)
+      assert %{"slot_name" => @slot_name, "confirmed_flush_lsn" => ^flush_lsn} =
+               fetch_slot_info(conn)
+    end
+
+    test "can replay already seen transaction", %{
+      db_config: config,
+      replication_opts: replication_opts,
+      db_conn: conn
+    } do
+      assert {:ok, pid} = ReplicationClient.start_link(config, replication_opts)
+
+      # Verify that inserting an item results in advancement of slot's confirmed_flush_lsn
+      flushed_lsn_1 = fetch_slot_info(conn, "confirmed_flush_lsn")
+
+      insert_item(conn, "test value")
+
+      assert_receive {:from_replication, %Transaction{changes: [change]}}
+      assert %NewRecord{record: %{"value" => "test value"}} = change
+
+      flushed_lsn_2 = fetch_slot_info(conn, "confirmed_flush_lsn")
+      assert Lsn.compare(flushed_lsn_2, flushed_lsn_1) == :gt
+
+      # Verify that returning a value other than :ok from the transaction callback leaves slot's LSN unchanged.
+      insert_item(conn, "return: not ok")
+
+      assert_receive {:from_replication, %Transaction{changes: [change]}}
+      assert %NewRecord{record: %{"value" => "return: not ok"}} = change
+
+      assert flushed_lsn_2 == fetch_slot_info(conn, "confirmed_flush_lsn")
+
+      # Verify that raising in the transaction callback crashes the connection process
+      monitor = Process.monitor(pid)
+      Process.unlink(pid)
+
+      interrupt_val = "interrupt #{inspect(pid)}"
+      insert_item(conn, interrupt_val)
+
+      assert_receive {
+        :DOWN,
+        ^monitor,
+        :process,
+        ^pid,
+        {%RuntimeError{message: "Interrupting transaction processing abnormally"}, _stacktrace}
+      }
+
+      refute_received _
+
+      # Now, when we restart the connection process, it replays transactions from the last confirmed one
+      assert {:ok, _pid} = ReplicationClient.start_link(config, replication_opts)
+
+      assert_receive {:from_replication, %Transaction{changes: [change], lsn: tx_lsn_1}}
+      assert %NewRecord{record: %{"value" => "return: not ok"}} = change
+
+      assert Lsn.compare(tx_lsn_1, flushed_lsn_2) == :gt
+
+      assert_receive {:from_replication, %Transaction{changes: [change], lsn: tx_lsn_2}}
+      assert %NewRecord{record: %{"value" => ^interrupt_val}} = change
+
+      assert Lsn.compare(tx_lsn_2, tx_lsn_1) == :gt
+
+      assert Lsn.to_integer(tx_lsn_2) >=
+               Lsn.to_integer(fetch_slot_info(conn, "confirmed_flush_lsn"))
+
+      refute_receive _
     end
 
     @tag additional_fields:
@@ -200,8 +248,7 @@ defmodule Electric.Postgres.ReplicationClientTest do
     end
 
     test "detoasts column values in deletes", %{db_conn: conn} do
-      id = Ecto.UUID.generate()
-      {:ok, bin_uuid} = Ecto.UUID.dump(id)
+      {id, bin_uuid} = gen_uuid()
       long_string_1 = gen_random_string(2500)
       long_string_2 = gen_random_string(3000)
 
@@ -229,8 +276,7 @@ defmodule Electric.Postgres.ReplicationClientTest do
     end
 
     test "detoasts column values in updates", %{db_conn: conn} do
-      id = Ecto.UUID.generate()
-      {:ok, bin_uuid} = Ecto.UUID.dump(id)
+      {id, bin_uuid} = gen_uuid()
       long_string_1 = gen_random_string(2500)
       long_string_2 = gen_random_string(3000)
 
@@ -308,8 +354,36 @@ defmodule Electric.Postgres.ReplicationClientTest do
     }
   end
 
-  def test_transaction_received(transaction, test_pid),
-    do: send(test_pid, {:from_replication, transaction})
+  # Special handling for the items table to enable testing of various edge cases that depend on the result of transaction processing.
+  def test_transaction_received(
+        %Transaction{changes: [%NewRecord{relation: {"public", "items"}} = change]} = transaction,
+        test_pid
+      ) do
+    case Map.fetch!(change.record, "value") do
+      "return: " <> val ->
+        send(test_pid, {:from_replication, transaction})
+        val
+
+      "interrupt #PID" <> pid_str ->
+        pid = pid_str |> String.to_charlist() |> :erlang.list_to_pid()
+
+        if pid == self() do
+          raise "Interrupting transaction processing abnormally"
+        else
+          send(test_pid, {:from_replication, transaction})
+          :ok
+        end
+
+      _ ->
+        send(test_pid, {:from_replication, transaction})
+        :ok
+    end
+  end
+
+  def test_transaction_received(transaction, test_pid) do
+    send(test_pid, {:from_replication, transaction})
+    :ok
+  end
 
   defp create_publication_for_all_tables(conn),
     do: Postgrex.query!(conn, "CREATE PUBLICATION #{@publication_name} FOR ALL TABLES", [])
@@ -328,5 +402,24 @@ defmodule Electric.Postgres.ReplicationClientTest do
     assert %Postgrex.Result{columns: cols, rows: [row], num_rows: 1} = result
 
     Enum.zip(cols, row) |> Map.new()
+  end
+
+  defp fetch_slot_info(conn, field) do
+    conn
+    |> fetch_slot_info()
+    |> Map.fetch!(field)
+  end
+
+  defp insert_item(conn, val) do
+    Postgrex.query!(conn, "INSERT INTO items (id, value) VALUES ($1, $2)", [
+      Ecto.UUID.bingenerate(),
+      val
+    ])
+  end
+
+  defp gen_uuid do
+    id = Ecto.UUID.generate()
+    {:ok, bin_uuid} = Ecto.UUID.dump(id)
+    {id, bin_uuid}
   end
 end
