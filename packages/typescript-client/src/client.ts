@@ -185,7 +185,9 @@ export class ShapeStream {
     let delay = initialDelay
 
     while ((!signal?.aborted && !this.isUpToDate) || this.options.subscribe) {
-      const url = new URL(`${baseUrl}/v1/shape/${encodeURIComponent(shape.table)}`)
+      const url = new URL(
+        `${baseUrl}/v1/shape/${encodeURIComponent(shape.table)}`
+      )
       url.searchParams.set(`offset`, this.lastOffset)
       if (this.isUpToDate) {
         url.searchParams.set(`live`, `true`)

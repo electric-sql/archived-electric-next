@@ -50,7 +50,10 @@ describe(`HTTP Sync`, () => {
   it(`returns a header with the server shape id`, async ({
     issuesTableUrl,
   }) => {
-    const res = await fetch(`${BASE_URL}/v1/shape/${issuesTableUrl}?offset=-1`, {})
+    const res = await fetch(
+      `${BASE_URL}/v1/shape/${issuesTableUrl}?offset=-1`,
+      {}
+    )
     const shapeId = res.headers.get(`x-electric-shape-id`)
     expect(shapeId).to.exist
   })
@@ -220,7 +223,9 @@ describe(`HTTP Sync`, () => {
 
     // And wait until it's definitely seen
     await vi.waitFor(async () => {
-      const res = await fetch(`${BASE_URL}/v1/shape/${issuesTableUrl}?offset=-1`)
+      const res = await fetch(
+        `${BASE_URL}/v1/shape/${issuesTableUrl}?offset=-1`
+      )
       const body = (await res.json()) as Message[]
       expect(body).toHaveLength(13)
     })
@@ -250,7 +255,10 @@ describe(`HTTP Sync`, () => {
     issuesTableUrl,
     insertIssues,
   }) => {
-    const res = await fetch(`${BASE_URL}/v1/shape/${issuesTableUrl}?offset=-1`, {})
+    const res = await fetch(
+      `${BASE_URL}/v1/shape/${issuesTableUrl}?offset=-1`,
+      {}
+    )
     const cacheHeaders = res.headers.get(`cache-control`)
     assert(cacheHeaders !== null, `Response should have cache-control header`)
     const directives = parse(cacheHeaders)
@@ -287,7 +295,10 @@ describe(`HTTP Sync`, () => {
     // Then wait for them to flow through the system
     await sleep(100)
 
-    const res = await fetch(`${BASE_URL}/v1/shape/${issuesTableUrl}?offset=-1`, {})
+    const res = await fetch(
+      `${BASE_URL}/v1/shape/${issuesTableUrl}?offset=-1`,
+      {}
+    )
     const messages = (await res.json()) as Message[]
     expect(messages.length).toEqual(10) // 9 inserts + up-to-date
     const midMessage = messages.slice(-6)[0]
