@@ -118,7 +118,8 @@ defmodule Electric.ShapeCacheTest do
     test "no-ops and warns if snapshot xmin is assigned to unknown shape_id", ctx do
       shape_id = "foo"
 
-      %{shape_cache_opts: opts} = with_shape_cache(Map.put(ctx, :pool, nil))
+      %{shape_cache_opts: opts} =
+        with_shape_cache(Map.put(ctx, :pool, nil), prepare_tables_fn: @prepare_tables_noop)
 
       shape_meta_table = Access.get(opts, :shape_meta_table)
 
@@ -490,6 +491,7 @@ defmodule Electric.ShapeCacheTest do
 
       %{shape_cache_opts: opts} =
         with_shape_cache(Map.put(ctx, :pool, nil),
+          prepare_tables_fn: @prepare_tables_noop,
           create_snapshot_fn: fn parent, shape_id, _, _, storage ->
             GenServer.cast(parent, {:snapshot_xmin_known, shape_id, 10})
             Storage.make_new_snapshot!(shape_id, @basic_query_meta, [["test"]], storage)
