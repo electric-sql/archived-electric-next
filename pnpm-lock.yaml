@@ -12,6 +12,8 @@ importers:
         specifier: ^7.4.2
         version: 7.4.2
 
+  examples/bash-client: {}
+
   examples/basic-example:
     dependencies:
       '@electric-sql/react':
