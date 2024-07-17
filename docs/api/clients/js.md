@@ -8,4 +8,4 @@ The JavaScript client is defined in [client.ts](https://github.com/electric-sql/
 
 See [tests/client.test.ts](https://github.com/electric-sql/electric-next/blob/main/test/client.test.ts) for usage details:
 
-<<< @/../tests/client.test.ts
+<<< @/../packages/typescript-client/test/client.test.ts
