@@ -91,7 +91,7 @@ defmodule Electric.ShapeCacheTest do
           end
         )
 
-      link_pid = Access.get(opts, :link_pid)
+      link_pid = Process.whereis(opts[:server])
 
       shape = %Shape{root_table: {"public", "items"}}
 
@@ -130,7 +130,7 @@ defmodule Electric.ShapeCacheTest do
       # direct calls to genserver should still return the existing shape_id
       # after the snapshot has been created
       assert {^shape_id, _} =
-               GenServer.call(Access.get(opts, :link_pid), {:create_or_wait_shape_id, shape})
+               GenServer.call(link_pid, {:create_or_wait_shape_id, shape})
 
       assert_received {:called, :prepare_tables_fn}
       assert_received {:called, :create_snapshot_fn}
@@ -147,7 +147,7 @@ defmodule Electric.ShapeCacheTest do
 
       log =
         capture_log(fn ->
-          GenServer.cast(Access.get(opts, :link_pid), {:snapshot_xmin_known, shape_id, 10})
+          GenServer.cast(Process.whereis(opts[:server]), {:snapshot_xmin_known, shape_id, 10})
           Process.sleep(10)
         end)
 
