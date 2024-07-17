@@ -91,19 +91,39 @@ defmodule Electric.ShapeCacheTest do
           end
         )
 
+      shape = %Shape{root_table: {"public", "items"}}
+      {shape_id, _} = ShapeCache.get_or_create_shape_id(shape, opts)
+
+      # subsequent calls return the same shape_id
+      for _ <- 1..10, do: assert({^shape_id, _} = ShapeCache.get_or_create_shape_id(shape, opts))
+
+      assert :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id)
+
+      assert_received {:called, :prepare_tables_fn}
+      assert_received {:called, :create_snapshot_fn}
+      refute_received {:called, _}
+    end
+
+    test "triggers table prep and snapshot creation only once even with queued requests", ctx do
+      test_pid = self()
+
+      %{shape_cache_opts: opts} =
+        with_shape_cache(Map.put(ctx, :pool, nil),
+          prepare_tables_fn: @prepare_tables_noop,
+          create_snapshot_fn: fn parent, shape_id, _, _, storage ->
+            send(test_pid, {:called, :create_snapshot_fn})
+            GenServer.cast(parent, {:snapshot_xmin_known, shape_id, 10})
+            Storage.make_new_snapshot!(shape_id, @basic_query_meta, [["test"]], storage)
+            GenServer.cast(parent, {:snapshot_ready, shape_id})
+          end
+        )
+
       link_pid = Process.whereis(opts[:server])
 
       shape = %Shape{root_table: {"public", "items"}}
 
-      # suspend the genserver for a short amount of time to simulate
-      # message queue buildup
+      # suspend the genserver to simulate message queue buildup
       :sys.suspend(link_pid)
-
-      suspend_task_pid =
-        Task.async(fn ->
-          Process.sleep(10)
-          :sys.resume(link_pid)
-        end)
 
       create_call_1 =
         Task.async(fn ->
@@ -118,23 +138,19 @@ defmodule Electric.ShapeCacheTest do
         end)
 
       # resume the genserver and assert both queued tasks return the same shape_id
-      Task.await(suspend_task_pid)
+      :sys.resume(link_pid)
       shape_id = Task.await(create_call_1)
       assert shape_id == Task.await(create_call_2)
 
-      # subsequent calls return the same shape_id
-      for _ <- 1..10, do: assert({^shape_id, _} = ShapeCache.get_or_create_shape_id(shape, opts))
-
       assert :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id)
 
-      # direct calls to genserver should still return the existing shape_id
-      # after the snapshot has been created
+      # any queued calls should still return the existing shape_id
+      # after the snapshot has been created (simulated by directly
+      # calling GenServer)
       assert {^shape_id, _} =
                GenServer.call(link_pid, {:create_or_wait_shape_id, shape})
 
-      assert_received {:called, :prepare_tables_fn}
       assert_received {:called, :create_snapshot_fn}
-      refute_received {:called, _}
     end
 
     test "no-ops and warns if snapshot xmin is assigned to unknown shape_id", ctx do
