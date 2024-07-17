@@ -248,7 +248,7 @@ You can sync data into:
 
 - apps, replacing data fetching with data sync
 - development environments, for example syncing data into [an embedded PGlite](/product/pglite)
-- edge workers and services, for example maintaining a low-latency [edge data cache](/examples/redis)
+- edge workers and services, for example maintaining a low-latency [edge data cache](/api/connectors/redis)
 - local AI systems running RAG, as per the example below
 
 <figure>
@@ -293,7 +293,7 @@ You can sync partial subsets of data from a Postgres database into a wide variet
 
 - syncing data into local apps using the [JavaScript](/api/clients/js) and [Elixir](/api/clients/elixir) clients
 - replacing hot-path data fetching and database queries in apps using [React](/api/connectors/react), [MobX](/api/connectors/mobx) and [TanStack](/api/connectors/tanstack)
-- maintain live caches with automatic invalidation, as per [our Redis example](/examples/redis)
+- maintain live caches with automatic invalidation, as per [our Redis connector](/api/connectors/redis)
 
 ### Is there a roadmap?
 
