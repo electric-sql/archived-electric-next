@@ -32,7 +32,9 @@ What started as tinkering in private now looks like the way forward for Electric
 
 ## What is `electric-next`?
 
-[`electric-next`](https://github.com/electric-sql/electric-next) is a clean rebuild. We created a new repo at [electric-sql/electric-next](https://github.com/electric-sql/electric-next) and started by porting the absolute minimum code necessary from the previous repo.
+[`electric-next`](https://github.com/electric-sql/electric-next) is a clean rebuild of the Electric sync engine.
+
+We created a new repo at [electric-sql/electric-next](https://github.com/electric-sql/electric-next) and started by porting the absolute minimum code necessary from the previous repo.
 
 It provides an [HTTP API](/api/http) for syncing [Shapes](https://electric-sql.com/docs/usage/data-access/shapes) of data from Postgres. This can be used directly or via [client libraries](/api/clients/js) and [connectors](/api/connectors/mobx).
 
@@ -40,15 +42,11 @@ It's also simple to [write your own client](/guides/write-your-own-client) in an
 
 ## Why build a new system?
 
-Electric has its [heritage](https://electric-sql.com/about/team#advisors) in [distributed database research](https://electric-sql.com/docs/reference/literature).
-
-When we started, our plan was to use this research to build a next-generation distributed database. Cockroach for the AP side of the CAP theorem. The adoption dynamics of building a new database from scratch are tough. So we pivoted to use our core technology as a replication layer for existing databases.
+Electric has its [heritage](https://electric-sql.com/about/team#advisors) in [distributed database research](https://electric-sql.com/docs/reference/literature). When we started, our plan was to use this research to build a next-generation distributed database. Cockroach for the AP side of the CAP theorem. However, the adoption dynamics for creating a new database from scratch are tough. So we pivoted to building a replication layer for existing databases.
 
 This allowed us to do active-active replication between multiple Postgres instances, in the cloud or at the edge. However, rather than stopping at the edge, we kept seeing that it was more optimal to take the database-grade replication guarantees all the way into the client.
 
-So we built a system to sync data into embedded databases in the client. Where our core technology could be used to solve the concurrency challenges with local-first software architecture.
-
-Thus, ElectricSQL was born, as an [open source platform for building local-first software](https://electric-sql.com).
+So we built a system to sync data into embedded databases in the client. Where our core technology could solve the concurrency challenges with local-first software architecture. Thus, ElectricSQL was born, as an [open source platform for building local-first software](https://electric-sql.com).
 
 ### Optimality and complexity
 
@@ -115,9 +113,7 @@ Gabriel contrasts "Worse is Better" with a make the "Right Thing" approach that 
 
 #### The motivation for `electric-next`
 
-So, hopefully now our motivation is clear.
-
-We need to find a way to simplify Electric and make it more loosely coupled. To pare it back to it's core and iterate on solid foundations.
+So, hopefully now our motivation is clear. We need to find a way to simplify Electric and make it more loosely coupled. To pare it back to it's core and iterate on solid foundations.
 
 
 ## What's changed?
