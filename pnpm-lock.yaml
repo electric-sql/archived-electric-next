@@ -298,9 +298,6 @@ importers:
       pg:
         specifier: ^8.12.0
         version: 8.12.0
-      redis:
-        specifier: ^4.6.14
-        version: 4.6.14
       uuid:
         specifier: ^10.0.0
         version: 10.0.0

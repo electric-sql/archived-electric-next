@@ -27,7 +27,6 @@
   "dependencies": {
     "cache-control-parser": "^2.0.6",
     "pg": "^8.12.0",
-    "redis": "^4.6.14",
     "uuid": "^10.0.0"
   },
   "devDependencies": {
