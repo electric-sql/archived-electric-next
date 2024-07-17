@@ -351,10 +351,8 @@ describe(`HTTP Sync`, () => {
     // Add an initial rows
     const id1 = uuidv4()
     const id2 = uuidv4()
-    console.log(
-      await insertIssues({ id: id1, title: `foo` }, { id: id2, title: `bar` })
-    )
-    console.log(id1, id2)
+
+    await insertIssues({ id: id1, title: `foo` }, { id: id2, title: `bar` })
 
     // Get initial data
     const shapeData = new Map()
@@ -366,7 +364,6 @@ describe(`HTTP Sync`, () => {
     })
 
     await h.forEachMessage(issueStream, aborter, async (res, msg, nth) => {
-      console.log(nth, msg)
       if (!(`key` in msg)) return
       shapeData.set(msg.key, msg.value)
 
