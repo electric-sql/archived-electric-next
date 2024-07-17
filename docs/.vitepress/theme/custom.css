@@ -12,10 +12,18 @@
 
 .img-row {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(1, 1fr);
   flex-direction: row;
   margin: 20px 0;
   gap: 10px;
+}
+.img-row-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+@media (max-width: 767px) {
+  .img-row-2 {
+    grid-template-columns: repeat(1, 1fr);
+  }
 }
 .img-border {
   border: 1px #ccc solid;
@@ -29,7 +37,7 @@ figure {
 figcaption {
   text-align: right;
   font-size: 90%;
-  max-width: 420px;
+  max-width: 460px;
   margin-left: auto;
 }
 
