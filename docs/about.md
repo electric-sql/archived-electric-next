@@ -271,7 +271,7 @@ As a clean re-write, there are many things not-yet supported. However, even just
 
 And you can do this at scale, in production, from day one.
 
-### Where does this leave the current/previous system?
+### Previous system
 
 `electric-next` is still new and experimental. However, it will very likely supercede the current/previous Electric. The most likely scenario is that:
 
@@ -281,19 +281,17 @@ And you can do this at scale, in production, from day one.
 
 You're welcome to continue to use it and perhaps to choose your moment to migrate. However caveat emptor -- the direction of travel should be pretty clear from this document.
 
-### Where are we with the implementation of the next system?
+### New system
 
-At the time of writing this document, we are very early in the development of `electric-next`. The repo was created on the 1st July 2024.
+At the time of writing this document, we are very early in the development of `electric-next`. The repo was created on the 1st July 2024. However, you can already sync partial subsets of data from a Postgres database into a wide variety of clients and environments.
 
-### What can you use it for already?
-
-You can sync partial subsets of data from a Postgres database into a wide variety of clients and environments. This includes:
+This includes:
 
 - syncing data into local apps using the [JavaScript](/api/clients/js) and [Elixir](/api/clients/elixir) clients
 - replacing hot-path data fetching and database queries in apps using [React](/api/connectors/react), [MobX](/api/connectors/mobx) and [TanStack](/api/connectors/tanstack)
 - maintain live caches with automatic invalidation, as per [our Redis connector](/api/connectors/redis)
 
-### Is there a roadmap?
+### Roadmap
 
 You can track development on [Discord](https://discord.electric-sql.com) and via the [GitHub Issues milestones](https://github.com/electric-sql/electric-next/milestones).
 
