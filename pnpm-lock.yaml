@@ -381,6 +381,9 @@ importers:
       typescript:
         specifier: ^5.4.5
         version: 5.5.2
+      uuid:
+        specifier: ^10.0.0
+        version: 10.0.0
       vite:
         specifier: ^5.3.1
         version: 5.3.1(@types/node@20.14.11)
