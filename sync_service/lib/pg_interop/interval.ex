@@ -47,22 +47,22 @@ defmodule PgInterop.Interval do
   SQL standard format
 
       iex> parse!("1-2")
-      #Interval<P1Y2M>
+      Interval.parse!("P1Y2M")
       iex> parse!("3 4:05:06")
-      #Interval<P3DT4H5M6S>
+      Interval.parse!("P3DT4H5M6S")
 
       iex> parse!("5 minutes 3d 4 hours 6")
-      #Interval<P3DT4H5M6S>
+      Interval.parse!("P3DT4H5M6S")
 
   ISO8601 format
 
       iex> parse!("P1Y2M3DT4H5M6S")
-      #Interval<P1Y2M3DT4H5M6S>
+      Interval.parse!("P1Y2M3DT4H5M6S")
 
   ISO8601 "alternative" format
 
       iex> parse!("P0001-02-03T04:05:06")
-      #Interval<P1Y2M3DT4H5M6S>
+      Interval.parse!("P1Y2M3DT4H5M6S")
 
       iex> parse!("what")
       ** (RuntimeError) Not a valid PostgreSQL interval
@@ -94,7 +94,7 @@ defmodule PgInterop.Interval do
   ## Examples
 
       iex> subtract(parse!("P2D"), parse!("P1D"))
-      #Interval<P1D>
+      Interval.parse!("P1D")
   """
   def subtract(
         %Interval{months: m1, days: d1, microseconds: s1},
@@ -172,10 +172,10 @@ defmodule PgInterop.Interval do
   ## Examples
 
       iex> from_days(10)
-      #Interval<P10D>
+      Interval.parse!("P10D")
 
       iex> from_days(10.5)
-      #Interval<P10DT12H>
+      Interval.parse!("P10DT12H")
   """
   def from_days(days) when is_integer(days), do: %Interval{days: days}
 
@@ -190,7 +190,7 @@ defmodule PgInterop.Interval do
   ## Examples
 
       iex> from_hours(10)
-      #Interval<PT10H>
+      Interval.parse!("PT10H")
   """
   def from_hours(hours) when is_number(hours),
     do: %Interval{microseconds: round(hours * 3_600_000_000)}
@@ -201,7 +201,7 @@ defmodule PgInterop.Interval do
   ## Examples
 
       iex> from_microseconds(1_000_000)
-      #Interval<PT1S>
+      Interval.parse!("PT1S")
   """
   def from_microseconds(microseconds) when is_integer(microseconds),
     do: %Interval{microseconds: microseconds}
@@ -212,7 +212,7 @@ defmodule PgInterop.Interval do
   ## Examples
 
       iex> from_milliseconds(1_000)
-      #Interval<PT1S>
+      Interval.parse!("PT1S")
   """
   def from_milliseconds(milliseconds) when is_number(milliseconds),
     do: %Interval{microseconds: round(milliseconds * 1000)}
@@ -223,7 +223,7 @@ defmodule PgInterop.Interval do
   ## Examples
 
       iex> from_seconds(60)
-      #Interval<PT1M>
+      Interval.parse!("PT1M")
   """
   def from_seconds(seconds) when is_number(seconds),
     do: %Interval{microseconds: round(seconds * 1_000_000)}
@@ -234,7 +234,7 @@ defmodule PgInterop.Interval do
   ## Examples
 
       iex> from_minutes(60.5)
-      #Interval<PT1H30S>
+      Interval.parse!("PT1H30S")
   """
   def from_minutes(minutes) when is_number(minutes),
     do: %Interval{microseconds: round(minutes * 60_000_000)}
@@ -245,7 +245,7 @@ defmodule PgInterop.Interval do
   ## Examples
 
       iex> from_weeks(4.2)
-      #Interval<P29DT9H36M>
+      Interval.parse!("P29DT9H36M")
   """
   def from_weeks(weeks) when is_number(weeks), do: from_days(7 * weeks)
 
@@ -256,7 +256,7 @@ defmodule PgInterop.Interval do
   ## Examples
 
       iex> from_months(14.5)
-      #Interval<P1Y2M15D>
+      Interval.parse!("P1Y2M15D")
   """
   def from_months(months) do
     full_months = floor(months)
@@ -269,10 +269,10 @@ defmodule PgInterop.Interval do
   ## Examples
 
       iex> from_time(~T[12:30:40.1])
-      #Interval<PT12H30M40.1S>
+      Interval.parse!("PT12H30M40.1S")
 
       iex> from_time(~T[12:30:40.000001])
-      #Interval<PT12H30M40.000001S>
+      Interval.parse!("PT12H30M40.000001S")
   """
   def from_time(%Time{hour: h, minute: m, second: s, microsecond: {ms, _}}) do
     from_microseconds(ms + s * 1_000_000 + m * 60_000_000 + h * 3_600_000_000)
@@ -284,7 +284,7 @@ defmodule PgInterop.Interval do
   ## Examples
 
       iex> scale(parse!("P2M4DT6H"), 1.5)
-      #Interval<P3M6DT9H>
+      Interval.parse!("P3M6DT9H")
   """
   def scale(%Interval{months: m, days: d, microseconds: ms}, by) when is_number(by) do
     from_microseconds(floor(ms * by))
@@ -301,16 +301,16 @@ defmodule PgInterop.Interval do
   ## Examples
 
       iex> datetime_diff(~N[2024-01-02 00:10:00], ~N[2024-01-01 00:00:00])
-      #Interval<P1DT10M>
+      Interval.parse!("P1DT10M")
 
       iex> datetime_diff(~N[2024-01-02 00:00:00], ~N[2024-01-01 00:10:00])
-      #Interval<PT23H50M>
+      Interval.parse!("PT23H50M")
 
       iex> datetime_diff(~N[2024-01-02 00:00:00], ~N[2024-01-03 00:00:00])
-      #Interval<P-1D>
+      Interval.parse!("P-1D")
 
       iex> datetime_diff(DateTime.from_naive!(~N[2024-01-02 00:00:00], "Europe/Istanbul"), ~U[2024-01-02 00:00:00Z])
-      #Interval<PT-3H>
+      Interval.parse!("PT-3H")
   """
   def datetime_diff(%NaiveDateTime{} = d1, %NaiveDateTime{} = d2) do
     %Interval{
@@ -346,15 +346,15 @@ defmodule PgInterop.Interval do
 
   ## Examples
       iex> interval = %Interval{months: 0, days: 29, microseconds: #{@day_in_us} + 60_000_000}
-      #Interval<P29DT24H1M>
+      Interval.parse!("P29DT24H1M")
       iex> justify_interval(interval)
-      #Interval<P1MT1M>
+      Interval.parse!("P1MT1M")
   """
   def justify_interval(%Interval{} = i), do: i |> justify_hours() |> justify_days()
 end
 
 defimpl Inspect, for: PgInterop.Interval do
   def inspect(interval, _opts) do
-    ~s|#Interval<#{PgInterop.Interval.Iso8601Formatter.to_iodata(interval)}>|
+    ~s|Interval.parse!("#{PgInterop.Interval.Iso8601Formatter.to_iodata(interval)}")|
   end
 end
