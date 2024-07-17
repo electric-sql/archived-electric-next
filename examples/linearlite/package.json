@@ -6,7 +6,7 @@
   "scripts": {
     "backend:up": "PROJECT_NAME=linearlite pnpm -C ../../ run example-backend:up && pnpm db:migrate && pnpm db:load-data",
     "backend:down": "PROJECT_NAME=linearlite pnpm -C ../../ run example-backend:down",
-    "db:migrate": "dotenv -e ../../.env.dev -- node ./db/migrate.js",
+    "db:migrate": "dotenv -e ../../.env.dev -- pnpm exec pg-migrations apply --directory ./db/migrations",
     "db:load-data": "dotenv -e ../../.env.dev -- node ./db/load_data.js",
     "dev": "vite",
     "build": "vite build",
@@ -53,6 +53,7 @@
   },
   "devDependencies": {
     "@databases/pg": "^5.5.0",
+    "@databases/pg-migrations": "^5.0.3",
     "@faker-js/faker": "^8.4.1",
     "@tailwindcss/typography": "^0.5.10",
     "@types/jest": "^29.5.12",
