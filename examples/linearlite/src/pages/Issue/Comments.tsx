@@ -21,7 +21,7 @@ function Comments(commentProps: CommentsProps) {
     baseUrl,
   })! as Comment[]
 
-  const comments = allComments.filter(
+  const comments = allComments.data.filter(
     (c) => c.issue_id === commentProps.issue.id
   )
 

@@ -26,7 +26,7 @@ function IssuePage() {
 
   const params = useParams()
 
-  const issue = issues.find((i) => i.id === params.id)!
+  const issue = issues.data.find((i) => i.id === params.id)!
 
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
@@ -241,7 +241,7 @@ function IssuePage() {
               onChange={(e) => handleTitleChange(e.target.value)}
             />
 
-            <div className="w-full max-w-full mt-2 min-h-14 p-3 ">
+            <div className="w-full max-w-full mt-2 min-h-fit p-3 ">
               <Editor
                 className="prose font-normal appearance-none text-md rounded editor"
                 value={
