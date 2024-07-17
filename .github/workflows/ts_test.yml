@@ -103,7 +103,6 @@ jobs:
       - run: pnpm typecheck
   check_and_build_react_hooks:
     name: Check and build React hooks
-    needs: [build_and_test]
     runs-on: ubuntu-latest
     defaults:
       run:
