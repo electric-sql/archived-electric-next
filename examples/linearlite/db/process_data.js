@@ -3,21 +3,21 @@ import path from 'path'
 import * as url from 'url'
 
 // Read JSON data from file
-const dirname = url.fileURLToPath(new URL('.', import.meta.url))
-const DATA_DIR = process.env.DATA_DIR || path.resolve(dirname, 'data')
-const data = fs.readFileSync(path.join(DATA_DIR, 'raw_data.json'), 'utf8')
+const dirname = url.fileURLToPath(new URL(`.`, import.meta.url))
+const DATA_DIR = process.env.DATA_DIR || path.resolve(dirname, `data`)
+const data = fs.readFileSync(path.join(DATA_DIR, `raw_data.json`), `utf8`)
 const jsonData = JSON.parse(data)
 
 // Convert numeric IDs to UUIDs
 function numericIdToUUID(id) {
-  const hexString = id.toString(16).padStart(32, '0')
+  const hexString = id.toString(16).padStart(32, `0`)
   return [
     hexString.substr(0, 8),
     hexString.substr(8, 4),
     hexString.substr(12, 4),
     hexString.substr(16, 4),
     hexString.substr(20),
-  ].join('-')
+  ].join(`-`)
 }
 
 // Extract the issue objects
@@ -27,13 +27,13 @@ function extractIssues(arr) {
   for (const item of arr) {
     if (Array.isArray(item)) {
       extractIssues(item)
-    } else if (typeof item === 'object') {
-      if ('id' in item && 'title' in item) {
+    } else if (typeof item === `object`) {
+      if (`id` in item && `title` in item) {
         const issueId = numericIdToUUID(item.id)
         issueObjects[issueId] = {
           id: issueId,
           title: item.title,
-          description: '',
+          description: ``,
           priority: item.priority.toLowerCase(),
           status: item.status.toLowerCase(),
           modified: new Date(item.modified).toISOString(),
@@ -56,13 +56,13 @@ function extractComments(arr) {
   for (const item of arr) {
     if (Array.isArray(item)) {
       extractComments(item)
-    } else if (typeof item === 'object') {
+    } else if (typeof item === `object`) {
       if (
-        'id' in item &&
-        'issueID' in item &&
-        'created' in item &&
-        'body' in item &&
-        'creator' in item
+        `id` in item &&
+        `issueID` in item &&
+        `created` in item &&
+        `body` in item &&
+        `creator` in item
       ) {
         const issueId = numericIdToUUID(item.issueID)
         const comment = {
@@ -90,9 +90,9 @@ function extractDescriptions(arr) {
     if (Array.isArray(item)) {
       extractDescriptions(item)
     } else {
-      if (typeof item === 'string') {
-        if (item.startsWith('description')) {
-          const issueId = item.split('/')[1]
+      if (typeof item === `string`) {
+        if (item.startsWith(`description`)) {
+          const issueId = item.split(`/`)[1]
           if (issueObjects[issueId]) {
             issueObjects[issueId].description = arr[++i]
           } else {
@@ -100,8 +100,8 @@ function extractDescriptions(arr) {
           }
         }
       }
-      if (typeof item === 'object') {
-        if ('id' in item && 'description' in item) {
+      if (typeof item === `object`) {
+        if (`id` in item && `description` in item) {
           descriptionObjects.push(item)
         }
       }
@@ -123,6 +123,6 @@ console.log(`Comments: ${commentList.length}`)
 
 // Output the data
 fs.writeFileSync(
-  path.join(DATA_DIR, 'issues.json'),
+  path.join(DATA_DIR, `issues.json`),
   JSON.stringify(issueList, null, 2)
 )
