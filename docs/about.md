@@ -10,10 +10,12 @@ description: >-
 import Tweet from 'vue-tweet'
 </script>
 
-<img src="/img/home/zap-with-halo.svg"
-    alt="Electric zap with halo"
-    class="about-zap"
-/>
+<p class="about-zap-container">
+  <img src="/img/home/zap-with-halo.svg"
+      alt="Electric zap with halo"
+      class="about-zap"
+  />
+</p>
 
 # A new approach to building Electric
 

@@ -7,7 +7,7 @@ hero:
   name: "Postgres"
   text: "everywhere"
   tagline: >-
-    Your data, in sync, wherever you need it.
+    Your data, in sync, wherever you&nbsp;need&nbsp;it.
   image:
     src: /img/home/zap-with-halo.svg
   actions:

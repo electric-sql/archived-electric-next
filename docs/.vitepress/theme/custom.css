@@ -60,7 +60,7 @@ iframe {
 @media (max-width: 959px) {
   .VPHomeHero .image .image-container {
     height: calc(190px + 15vw) !important;
-    margin-top: -30px;
+    margin-top: -20px;
   }
   .VPHomeHero .VPImage.image-src {
     margin-left: 0px;
@@ -84,23 +84,22 @@ iframe {
     border-color: var(--pglite-color);
 }
 
+.VPFeature .details {
+  font-weight: 600 !important;
+}
+
 .product-icon {
   width: 84px;
   margin-bottom: 20px;
 }
 
 .about-zap {
-  max-width: min(calc(250px + 25vw), 420px);
+  max-width: min(calc(150px + 25vw), 420px);
   margin: -20px 0 30px;
 }
-@media (max-width: 959px) {
-  .about-zap {
-    margin: -35px 0 30px;
-  }
-}
 @media (max-width: 767px) {
-  .about-zap {
-    margin: -35px auto 30px;
+  .about-zap-container {
+    display: none;
   }
 }
 
