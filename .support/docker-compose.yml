@@ -25,6 +25,8 @@ services:
   backend:
     image: electricsql/next:example
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:password@localhost:54321/electric}
+      DATABASE_URL: postgresql://postgres:password@host.docker.internal:54321/electric
+    ports:
+      - "3000:3000"
     build:
       context: ../packages/sync-service/
