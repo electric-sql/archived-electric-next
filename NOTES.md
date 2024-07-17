@@ -11,4 +11,4 @@ Don't lose track of things we need to document
   - Changing the LSN of a replication slot might lead to data loss. We do not perform any integrity validation on the replication slot, so the developer should drop the shape data in such cases.
 
 - __Replica identity__:
-  - Electric requires replica identity to be set to FULL to properly detect changes to shapes.
+  - Electric requires replica identity to be set to FULL to properly detect changes to tables that have shapes defined. We set replica identity automatically.
