@@ -118,6 +118,9 @@ jobs:
           node-version: 20
           cache: 'pnpm'
       - run: pnpm install
+      - run: pnpm build
+        name: pnpm build the typescript client
+        working-directory: packages/typescript-client
       - run: pnpm stylecheck
       - run: pnpm typecheck
       - run: pnpm build
@@ -132,7 +135,7 @@ jobs:
         id: list_examples
   check_and_build_examples:
     name: Check and build ${{ matrix.example_folder }}
-    needs: [list_examples, build_and_test]
+    needs: [list_examples, build_and_test, check_and_build_react_hooks]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -151,5 +154,11 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install
+      - run: pnpm build
+        name: pnpm build the typescript client
+        working-directory: packages/typescript-client
+      - run: pnpm build
+        name: pnpm build the react hooks
+        working-directory: packages/react-hooks
       - run: pnpm typecheck
       - run: pnpm build
