@@ -131,7 +131,7 @@ jobs:
       example_names: ${{ steps.list_examples.outputs.example_names }}
     steps:
       - uses: actions/checkout@v4
-      - run: echo "example_names=`ls -d --ignore="bash-client" examples/*/ | jq -R -s -c 'split("\n")[:-1] | map(rtrimstr("/"))'`" >> $GITHUB_OUTPUT
+      - run: echo "example_names=`ls -d --ignore="examples/bash-client/" examples/*/ | jq -R -s -c 'split("\n")[:-1] | map(rtrimstr("/"))'`" >> $GITHUB_OUTPUT
         id: list_examples
   check_and_build_examples:
     name: Check and build ${{ matrix.example_folder }}
