@@ -35,12 +35,6 @@ importers:
       '@types/react-dom':
         specifier: ^18.3.0
         version: 18.3.0
-      '@typescript-eslint/eslint-plugin':
-        specifier: ^7.11.0
-        version: 7.14.1(@typescript-eslint/parser@7.14.1(eslint@8.57.0)(typescript@5.5.2))(eslint@8.57.0)(typescript@5.5.2)
-      '@typescript-eslint/parser':
-        specifier: ^7.11.0
-        version: 7.14.1(eslint@8.57.0)(typescript@5.5.2)
       '@vitejs/plugin-react':
         specifier: ^4.3.0
         version: 4.3.1(vite@5.3.1(@types/node@20.14.11))
@@ -50,12 +44,6 @@ importers:
       eslint:
         specifier: ^8.57.0
         version: 8.57.0
-      eslint-plugin-react-hooks:
-        specifier: ^4.6.0
-        version: 4.6.2(eslint@8.57.0)
-      eslint-plugin-react-refresh:
-        specifier: ^0.4.6
-        version: 0.4.7(eslint@8.57.0)
       typescript:
         specifier: ^5.4.5
         version: 5.5.2
@@ -429,9 +417,6 @@ importers:
       electric-sql:
         specifier: workspace:*
         version: link:../typescript-client
-      react:
-        specifier: ^18.3.1
-        version: 18.3.1
     devDependencies:
       '@testing-library/react':
         specifier: ^16.0.0
@@ -475,6 +460,9 @@ importers:
       prettier:
         specifier: ^3.3.2
         version: 3.3.2
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
       shx:
         specifier: ^0.3.4
         version: 0.3.4
