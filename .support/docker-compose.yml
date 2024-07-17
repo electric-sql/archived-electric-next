@@ -1,0 +1,30 @@
+version: "3.1"
+name: "electric_example-${PROJECT_NAME:-default}"
+
+services:
+  postgres:
+    image: postgres:14-alpine
+    environment:
+      POSTGRES_DB: electric
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "54321:5432"
+    volumes:
+      - ./postgres.conf:/etc/postgresql.conf:ro
+    tmpfs:
+      - /var/lib/postgresql/data
+      - /tmp
+    entrypoint:
+      - docker-entrypoint.sh
+      - -c
+      - config_file=/etc/postgresql.conf
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  backend:
+    image: electricsql/next:example
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:password@localhost:54321/electric}
+    build:
+      context: ../packages/sync-service/
