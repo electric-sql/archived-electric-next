@@ -49,6 +49,7 @@
   },
   "devDependencies": {
     "@databases/pg": "^5.5.0",
+    "@faker-js/faker": "^8.4.1",
     "@tailwindcss/typography": "^0.5.10",
     "@types/jest": "^29.5.12",
     "@types/lodash.debounce": "^4.0.9",

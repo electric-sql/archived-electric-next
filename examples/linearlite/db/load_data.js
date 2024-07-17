@@ -1,52 +1,44 @@
 import createPool, { sql } from '@databases/pg'
-import fs from 'fs'
-import path from 'path'
-import * as url from 'url'
-
-const dirname = url.fileURLToPath(new URL('.', import.meta.url))
+import { generateIssues } from './generate_data.js'
 
 if (!process.env.DATABASE_URL) {
-  throw new Error('DATABASE_URL is not set')
+  throw new Error(`DATABASE_URL is not set`)
 }
 
 const DATABASE_URL = process.env.DATABASE_URL
-const DATA_DIR = process.env.DATA_DIR || path.resolve(dirname, 'data')
-const ISSUES_TO_LOAD = process.env.ISSUES_TO_LOAD || 112
+const ISSUES_TO_LOAD = process.env.ISSUES_TO_LOAD || 512
+const issues = generateIssues(ISSUES_TO_LOAD)
 
 console.info(`Connecting to Postgres at ${DATABASE_URL}`)
 const db = createPool(DATABASE_URL)
 
-const issues = JSON.parse(
-  fs.readFileSync(path.join(DATA_DIR, 'issues.json'), 'utf8')
-)
-
 async function makeInsertQuery(db, table, data) {
   const columns = Object.keys(data)
-  const columnsNames = columns.join(', ')
+  const columnsNames = columns.join(`, `)
   const values = columns.map((column) => data[column])
   return await db.query(sql`
     INSERT INTO ${sql.ident(table)} (${sql(columnsNames)})
-    VALUES (${sql.join(values.map(sql.value), ', ')})
+    VALUES (${sql.join(values.map(sql.value), `, `)})
   `)
 }
 
 async function importIssue(db, issue) {
-  const { comments, ...rest } = issue
-  return await makeInsertQuery(db, 'issue', rest)
+  const { comments: _, ...rest } = issue
+  return await makeInsertQuery(db, `issue`, rest)
 }
 
 async function importComment(db, comment) {
-  return await makeInsertQuery(db, 'comment', comment)
+  return await makeInsertQuery(db, `comment`, comment)
 }
 
+const issueCount = issues.length
 let commentCount = 0
-const issueToLoad = Math.min(ISSUES_TO_LOAD, issues.length)
 const batchSize = 100
-for (let i = 0; i < issueToLoad; i += batchSize) {
+for (let i = 0; i < issueCount; i += batchSize) {
   await db.tx(async (db) => {
     db.query(sql`SET CONSTRAINTS ALL DEFERRED;`) // disable FK checks
-    for (let j = i; j < i + batchSize && j < issueToLoad; j++) {
-      process.stdout.write(`Loading issue ${j + 1} of ${issueToLoad}\r`)
+    for (let j = i; j < i + batchSize && j < issueCount; j++) {
+      process.stdout.write(`Loading issue ${j + 1} of ${issueCount}\r`)
       const issue = issues[j]
       await importIssue(db, issue)
       for (const comment of issue.comments) {
@@ -57,7 +49,7 @@ for (let i = 0; i < issueToLoad; i += batchSize) {
   })
 }
 
-process.stdout.write('\n')
+process.stdout.write(`\n`)
 
 db.dispose()
-console.info(`Loaded ${issueToLoad} issues with ${commentCount} comments.`)
+console.info(`Loaded ${issueCount} issues with ${commentCount} comments.`)
