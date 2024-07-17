@@ -31,4 +31,10 @@ module.exports = {
       },
     ],
   },
+  ignorePatterns: [
+    '**/node_modules/**',
+    '**/dist/**',
+    'tsup.config.ts',
+    'vitest.config.ts'
+  ],
 }
