@@ -150,7 +150,7 @@ export class ShapeStream {
   private backoffOptions: BackoffOptions
 
   private subscribers = new Map<
-    string,
+    number,
     [MessageProcessor, ((error: Error) => void) | undefined]
   >()
   private upToDateSubscribers = new Map<
