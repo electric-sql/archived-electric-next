@@ -14,17 +14,6 @@ defmodule Electric.ShapeCache.CubDbStorage do
     {:ok, %{file_path: file_path, db: db}}
   end
 
-  @doc """
-  Returns a child spec for this storage implementation
-
-  ## Examples
-
-      iex> is_map(child_spec(foo: 1))
-      true
-
-      iex> Map.keys(child_spec(foo: 1))
-      [:id, :restart, :start, :type]
-  """
   def child_spec(opts) do
     %{
       id: __MODULE__,
