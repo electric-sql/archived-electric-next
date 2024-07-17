@@ -1,13 +1,19 @@
-:root {
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300..700&display=swap');
+
+:root, .dark {
   --vp-c-indigo-1: #D0BCFF;
   --vp-c-indigo-2: #998FE7;
   --vp-c-indigo-3: #7E78DB;
 
+  --vp-nav-logo-height: 30px;
+
+  --vp-c-text-1: rgba(255, 255, 245, 0.92);
+  --vp-c-text-2: rgba(235, 235, 245, 0.75);
+  --vp-c-text-3: rgba(235, 235, 245, 0.55);
+
   --electric-color: #00D2A0;
   --ddn-color: #D0BCFF;
   --pglite-color: #F6F95C;
-
-  --vp-nav-logo-height: 30px;
 }
 
 .img-row {
