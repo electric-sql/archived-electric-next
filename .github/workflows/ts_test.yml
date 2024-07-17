@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: packages/typescript_client
+        working-directory: packages/typescript-client
     steps:
       - uses: actions/checkout@v4
       - uses: erlef/setup-beam@v1
@@ -25,27 +25,27 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: packages/typescript_client/package-lock.json
+          cache-dependency-path: packages/typescript-client/package-lock.json
       - run: npm ci
       - name: Restore dependencies cache
         uses: actions/cache@v4
         with:
-          path: packages/sync_service/deps
-          key: ${{ runner.os }}-mix-${{ hashFiles('sync_service/**/mix.lock') }}
+          path: packages/sync-service/deps
+          key: ${{ runner.os }}-mix-${{ hashFiles('sync-service/**/mix.lock') }}
           restore-keys: ${{ runner.os }}-mix-
       - name: Restore compiled code
         uses: actions/cache@v4
         with:
           path: |
-            packages/sync_service/_build/*/lib
-            !packages/sync_service/_build/*/lib/electric
-          key: ${{ runner.os }}-build-dev-${{ hashFiles('sync_service/**/mix.lock') }}
+            packages/sync-service/_build/*/lib
+            !packages/sync-service/_build/*/lib/electric
+          key: ${{ runner.os }}-build-dev-${{ hashFiles('sync-service/**/mix.lock') }}
       - name: Install dependencies
         run: mix deps.get && mix deps.compile
-        working-directory: packages/sync_service
+        working-directory: packages/sync-service
       - name: Compiles without warnings
         run: mix compile --force --all-warnings --warnings-as-errors
-        working-directory: packages/sync_service
+        working-directory: packages/sync-service
       - uses: JarvusInnovations/background-action@v1
         name: Bootstrap System Under Test (SUT)
         with:
@@ -61,7 +61,7 @@ jobs:
           wait-for: 1m
           log-output: true
           log-output-if: failure
-          working-directory: packages/sync_service
+          working-directory: packages/sync-service
       - name: Adjust Permissions
         run: |
           sudo chown -R runner:docker /home/runner/work/electric-next/electric-next/
@@ -77,27 +77,27 @@ jobs:
           node-version: 20
           cache: 'npm'
           cache-dependency-path: |
-            packages/typescript_client/package-lock.json
+            packages/typescript-client/package-lock.json
             examples/**/package-lock.json
       - run: npm ci
-        working-directory: packages/typescript_client
+        working-directory: packages/typescript-client
       - name: npm ci in each examples dir
         run: for dir in examples/*/; do (cd "$dir" && npm ci); done
       - run: npm run stylecheck
-        working-directory: packages/typescript_client
+        working-directory: packages/typescript-client
   type_check:
     name: Type checking
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: packages/typescript_client
+        working-directory: packages/typescript-client
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
-          cache-dependency-path: packages/typescript_client/package-lock.json
+          cache-dependency-path: packages/typescript-client/package-lock.json
       - run: npm ci
       - run: npm run typecheck
   list_examples:
@@ -127,11 +127,11 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: |
-            packages/typescript_client/package-lock.json
+            packages/typescript-client/package-lock.json
             ${{ matrix.example_folder }}/package-lock.json
       - name: npm ci in the repository root
         run: npm ci
-        working-directory: packages/typescript_client
+        working-directory: packages/typescript-client
       - name: npm ci in the ${{ matrix.example_folder }}
         run: npm ci
       - run: npm run typecheck
