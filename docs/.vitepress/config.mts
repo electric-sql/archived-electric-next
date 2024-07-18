@@ -57,7 +57,7 @@ export default defineConfig({
           {
             text: 'Clients',
             items: [
-              { text: 'JavaScript', link: '/api/clients/js' },
+              { text: 'TypeScript', link: '/api/clients/typescript' },
               { text: 'Elixir', link: '/api/clients/elixir' },
             ],
             collapsed: false
@@ -65,10 +65,10 @@ export default defineConfig({
           {
             text: 'Connectors',
             items: [
-              { text: 'MobX', link: '/api/connectors/mobx' },
+              // { text: 'MobX', link: '/api/connectors/mobx' },
               { text: 'React', link: '/api/connectors/react' },
               { text: 'Redis', link: '/api/connectors/redis' },
-              { text: 'TanStack', link: '/api/connectors/tanstack' },
+              // { text: 'TanStack', link: '/api/connectors/tanstack' },
             ],
             collapsed: false
           }

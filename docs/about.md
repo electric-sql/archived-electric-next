@@ -36,7 +36,7 @@ What started as tinkering in private now looks certain to be the way forward for
 
 We created a new repo at [electric-sql/electric-next](https://github.com/electric-sql/electric-next) and started by porting the absolute minimum code necessary from the previous repo.
 
-It provides an [HTTP API](/api/http) for syncing [Shapes](/guide/shapes) of data from Postgres. This can be used directly or via [client libraries](/api/clients/js) and [connectors](/api/connectors/mobx).
+It provides an [HTTP API](/api/http) for syncing [Shapes](/guide/shapes) of data from Postgres. This can be used directly or via [client libraries](/api/clients/typescript) and [connectors](/api/connectors/react).
 
 It's also simple to [write your own client](/guides/write-your-own-client) in any language.
 
@@ -285,8 +285,8 @@ At the time of writing this document, we are early in the development of `electr
 
 However, even just with the first release of `electric-next` you can already sync partial subsets of data from a Postgres database into a wide variety of clients and environments, for example:
 
-- syncing data into local apps using the [JavaScript](/api/clients/js) and [Elixir](/api/clients/elixir) clients
-- replacing hot-path data fetching and database queries in apps using [React](/api/connectors/react), [MobX](/api/connectors/mobx) and [TanStack](/api/connectors/tanstack)
+- syncing data into local apps using the [TypeScript](/api/clients/typescript) and [Elixir](/api/clients/elixir) clients
+- replacing hot-path data fetching and database queries in apps using [React](/api/connectors/react), [MobX](/api/connectors/react) and [TanStack](/api/connectors/tanstack)
 - maintain live caches with automatic invalidation, as per [our Redis connector](/api/connectors/redis)
 
 ### Roadmap
