@@ -49,10 +49,10 @@ See the [Quickstart guide](https://next.electric-sql.com/guides/quickstart) to g
 1. have a Postgres database with logical replication enabled; and then to
 2. run Electric in front of it, connected via `DATABASE_URL`
 
-For example using [dotenv-cli](https://www.npmjs.com/package/dotenv-cli) and [Docker Compose](https://docs.docker.com/compose/) from the root of this repo:
+For example, using [Docker Compose](https://docs.docker.com/compose/) from the root of this repo:
 
 ```sh
-dotenv -e .env.dev -- docker compose -f ./.support/docker-compose.yml up
+docker compose -f .support/docker-compose.yml up
 ```
 
 You can then use the [HTTP API](https://next.electric-sql/api/http) to sync data from your Postgres. For example, to start syncing the whole `foo` table:
