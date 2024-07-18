@@ -8,38 +8,33 @@ This guide will get you up and running with `electric-next` and real-time sync o
 
 ## Setup
 
-You need to have a Postgres database with logical replication enabled and then to run Electric in front of it, connected via `DATABASE_URL`.
+You need to have a Postgres database and to run Electric in front of it.
 
 You can use any Postgres (new or existing) that has logical replication enabled. You also need to connect as a database user that has the [`REPLICATION` privilege](https://www.postgresql.org/docs/current/logical-replication-security.html).
 
-Electric is an [Elixir](https://elixir-lang.org) web application published as a Docker image at [electricsql/electric-next](https://hub.docker.com/r/electricsql/electric-next). You can run the Elixir application directly, following the [instructions in the README](https://github.com/electric-sql/electric-next/blob/main/packages/sync-service/README.md). Or you can run using Docker, for example:
+Electric is an [Elixir](https://elixir-lang.org) web application published as a Docker image at [electricsql/electric-next](https://hub.docker.com/r/electricsql/electric-next). It connects to Postgres via a `DATABASE_URL`.
+
+Make sure you have Docker running with [Docker Compose](https://docs.docker.com/compose). Then get started by creating a new folder to work in:
 
 ```sh
-docker run electricsql/electric-next \
-    -e DATABASE_URL="..." \
-    -p 3000:3000
+mkdir my-electric-app
+cd my-electric-app
 ```
 
-To run a fresh Postgres and Electric already connected together you can use a Docker Compose file like the example in [.support/docker-compose.yml](https://github.com/electric-sql/electric-next/blob/main/.support/docker-compose.yml):
+Run a fresh Postgres and Electric using this [docker-compose.yaml](https://github.com/electric-sql/electric-next/blob/main/docs/example-compose.yaml) file:
 
 ```sh
-curl "https://raw.githubusercontent.com/electric-sql/electric-next/main/.support/docker-compose.yml" -o docker-compose.yml
+curl -O https://next.electric-sql.com/docs/docker-compose.yaml
 docker compose up
 ```
 
-<div class="info custom-block">
-  <p style="margin-bottom: 10px">
-    ⓘ The rest of this guide assumes you're running Electric against a fresh Postgres database.
-  </p>
-</div>
+You can now start using Electric!
 
 ## HTTP API
 
-You can now start using Electric's HTTP API!
+First let's try the [HTTP API](/api/http).
 
-#### Try running the following curl command
-
-This request asks for a [Shape](/guides/shapes) composed of the entire `foo` table:
+Use `curl` to request a [Shape](/guides/shapes) containing all rows in the `foo` table:
 
 ```sh
 curl -i 'http://localhost:3000/v1/shape/foo?offset=-1'
@@ -141,10 +136,10 @@ At this point, you could continue to fetch data using HTTP requests. However, le
 
 ## React app
 
-Run the following to create a react application:
+Run the following (in your `my-electric-app` folder) to bootstrap a react application:
 
 ```sh
-npm create vite@latest my-electric-app -- --template react-ts
+npm create vite@latest . -- --template react-ts
 ```
 
 Install the Electric React package:
