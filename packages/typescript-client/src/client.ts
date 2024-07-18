@@ -34,7 +34,7 @@ export interface ShapeStreamOptions extends ShapeOptions {
   subscribe?: boolean
   signal?: AbortSignal
   fetchClient?: typeof fetch
-  resyncOnShapeChange?: boolean
+  resyncOnShapeConflict?: boolean
 }
 
 /**
@@ -74,10 +74,17 @@ class MessageProcessor {
   }
 }
 
-export class ShapeChangedError extends Error {
-  constructor(oldShapeId: string, newShapeId: string) {
-    super(`Shape ID changed from ${oldShapeId} to ${newShapeId}`)
-    this.name = `ShapeChangedError`
+export class ShapeConflictError extends Error {
+  constructor(
+    message: string | undefined,
+    oldShapeId: string,
+    newShapeId: string
+  ) {
+    super(
+      message ??
+        `Shape with ID ${oldShapeId} conflicts with current ID ${newShapeId}`
+    )
+    this.name = `ShapeConflictError`
   }
 }
 
@@ -177,7 +184,7 @@ export class ShapeStream {
 
   constructor(options: ShapeStreamOptions) {
     this.validateOptions(options)
-    this.options = { subscribe: true, resyncOnShapeChange: true, ...options }
+    this.options = { subscribe: true, resyncOnShapeConflict: true, ...options }
     this.lastOffset = this.options.offset ?? `-1`
     this.shapeId = this.options.shapeId
 
@@ -265,18 +272,19 @@ export class ShapeStream {
         } else if (
           e instanceof FetchError &&
           e.status == 409 &&
-          this.options.resyncOnShapeChange
+          this.options.resyncOnShapeConflict
         ) {
           // Upon receiving a 409, we should start from scratch
           // with the newly provided shape ID
           const newShapeId = e.headers[`x-electric-shape-id`]
           this.reset(newShapeId)
-          const shapeChangedError = new ShapeChangedError(
+          const shapeExpiredError = new ShapeConflictError(
+            (e.json as Record<string, string>).message,
             this.shapeId!,
             newShapeId
           )
-          this.sendErrorToUpToDateSubscribers(shapeChangedError)
-          this.sendErrorToSubscribers(shapeChangedError)
+          this.sendErrorToUpToDateSubscribers(shapeExpiredError)
+          this.sendErrorToSubscribers(shapeExpiredError)
         } else if (
           e instanceof FetchError &&
           e.status >= 400 &&
@@ -541,7 +549,7 @@ export class Shape {
   private handleError(e: Error): void {
     // on shape rotations, clear the data and
     // start accumulating from scratch
-    if (e instanceof ShapeChangedError) {
+    if (e instanceof ShapeConflictError) {
       this.error = false
       this.data.clear()
       return

@@ -481,7 +481,7 @@ describe(`HTTP Sync`, () => {
       shape: { table: issuesTableUrl },
       baseUrl: `${BASE_URL}`,
       subscribe: true,
-      resyncOnShapeChange: true,
+      resyncOnShapeConflict: true,
       signal: aborter.signal,
       fetchClient: fetchWrapper,
     })
@@ -563,7 +563,7 @@ describe(`HTTP Sync`, () => {
       shape: { table: issuesTableUrl },
       baseUrl: `${BASE_URL}`,
       subscribe: true,
-      resyncOnShapeChange: false,
+      resyncOnShapeConflict: false,
       signal: aborter.signal,
       fetchClient: fetchWrapper,
     })

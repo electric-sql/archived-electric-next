@@ -1,4 +1,4 @@
-import { ShapeChangedError, ShapeStream } from '../../src/client'
+import { ShapeConflictError, ShapeStream } from '../../src/client'
 import { Client, ClientConfig } from 'pg'
 import { JsonSerializable, Message } from '../../src/types'
 
@@ -46,7 +46,7 @@ export function forEachMessage<T extends JsonSerializable>(
         }
       },
       (e) => {
-        if (e instanceof ShapeChangedError) return
+        if (e instanceof ShapeConflictError) return
         reject(e)
       }
     )
