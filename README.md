@@ -42,6 +42,10 @@ It provides an [HTTP API](https://next.electric-sql.com/api/http) for syncing [S
 
 It's also simple to [write your own client](https://next.electric-sql.com/guides/write-your-own-client) in any language.
 
+## Requirements
+- [pnpm](https://pnpm.io/) - to manage dependencies
+- [Docker](https://docs.docker.com/get-docker/) with [Docker Compose](https://docs.docker.com/compose/install/) - to run backend services (Electric, Postgres, Nginx)
+
 ## Getting Started
 
 See the [Quickstart guide](https://next.electric-sql.com/guides/quickstart) to get up and running. In short, you need to:
