@@ -10,16 +10,17 @@ See James' blog post for more background on the change: https://next.electric-sq
 
 ## Getting Started
 
-#### Create a new React app
+### Create a new React app
 
-`npm create vite@latest my-first-electric-app -- --template react-ts`
+```shell
+npm create vite@latest my-first-electric-app -- --template react-ts
+```
 
-#### Setup Docker Compose to run Postgres and Electric
+### Set up Docker Compose to run Postgres and Electric
 
-`docker-compose.yaml`
+Create a `docker-compose.yaml` file inside `my-first-electric-app` directory and populate it with the content below:
 
-```docker
-version: "3.8"
+```yaml
 name: "my-first-electric-service"
 
 services:
@@ -29,41 +30,33 @@ services:
       POSTGRES_DB: electric
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
-    ports:
-      - 55321:5432
-    volumes:
-      - ./postgres.conf:/etc/postgresql/postgresql.conf:ro
     command:
-      - postgres
       - -c
-      - config_file=/etc/postgresql/postgresql.conf
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - listen_addresses=*
+      - -c
+      - wal_level=logical
+    ports:
+      - "55321:5432"
 
   electric:
-    image: electricsql/next:example
+    image: electricsql/electric-next
     environment:
-      DATABASE_URL: postgresql://postgres:password@host.docker.internal:55321/electric
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/electric
     ports:
       - "3000:3000"
-    build:
-      context: ~/programs/electric-next/packages/sync-service/
 ```
 
-Add a `postgres.conf` file.
+### Start services
 
+```shell
+docker compose up
 ```
-listen_addresses = '*'
-wal_level = 'logical'
+
+### Try a curl command against Electric's HTTP API
+
+```shell
+curl -i 'http://localhost:3000/v1/shape/foo?offset=-1'
 ```
-
-#### Start Docker
-
-`docker compose -f ./docker-compose.yaml up`
-
-#### Try a curl command against Electric's HTTP API
-
-`curl -i http://localhost:3000/v1/shape/foo?offset=-1`
 
 This request asks for a shape composed of the entire `foo` table.
 
@@ -71,30 +64,29 @@ A bit of explanation about the URL structure — `/v1/shape/` are standard
 segments. `foo` is the name of the root table of the shape (and is required).
 `offset=-1` means we're asking for the entire log of the Shape as we don't have
 any of the log cached locally yet. If we had previously fetched the shape and
-wanted to see if there was any updates, we'd set the offset of the last log
+wanted to see if there were any updates, we'd set the offset of the last log
 message we'd got the first time.
 
 You should get a response like this:
 
-```bash
+```shell
 HTTP/1.1 400 Bad Request
-date: Wed, 17 Jul 2024 20:30:31 GMT
-content-length: 62
+date: Thu, 18 Jul 2024 10:36:01 GMT
+content-length: 34
 vary: accept-encoding
 cache-control: max-age=0, private, must-revalidate
-x-request-id: F-MaJcF9A--cg9QAAAeF
+x-request-id: F-NISWIE1CJTnIgAAADQ
 access-control-allow-origin: *
 access-control-expose-headers: *
 access-control-allow-methods: GET, POST, OPTIONS
-Server: ElectricSQL/0.0.1
 content-type: application/json; charset=utf-8
 
-{"offset":["can't be blank"],"root_table":["table not found"]}%
+{"root_table":["table not found"]}
 ```
 
 So it didn't work! Which makes sense... as it's a empty database without any tables or data. Let's fix that.
 
-#### Create a table and insert some data
+### Create a table and insert some data
 
 Use your favorite Postgres client to connect to Postgres e.g. with [psql](https://www.postgresql.org/docs/current/app-psql.html)
 you run: `psql postgresql://postgres:password@localhost:55321/electric`
@@ -114,42 +106,39 @@ INSERT INTO foo (name, value) VALUES
     ('Eve', 0);
 ```
 
-#### Now try the curl command again
+### Now try the curl command again
 
-`curl http://localhost:3000/shape/foo?offset=-1`
+```shell
+curl -i 'http://localhost:3000/v1/shape/foo?offset=-1'
+```
 
 Success! You should see the data you just put into Postgres in the shape response:
 
 ```bash
 HTTP/1.1 200 OK
-date: Wed, 17 Jul 2024 20:38:07 GMT
+date: Thu, 18 Jul 2024 10:49:12 GMT
 content-length: 643
 vary: accept-encoding
 cache-control: max-age=60, stale-while-revalidate=300
-x-request-id: F-Maj_CikDKfZTIAAAAh
+x-request-id: F-NJAXyulHAQP2MAAABN
 access-control-allow-origin: *
 access-control-expose-headers: *
 access-control-allow-methods: GET, POST, OPTIONS
-Server: ElectricSQL/0.0.1
 content-type: application/json; charset=utf-8
-x-electric-shape-id: 3833821-1721248688126
+x-electric-shape-id: 3833821-1721299734314
 x-electric-chunk-last-offset: 0_0
-etag: 3833821-1721248688126:-1:0_0
+etag: 3833821-1721299734314:-1:0_0
 
-[{"offset":"0_0","value":{"id":1,"name":"Alice","value":3.14},"key":"\"public\".\"foo\"/1","headers":{"action"
-:"insert"}},{"offset":"0_0","value":{"id":2,"name":"Bob","value":2.71},"key":"\"public\".\"foo\"/2","headers":
-{"action":"insert"}},{"offset":"0_0","value":{"id":3,"name":"Charlie","value":-1.618},"key":"\"public\".\"foo\
-"/3","headers":{"action":"insert"}},{"offset":"0_0","value":{"id":4,"name":"David","value":1.414},"key":"\"pub
-lic\".\"foo\"/4","headers":{"action":"insert"}},{"offset":"0_0","value":{"id":5,"name":"Eve","value":0.0},"key
-":"\"public\".\"foo\"/5","headers":{"action":"insert"}},{"headers":{"control":"up-to-date"}}]%                
+[{"offset":"0_0","value":{"id":1,"name":"Alice","value":3.14},"key":"\"public\".\"foo\"/1","headers":{"action":"insert"}},{"offset":"0_0","value":{"id":2,"name":"Bob","value":2.71},"key":"\"public\".\"foo\"/2","headers":{"action":"insert"}},{"offset":"0_0","value":{"id":3,"name":"Charlie","value":-1.618},"key":"\"public\".\"foo\"/3","headers":{"action":"insert"}},{"offset":"0_0","value":{"id":4,"name":"David","value":1.414},"key":"\"public\".\"foo\"/4","headers":{"action":"insert"}},{"offset":"0_0","value":{"id":5,"name":"Eve","value":0.0},"key":"\"public\".\"foo\"/5","headers":{"action":"insert"}},{"headers":{"control":"up-to-date"}}]
 ```
 
-#### Now let's fetch the same shape to use in our React app
+### Now let's fetch the same shape to use in our React app
 
 Install the Electric React package:
 
-`npm install @electric-sql/react`
-
+```shell
+npm install @electric-sql/react
+```
 
 Wrap your root in `src/main.tsx` with the `ShapesProvider`:
 
@@ -184,13 +173,15 @@ export default Component;
 
 Finally run the dev server to see it all in action!
 
-`npm run dev`
+```shell
+npm run dev
+```
 
 You should see something like:
 
 <img width="699" alt="Screenshot 2024-07-17 at 2 49 28 PM" src="https://github.com/user-attachments/assets/cda36897-2db9-4f6c-86bb-99e7e325a490">
 
-#### Postgres as a real-time database
+### Postgres as a real-time database
 
 Go back to your postgres client and update a row. It'll instantly be synced to your component!
 
