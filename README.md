@@ -183,19 +183,19 @@ You should see something like:
 
 ### Postgres as a real-time database
 
-Go back to your postgres client and update a row. It'll instantly be synced to your component!
+Go back to your Postgres client and update a row. It'll instantly be synced to your component!
 
 ```sql
 UPDATE foo SET name = 'James' WHERE id = 2;
 ```
 
-Congradulations! You've now built your first Electric app!
+Congratulations! You've now built your first Electric app!
 
 ## HTTP API Documentation
 
 The HTTP API documentation is defined through an OpenAPI 3.1.0 specification found in `docs/electric-api.yaml`. Documentation for the API can be generated with `npm run docs:generate`.
 
-## How to setup your development environment to work on Electric
+## How to set up your development environment to work on Electric
 
 We're using [asdf](https://asdf-vm.com/) to install Elixir, Erlang, and Node.js.
 
