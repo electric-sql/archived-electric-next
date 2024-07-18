@@ -21,7 +21,7 @@ services:
       - wal_level=logical
 
   backend:
-    image: electricsql/electric-next:example
+    image: electricsql/electric-next
     environment:
       DATABASE_URL: postgresql://postgres:password@postgres:5432/electric
     ports:
