@@ -71,7 +71,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
              }
     end
 
-    test "returns 400 for live request offset == -1" do
+    test "returns 400 for live request when offset == -1" do
       conn =
         conn(
           :get,
