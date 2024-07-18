@@ -58,7 +58,7 @@ docker compose -f .support/docker-compose.yml up
 You can then use the [HTTP API](https://next.electric-sql/api/http) to sync data from your Postgres. For example, to start syncing the whole `foo` table:
 
 ```sh
-curl -i http://localhost:3000/v1/shape/foo?offset=-1
+curl -i 'http://localhost:3000/v1/shape/foo?offset=-1'
 ```
 
 Or use one of the clients or connectors, such as the [`useShape`](https://next.electric-sql/api/connectors/react) React hook:
