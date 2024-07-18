@@ -139,7 +139,7 @@ When you request shape data using the HTTP API you're actually requesting entrie
 The `offset` that you see in the messages and provide as the `?offset=...` query parameter in your request identifies a position in the log. The messages you see in the response are shape log entries (the ones with `value`s and `action` headers) and control messages (the ones with `control` headers).
 :::
 
-As this point, you could continue to fetch data using HTTP requests. However, let's switch up to fetch the same shape to use in a React app instead.
+At this point, you could continue to fetch data using HTTP requests. However, let's switch up to fetch the same shape to use in a React app instead.
 
 ## React app
 
