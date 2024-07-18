@@ -70,7 +70,7 @@ content-type: application/json; charset=utf-8
 {"offset":["can't be blank"],"root_table":["table not found"]}%
 ```
 
-So it didn't work! Which makes sense... as it's a empty database without any tables or data. Let's fix that.
+So it didn't work! Which makes sense... as it's an empty database without any tables or data. Let's fix that.
 
 ### Create a table and insert some data
 
