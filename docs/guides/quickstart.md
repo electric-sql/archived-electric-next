@@ -14,17 +14,17 @@ You can use any Postgres (new or existing) that has logical replication enabled.
 
 Electric is an [Elixir](https://elixir-lang.org) web application published as a Docker image at [electricsql/electric-next](https://hub.docker.com/r/electricsql/electric-next). It connects to Postgres via a `DATABASE_URL`.
 
-Make sure you have Docker running with [Docker Compose](https://docs.docker.com/compose). Then get started by creating a new folder to work in:
+Make sure you have Docker running with [Docker Compose](https://docs.docker.com/compose). Then create a new folder to work in:
 
 ```sh
-mkdir my-electric-app
-cd my-electric-app
+mkdir my-first-electric
+cd my-first-electric
 ```
 
 Run a fresh Postgres and Electric using this [docker-compose.yaml](https://github.com/electric-sql/electric-next/blob/main/docs/example-compose.yaml) file:
 
 ```sh
-curl -O https://next.electric-sql.com/docs/docker-compose.yaml
+curl -O https://next.electric-sql.com/docker-compose.yaml
 docker compose up
 ```
 
@@ -136,20 +136,21 @@ At this point, you could continue to fetch data using HTTP requests. However, le
 
 ## React app
 
-Run the following (in your `my-electric-app` folder) to bootstrap a react application:
+Run the following to bootstrap a react application in the `react-app` subfolder:
 
 ```sh
-npm create vite@latest . -- --template react-ts
+npm create vite@latest react-app -- --template react-ts
+cd react-app
 ```
 
-Install the Electric React package:
+Install the `@electric-sql/react` package:
 
 ```sh
-cd my-electric-app
+cd react-app
 npm install @electric-sql/react
 ```
 
-Wrap your root in `src/main.tsx` with the `ShapesProvider`:
+Wrap your `<App />` in `src/main.tsx` with the `ShapesProvider`:
 
 ```tsx
 import { ShapesProvider } from '@electric-sql/react'
