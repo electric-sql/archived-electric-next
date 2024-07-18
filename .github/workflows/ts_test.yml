@@ -30,6 +30,7 @@ jobs:
 
   check_packages:
     name: Check ${{ matrix.package_dir }}
+    needs: [list_ts_packages]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -54,6 +55,7 @@ jobs:
 
   build_and_test_packages:
     name: Build and test
+    needs: [list_ts_packages]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -115,7 +117,7 @@ jobs:
 
   check_and_build_examples:
     name: Check and build ${{ matrix.example_folder }}
-    needs: [list_examples, build_and_test, check_and_build_react_hooks]
+    needs: [list_examples, build_and_test_packages]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
