@@ -1,5 +1,9 @@
 # Basic example
 
+## Requirements
+- [pnpm](https://pnpm.io/) - to manage dependencies
+- [Docker](https://docs.docker.com/get-docker/) with [Docker Compose](https://docs.docker.com/compose/install/) - to run backend services (Electric, Postgres, Nginx)
+
 ## Setup
 
 1. Make sure you've installed all dependencies for the monorepo and built packages
