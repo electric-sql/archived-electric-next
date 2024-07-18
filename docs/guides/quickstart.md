@@ -175,7 +175,9 @@ function Component() {
     shape: { table: `foo` }
   })
 
-  return JSON.stringify(data, null, 4)
+  return (
+    <pre>{ JSON.stringify(data, null, 4) }</pre>
+  )
 }
 
 export default Component
