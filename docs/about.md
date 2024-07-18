@@ -27,7 +27,7 @@ import Tweet from 'vue-tweet'
 
 One that's informed by the lessons learned building the [previous system](https://electric-sql.com) and inspired by new insight from [Kyle&nbsp;Mathews](https://electric-sql.com/about/team#kyle).
 
-What started as tinkering in private now looks like the way forward for Electric. So, what it is, what's changed and what does it mean for you?
+What started as tinkering in private now looks certain to be the way forward for Electric. So, what it is, what's changed and what does it mean for you?
 
 
 ## What is `electric-next`?
@@ -211,7 +211,13 @@ So, following the strategy of paring down to the core and then progressively lay
 2. then add support for optimistic write patterns with tentativity
 3. then add support for through-the-DB writes
 
-This explicitly reduces the capability of the system in the short term, in order to build a better, more resilient system in the long term. We are commited to supporting all valid write-path strategies, including writing through-the-DB. However, more complex strategies will only be supported once the simpler ones are bulletproof.
+This explicitly reduces the capability of the system in the short term, in order to build a better, more resilient system in the long term. The beauty is also that you are &mdash; that anyone is &mdash; free to build systems using any write-path strategy on top of this and it will just work, from day one. We no longer prescribe a write-path strategy. Instead, if you can get the data into Postgres, Electric will sync it out.
+
+We recognise that the sync engine can facilitate different strategies by providing appropriate metadata in the replication stream. For example, helping you see when you writes have synced.
+
+In addition, we still believe in the optimality of writing through the local database and intend to both provide first-class APIs for handling database write operations and contribute to the ecosystem by developing client-side libraries to support more complex write patterns where they're needed.
+
+However, we will only focus on these more complex strategies ourseves once the simpler ones are bulletproof. And we hope that others, like [LiveStore](https://www.schickling.dev/projects/livestore) and [Drizzle](https://orm.drizzle.team/), for example, will build better client-side libraries that we can.
 
 #### A note on finality of local writes
 
@@ -263,17 +269,9 @@ You can sync data into:
 
 ## What's the status?
 
-As a clean re-write, there are many things not-yet supported. However, even just with the first release of `electric-next` you can already:
-
-- sync data into local apps
-- replace hot-path data fetching and database queries
-- maintain live caches with automatic invalidation
-
-And you can do this at scale, in production, from day one.
-
 ### Previous system
 
-`electric-next` is still new and experimental. However, it will very likely supercede the current/previous Electric. The most likely scenario is that:
+`electric-next` will supercede the current/previous Electric:
 
 - some parts of the old system will be cherry-picked and ported over into the new system
 - some parts will be cut out into optional libraries, for example the [DDLX implementation](https://github.com/electric-sql/electric/pull/1393)
@@ -283,9 +281,9 @@ You're welcome to continue to use it and perhaps to choose your moment to migrat
 
 ### New system
 
-At the time of writing this document, we are very early in the development of `electric-next`. The repo was created on the 1st July 2024. However, you can already sync partial subsets of data from a Postgres database into a wide variety of clients and environments.
+At the time of writing this document, we are early in the development of `electric-next`. The repo was created on the 1st July 2024. As a clean re-write, there are many things not-yet supported.
 
-This includes:
+However, even just with the first release of `electric-next` you can already sync partial subsets of data from a Postgres database into a wide variety of clients and environments, for example:
 
 - syncing data into local apps using the [JavaScript](/api/clients/js) and [Elixir](/api/clients/elixir) clients
 - replacing hot-path data fetching and database queries in apps using [React](/api/connectors/react), [MobX](/api/connectors/mobx) and [TanStack](/api/connectors/tanstack)
