@@ -42,7 +42,7 @@ You can now start using Electric's HTTP API!
 This request asks for a [Shape](/guides/shapes) composed of the entire `foo` table:
 
 ```sh
-curl -i http://localhost:3000/v1/shape/foo?offset=-1
+curl -i 'http://localhost:3000/v1/shape/foo?offset=-1'
 ```
 
 ::: info A bit of explanation about the URL structure.
@@ -56,18 +56,17 @@ You should get a response like this:
 
 ```http
 HTTP/1.1 400 Bad Request
-date: Wed, 17 Jul 2024 20:30:31 GMT
-content-length: 62
+date: Thu, 18 Jul 2024 10:36:01 GMT
+content-length: 34
 vary: accept-encoding
 cache-control: max-age=0, private, must-revalidate
-x-request-id: F-MaJcF9A--cg9QAAAeF
+x-request-id: F-NISWIE1CJTnIgAAADQ
 access-control-allow-origin: *
 access-control-expose-headers: *
 access-control-allow-methods: GET, POST, OPTIONS
-Server: ElectricSQL/0.0.1
 content-type: application/json; charset=utf-8
 
-{"offset":["can't be blank"],"root_table":["table not found"]}%
+{"root_table":["table not found"]}
 ```
 
 So it didn't work! Which makes sense... as it's an empty database without any tables or data. Let's fix that.
@@ -104,33 +103,32 @@ INSERT INTO foo (name, value) VALUES
 #### Now try the curl command again
 
 ```sh
-curl -i http://localhost:3000/v1/shape/foo?offset=-1
+curl -i 'http://localhost:3000/v1/shape/foo?offset=-1'
 ```
 
 Success! You should see the data you just put into Postgres in the shape response:
 
 ```bash
 HTTP/1.1 200 OK
-date: Wed, 17 Jul 2024 20:38:07 GMT
+date: Thu, 18 Jul 2024 10:49:12 GMT
 content-length: 643
 vary: accept-encoding
 cache-control: max-age=60, stale-while-revalidate=300
-x-request-id: F-Maj_CikDKfZTIAAAAh
+x-request-id: F-NJAXyulHAQP2MAAABN
 access-control-allow-origin: *
 access-control-expose-headers: *
 access-control-allow-methods: GET, POST, OPTIONS
-Server: ElectricSQL/0.0.1
 content-type: application/json; charset=utf-8
-x-electric-shape-id: 3833821-1721248688126
+x-electric-shape-id: 3833821-1721299734314
 x-electric-chunk-last-offset: 0_0
-etag: 3833821-1721248688126:-1:0_0
+etag: 3833821-1721299734314:-1:0_0
 
 [{"offset":"0_0","value":{"id":1,"name":"Alice","value":3.14},"key":"\"public\".\"foo\"/1","headers":{"action"
 :"insert"}},{"offset":"0_0","value":{"id":2,"name":"Bob","value":2.71},"key":"\"public\".\"foo\"/2","headers":
 {"action":"insert"}},{"offset":"0_0","value":{"id":3,"name":"Charlie","value":-1.618},"key":"\"public\".\"foo\
 "/3","headers":{"action":"insert"}},{"offset":"0_0","value":{"id":4,"name":"David","value":1.414},"key":"\"pub
 lic\".\"foo\"/4","headers":{"action":"insert"}},{"offset":"0_0","value":{"id":5,"name":"Eve","value":0.0},"key
-":"\"public\".\"foo\"/5","headers":{"action":"insert"}},{"headers":{"control":"up-to-date"}}]%
+":"\"public\".\"foo\"/5","headers":{"action":"insert"}},{"headers":{"control":"up-to-date"}}]
 ```
 
 ::: info What are those messages in the response data?
@@ -153,7 +151,7 @@ Install the Electric React package:
 
 ```sh
 cd my-electric-app
-npm install --save @electric-sql/react
+npm install @electric-sql/react
 ```
 
 Wrap your root in `src/main.tsx` with the `ShapesProvider`:
@@ -193,7 +191,7 @@ Finally run the dev server to see it all in action!
 npm run dev
 ```
 
-You should see output like this in the browser:
+Navigate to http://localhost:5173 in your web browser. You should see output like this:
 
 ```json
 [
