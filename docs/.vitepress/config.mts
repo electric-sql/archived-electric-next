@@ -8,6 +8,7 @@ export default defineConfig({
   appearance: 'force-dark',
   base: '/',
   cleanUrls: true,
+  ignoreDeadLinks: 'localhostLinks',
   head: [
     ['link', {
       rel: 'icon',
