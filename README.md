@@ -82,12 +82,6 @@ Again, see the [Quickstart](https://next.electric-sql.com/guides/quickstart) and
 
 The HTTP API is defined in an [OpenAPI spec](https://swagger.io/specification/) in [docs/electric-api.yaml](./docs/electric-api.yaml).
 
-API docs can be generated with:
-
-```sh
-npm run docs:generate
-```
-
 ## Developing Electric
 
 We're using [asdf](https://asdf-vm.com/) to install Elixir, Erlang, and Node.js. Versions are defined in [.tool-versions](.tool-versions).

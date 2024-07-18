@@ -10,21 +10,21 @@ This guide will get you up and running with `electric-next` and real-time sync o
 
 You need to have a Postgres database with logical replication enabled and then to run Electric in front of it, connected via `DATABASE_URL`.
 
-You can use any Postgres (new or existing) that has logical replication enabled. You also need to connect as a database user that can create replication slots.
+You can use any Postgres (new or existing) that has logical replication enabled. You also need to connect as a database user that has the [`REPLICATION` privilege](https://www.postgresql.org/docs/current/logical-replication-security.html).
 
 Electric is an [Elixir](https://elixir-lang.org) web application published as a Docker image at [electricsql/electric-next](https://hub.docker.com/r/electricsql/electric-next). You can run the Elixir application directly, following the [instructions in the README](https://github.com/electric-sql/electric-next/blob/main/packages/sync-service/README.md). Or you can run using Docker, for example:
 
 ```sh
 docker run electricsql/electric-next \
-    -e DATABASE_URL="postgres:password@localhost:54321/electric" \
+    -e DATABASE_URL="..." \
     -p 3000:3000
 ```
 
-Or to run a fresh Postgres and Electric already connected together you can use a Docker Compose file like the example in [.support/docker-compose.yml](https://github.com/electric-sql/electric-next/blob/main/.support/docker-compose.yml):
+To run a fresh Postgres and Electric already connected together you can use a Docker Compose file like the example in [.support/docker-compose.yml](https://github.com/electric-sql/electric-next/blob/main/.support/docker-compose.yml):
 
 ```sh
-curl "https://github.com/electric-sql/electric-next/blob/main/.support/docker-compose.yml" -o docker-compose.yml
-docker compose -f ./docker-compose.yml up
+curl "https://raw.githubusercontent.com/electric-sql/electric-next/main/.support/docker-compose.yml" -o docker-compose.yml
+docker compose up
 ```
 
 <div class="info custom-block">
