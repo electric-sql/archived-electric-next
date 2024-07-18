@@ -94,7 +94,6 @@ defmodule Electric.Plug.ServeShapePlug do
 
   plug :fetch_query_params
   plug :cors
-  plug :server_header
   plug :put_resp_content_type, "application/json"
   plug :validate_query_params
   plug :load_shape_info
@@ -220,11 +219,6 @@ defmodule Electric.Plug.ServeShapePlug do
         "max-age=#{conn.assigns.config[:max_age]}, stale-while-revalidate=#{conn.assigns.config[:stale_age]}"
       )
     end
-  end
-
-  def server_header(conn, _opts) do
-    conn
-    |> Plug.Conn.put_resp_header("server", "ElectricSQL/0.0.1")
   end
 
   def cors(conn, _opts) do

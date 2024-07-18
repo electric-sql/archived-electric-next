@@ -23,10 +23,12 @@ services:
       - "host.docker.internal:host-gateway"
 
   backend:
-    image: electricsql/next:example
+    image: electricsql/electric-next:example
     environment:
-      DATABASE_URL: postgresql://postgres:password@host.docker.internal:54321/electric
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/electric
     ports:
       - "3000:3000"
     build:
       context: ../packages/sync-service/
+    depends_on:
+      - postgres
