@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   list_ts_packages:
-    name: List examples
+    name: List packages
     runs-on: ubuntu-latest
     outputs:
       directories: ${{ steps.list_ts_packages.outputs.directories }}
@@ -113,6 +113,8 @@ jobs:
           log-output: true
           log-output-if: failure
           working-directory: packages/sync-service
+      - name: build dependencies, if any
+        run: pnpm -r --filter "$(jq '.name' -r package.json)^..." build
       - run: pnpm test
 
   check_and_build_examples:
