@@ -1,78 +1,60 @@
 ---
-outline: deep
+outline: 2
 ---
 
 # Quickstart
 
-## Getting Started
+This guide will get you up and running with `electric-next` and real-time sync of your Postgres data. First using the [HTTP API](/api/http) directly. Then using our [TypeScript client](/api/clients/typescript) with a [React hook](/api/connectors/react) to sync data into a simple application.
 
-#### Create a new React app
+## Setup
 
-`npm create vite@latest my-first-electric-app -- --template react-ts`
+You need to have a Postgres database with logical replication enabled and then to run Electric in front of it, connected via `DATABASE_URL`.
 
-#### Setup Docker Compose to run Postgres and Electric
+You can use any Postgres (new or existing) that has logical replication enabled. You also need to connect as a database user that can create replication slots.
 
-`docker-compose.yaml`
+Electric is an [Elixir](https://elixir-lang.org) web application published as a Docker image at [electricsql/electric-next](https://hub.docker.com/r/electricsql/electric-next). You can run the Elixir application directly, following the [instructions in the README](https://github.com/electric-sql/electric-next/blob/main/packages/sync-service/README.md). Or you can run using Docker, for example:
 
-```docker
-version: "3.8"
-name: "my-first-electric-service"
-
-services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: electric
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-    ports:
-      - 55321:5432
-    volumes:
-      - ./postgres.conf:/etc/postgresql/postgresql.conf:ro
-    command:
-      - postgres
-      - -c
-      - config_file=/etc/postgresql/postgresql.conf
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
-  electric:
-    image: electricsql/next:example
-    environment:
-      DATABASE_URL: postgresql://postgres:password@host.docker.internal:55321/electric
-    ports:
-      - "3000:3000"
-    build:
-      context: ~/programs/electric-next/packages/sync-service/
+```sh
+docker run electricsql/electric-next \
+    -e DATABASE_URL="postgres:password@localhost:54321/electric" \
+    -p 3000:3000
 ```
 
-Add a `postgres.conf` file.
+Or to run a fresh Postgres and Electric already connected together you can use a Docker Compose file like the example in [.support/docker-compose.yml](https://github.com/electric-sql/electric-next/blob/main/.support/docker-compose.yml):
 
+```sh
+curl "https://github.com/electric-sql/electric-next/blob/main/.support/docker-compose.yml" -o docker-compose.yml
+docker compose -f ./docker-compose.yml up
 ```
-listen_addresses = '*'
-wal_level = 'logical'
+
+<div class="info custom-block">
+  <p style="margin-bottom: 10px">
+    ⓘ The rest of this guide assumes you're running Electric against a fresh Postgres database.
+  </p>
+</div>
+
+## HTTP API
+
+You can now start using Electric's HTTP API!
+
+#### Try running the following curl command
+
+This request asks for a [Shape](/guides/shapes) composed of the entire `foo` table:
+
+```sh
+curl -i http://localhost:3000/v1/shape/foo?offset=-1
 ```
 
-#### Start Docker
+::: info A bit of explanation about the URL structure.
 
-`docker compose -f ./docker-compose.yaml up`
-
-#### Try a curl command against Electric's HTTP API
-
-`curl -i http://localhost:3000/v1/shape/foo?offset=-1`
-
-This request asks for a shape composed of the entire `foo` table.
-
-A bit of explanation about the URL structure — `/v1/shape/` are standard
-segments. `foo` is the name of the root table of the shape (and is required).
-`offset=-1` means we're asking for the entire log of the Shape as we don't have
-any of the log cached locally yet. If we had previously fetched the shape and
-wanted to see if there was any updates, we'd set the offset of the last log
-message we'd got the first time.
+- `/v1/shape/` is a standard prefix with the API version and the shape sync endpoint path
+- `foo` is the name of the root table of the shape (and is required); if you wanted to sync data from the `items` table, you would change the path to `/v1/shape/items`
+- `offset=-1` means we're asking for the *entire* Shape as we don't have any of the data cached locally yet. If we had previously fetched the shape and wanted to see if there were any updates, we'd set the offset to the last offset we'd already seen.
+:::
 
 You should get a response like this:
 
-```bash
+```http
 HTTP/1.1 400 Bad Request
 date: Wed, 17 Jul 2024 20:30:31 GMT
 content-length: 62
@@ -90,29 +72,40 @@ content-type: application/json; charset=utf-8
 
 So it didn't work! Which makes sense... as it's a empty database without any tables or data. Let's fix that.
 
-#### Create a table and insert some data
+### Create a table and insert some data
 
-Use your favorite Postgres client to connect to Postgres e.g. with [psql](https://www.postgresql.org/docs/current/app-psql.html)
-you run: `psql postgresql://postgres:password@localhost:55321/electric`
+Use your favorite Postgres client to connect to Postgres e.g. with [psql](https://www.postgresql.org/docs/current/app-psql.html) you can run:
+
+```sh
+psql "postgresql://postgres:password@localhost:54321/electric"
+```
+
+Then create a `foo` table
 
 ```sql
 CREATE TABLE foo (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255),
-    value FLOAT
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255),
+  value FLOAT
 );
+```
 
+And insert some rows:
+
+```sql
 INSERT INTO foo (name, value) VALUES
-    ('Alice', 3.14),
-    ('Bob', 2.71),
-    ('Charlie', -1.618),
-    ('David', 1.414),
-    ('Eve', 0);
+  ('Alice', 3.14),
+  ('Bob', 2.71),
+  ('Charlie', -1.618),
+  ('David', 1.414),
+  ('Eve', 0);
 ```
 
 #### Now try the curl command again
 
-`curl http://localhost:3000/shape/foo?offset=-1`
+```sh
+curl -i http://localhost:3000/v1/shape/foo?offset=-1
+```
 
 Success! You should see the data you just put into Postgres in the shape response:
 
@@ -140,17 +133,33 @@ lic\".\"foo\"/4","headers":{"action":"insert"}},{"offset":"0_0","value":{"id":5,
 ":"\"public\".\"foo\"/5","headers":{"action":"insert"}},{"headers":{"control":"up-to-date"}}]%
 ```
 
-#### Now let's fetch the same shape to use in our React app
+::: info What are those messages in the response data?
+When you request shape data using the HTTP API you're actually requesting entries from a log of database operations affecting the data in the shape. This is called the **Shape Log**.
+
+The `offset` that you see in the messages and provide as the `?offset=...` query parameter in your request identifies a position in the log. The messages you see in the response are shape log entries (the ones with `value`s and `action` headers) and control messages (the ones with `control` headers).
+:::
+
+As this point, you could continue to fetch data using HTTP requests. However, let's switch up to fetch the same shape to use in a React app instead.
+
+## React app
+
+Run the following to create a react application:
+
+```sh
+npm create vite@latest my-electric-app -- --template react-ts
+```
 
 Install the Electric React package:
 
-`npm install @electric-sql/react`
-
+```sh
+cd my-electric-app
+npm install --save @electric-sql/react
+```
 
 Wrap your root in `src/main.tsx` with the `ShapesProvider`:
 
 ```tsx
-import { ShapesProvider } from "@electric-sql/react"
+import { ShapesProvider } from '@electric-sql/react'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -161,34 +170,64 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 )
 ```
 
-Replace `App.tsx` with the following:
+Replace `App.tsx` with the following. Note that we're requesting the same shape as before:
 
 ```tsx
-import { useShape } from "@electric-sql/react";
+import { useShape } from '@electric-sql/react'
 
 function Component() {
-  const { data: fooData } = useShape({
-    shape: { table: `foo` },
+  const { data } = useShape({
     baseUrl: `http://localhost:3000`,
-  });
+    shape: { table: `foo` }
+  })
 
-  return JSON.stringify(fooData, null, 4);
+  return JSON.stringify(data, null, 4)
 }
 
-export default Component;
+export default Component
 ```
 
 Finally run the dev server to see it all in action!
 
-`npm run dev`
+```sh
+npm run dev
+```
 
-You should see something like:
+You should see output like this in the browser:
 
-<img width="699" alt="Screenshot 2024-07-17 at 2 49 28 PM" src="https://github.com/user-attachments/assets/cda36897-2db9-4f6c-86bb-99e7e325a490">
+```json
+[
+    {
+        "id": 1,
+        "name": "Alice",
+        "value": 3.14
+    },
+    {
+        "id": 2,
+        "name": "Bob",
+        "value": 2.71
+    },
+    {
+        "id": 3,
+        "name": "Charlie",
+        "value": -1.618
+    },
+    {
+        "id": 4,
+        "name": "David",
+        "value": 1.414
+    },
+    {
+        "id": 5,
+        "name": "Eve",
+        "value": 0
+    }
+]
+```
 
 #### Postgres as a real-time database
 
-Go back to your postgres client and update a row. It'll instantly be synced to your component!
+Go back to your Postgres client and update a row. It'll instantly be synced to your component!
 
 ```sql
 UPDATE foo SET name = 'James' WHERE id = 2;
