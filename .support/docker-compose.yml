@@ -16,13 +16,14 @@ services:
       - /var/lib/postgresql/data
       - /tmp
     command:
+      - postgres
       - -c
-      - listen_addresses=*
-      - -c
-      - wal_level=logical
+      - config_file=/etc/postgresql/postgresql.conf
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   backend:
-    image: electricsql/electric-next
+    image: electricsql/electric-next:example
     environment:
       DATABASE_URL: postgresql://postgres:password@postgres:5432/electric
     ports:
