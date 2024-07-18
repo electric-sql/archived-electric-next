@@ -2,7 +2,7 @@ import { parse } from 'cache-control-parser'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { v4 as uuidv4 } from 'uuid'
 import { ArgumentsType, assert, describe, expect, inject, vi } from 'vitest'
-import { ShapeStream } from '../src/client'
+import { FetchError, ShapeStream } from '../src/client'
 import { Message, Offset } from '../src/types'
 import { testWithIssuesTable as it } from './support/test-context'
 import * as h from './support/test-helpers'
@@ -449,5 +449,147 @@ describe(`HTTP Sync`, () => {
     expect(shapeData).toEqual(
       new Map([[`${issuesTableKey}/${id1}`, { id: id1, title: `foo1` }]])
     )
+  })
+
+  it(`should detect shape deprecation and restart syncing`, async ({
+    insertIssues,
+    issuesTableUrl,
+    aborter,
+    clearIssuesShape,
+  }) => {
+    // With initial data
+    const rowId = uuidv4()
+    const secondRowId = uuidv4()
+    await insertIssues({ id: rowId, title: `foo1` })
+
+    const statusCodesReceived: number[] = []
+
+    const fetchWrapper = async (...args: ArgumentsType<typeof fetch>) => {
+      // before any subsequent requests after the initial one, ensure
+      // that the existing shape is deleted and some more data is inserted
+      if (statusCodesReceived.length === 1 && statusCodesReceived[0] === 200) {
+        await clearIssuesShape()
+        await insertIssues({ id: secondRowId, title: `foo2` })
+      }
+
+      const response = await fetch(...args)
+      statusCodesReceived.push(response.status)
+      return response
+    }
+
+    const issueStream = new ShapeStream({
+      shape: { table: issuesTableUrl },
+      baseUrl: `${BASE_URL}`,
+      subscribe: true,
+      resyncOnShapeChange: true,
+      signal: aborter.signal,
+      fetchClient: fetchWrapper,
+    })
+
+    let originalShapeId: string | undefined
+    let upToDateReachedCount = 0
+    await h.forEachMessage(issueStream, aborter, async (res, msg, nth) => {
+      // shapeData.set(msg.key, msg.value)
+      if (msg.headers?.[`control`] === `up-to-date`) {
+        upToDateReachedCount++
+        if (upToDateReachedCount === 1) {
+          // upon reaching up to date initially, we have one
+          // response with the initial data
+          expect(statusCodesReceived).toHaveLength(1)
+          expect(statusCodesReceived[0]).toBe(200)
+        } else if (upToDateReachedCount === 2) {
+          // the next up to date message should have had
+          // a 409 interleaved before it that instructed the
+          // client to go and fetch data from scratch
+          expect(statusCodesReceived).toHaveLength(3)
+          expect(statusCodesReceived[1]).toBe(409)
+          expect(statusCodesReceived[2]).toBe(200)
+          return res()
+        }
+        return
+      }
+
+      if (!(`key` in msg)) return
+
+      switch (nth) {
+        case 0:
+          // first message is the initial row
+          expect(msg.value).toEqual({ id: rowId, title: `foo1` })
+          expect(issueStream.shapeId).to.exist
+          originalShapeId = issueStream.shapeId
+          break
+        case 1:
+          // second message is the initial row again as it is a new shape
+          // with different shape id
+          expect(msg.value).toEqual({ id: rowId, title: `foo1` })
+          expect(issueStream.shapeId).not.toBe(originalShapeId)
+          break
+        case 2:
+          // should get the second row as well with the new shape ID
+          expect(msg.value).toEqual({ id: secondRowId, title: `foo2` })
+          expect(issueStream.shapeId).not.toBe(originalShapeId)
+          break
+        default:
+          throw new Error(`Received more messages than expected`)
+      }
+    })
+  })
+
+  it(`should detect shape deprecation and interrupt if specified`, async ({
+    insertIssues,
+    issuesTableUrl,
+    aborter,
+    clearIssuesShape,
+  }) => {
+    // With initial data
+    const rowId = uuidv4()
+    await insertIssues({ id: rowId, title: `foo1` })
+
+    const statusCodesReceived: number[] = []
+
+    const fetchWrapper = async (...args: ArgumentsType<typeof fetch>) => {
+      // before any subsequent requests after the initial one, ensure
+      // that the existing shape is deleted
+      if (statusCodesReceived.length === 1 && statusCodesReceived[0] === 200) {
+        await clearIssuesShape()
+      }
+
+      const response = await fetch(...args)
+      statusCodesReceived.push(response.status)
+      return response
+    }
+
+    const issueStream = new ShapeStream({
+      shape: { table: issuesTableUrl },
+      baseUrl: `${BASE_URL}`,
+      subscribe: true,
+      resyncOnShapeChange: false,
+      signal: aborter.signal,
+      fetchClient: fetchWrapper,
+    })
+
+    let originalShapeId: string | undefined
+
+    await new Promise<void>((resolve, reject) => {
+      let msgCount = 0
+      issueStream.subscribe(
+        (messages) => {
+          messages.forEach((msg) => {
+            if (!(`key` in msg)) return
+            msgCount++
+            if (msgCount > 1)
+              reject(new Error(`Received more than one message`))
+            originalShapeId = issueStream.shapeId
+          })
+        },
+        (error) => {
+          expect(error).instanceOf(FetchError)
+          expect((error as FetchError).status).toBe(409)
+          resolve()
+        }
+      )
+    })
+    expect(originalShapeId).to.exist
+    expect(originalShapeId).toBe(issueStream.shapeId)
   })
 })
