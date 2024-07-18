@@ -1,5 +1,5 @@
 {
-  "name": "docs",
+  "name": "@electric-sql/docs",
   "scripts": {
     "docs:dev": "vitepress dev .",
     "docs:build": "vitepress build .",
