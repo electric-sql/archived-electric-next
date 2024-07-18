@@ -9,12 +9,59 @@ permissions:
   contents: read
 
 jobs:
-  build_and_test:
-    name: Build and test
+  list_ts_packages:
+    name: List examples
     runs-on: ubuntu-latest
+    outputs:
+      directories: ${{ steps.list_ts_packages.outputs.directories }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "directories=`find packages/ -mindepth 1 -maxdepth 1 -type d -exec test -e '{}'/tsconfig.json \; -print | jq -R -s -c 'split("\n")[:-1]'`" >> $GITHUB_OUTPUT
+        id: list_ts_packages
+  list_examples:
+    name: List examples
+    runs-on: ubuntu-latest
+    outputs:
+      example_names: ${{ steps.list_examples.outputs.example_names }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "example_names=`find examples/ -mindepth 1 -maxdepth 1 -type d | jq -R -s -c 'split("\n")[:-1]'`" >> $GITHUB_OUTPUT
+        id: list_examples
+
+  check_packages:
+    name: Check ${{ matrix.package_dir }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package_dir: ${{ fromJson(needs.list_ts_packages.outputs.directories) }}
     defaults:
       run:
-        working-directory: packages/typescript-client
+        working-directory: ${{ matrix.package_dir }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r --filter "$(jq '.name' -r package.json)^..." build
+      - run: pnpm run stylecheck
+      - run: pnpm run typecheck
+
+  build_and_test_packages:
+    name: Build and test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package_dir: ${{ fromJson(needs.list_ts_packages.outputs.directories) }}
+    defaults:
+      run:
+        working-directory: ${{ matrix.package_dir }}
     steps:
       - uses: actions/checkout@v4
       - uses: erlef/setup-beam@v1
@@ -64,74 +111,8 @@ jobs:
           log-output: true
           log-output-if: failure
           working-directory: packages/sync-service
-      - name: Adjust Permissions
-        run: |
-          sudo chown -R runner:docker /home/runner/work/electric-next/electric-next/
-          sudo chmod -R 775 /home/runner/work/electric-next/electric-next/
       - run: pnpm test
-  style_check:
-    name: Formatting
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-      - run: pnpm install
-      - run: pnpm stylecheck
-        working-directory: packages/typescript-client
-  type_check:
-    name: Type checking
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: packages/typescript-client
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-      - run: pnpm install
-      - run: pnpm typecheck
-  check_and_build_react_hooks:
-    name: Check and build React hooks
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: packages/react-hooks
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-      - run: pnpm install
-      - run: pnpm build
-        name: pnpm build the typescript client
-        working-directory: packages/typescript-client
-      - run: pnpm stylecheck
-      - run: pnpm typecheck
-      - run: pnpm build
-  list_examples:
-    name: List examples
-    runs-on: ubuntu-latest
-    outputs:
-      example_names: ${{ steps.list_examples.outputs.example_names }}
-    steps:
-      - uses: actions/checkout@v4
-      - run: echo "example_names=`find examples/ -mindepth 1 -maxdepth 1 -type d | jq -R -s -c 'split("\n")[:-1]'`" >> $GITHUB_OUTPUT
-        id: list_examples
+
   check_and_build_examples:
     name: Check and build ${{ matrix.example_folder }}
     needs: [list_examples, build_and_test, check_and_build_react_hooks]
@@ -152,12 +133,9 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
-      - run: pnpm install
-      - run: pnpm build
-        name: pnpm build the typescript client
-        working-directory: packages/typescript-client
-      - run: pnpm build
-        name: pnpm build the react hooks
-        working-directory: packages/react-hooks
-      - run: pnpm typecheck
-      - run: pnpm build
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r --filter "$(jq '.name' -r package.json)^..." build
+      - run: pnpm --if-present run typecheck
+      - run: pnpm --if-present run build
+      - run: pnpm --if-present run test
+      - run: pnpm --if-present run stylecheck
