@@ -34,6 +34,7 @@ export interface ShapeStreamOptions extends ShapeOptions {
   subscribe?: boolean
   signal?: AbortSignal
   fetchClient?: typeof fetch
+  resyncOnShapeChange?: boolean
 }
 
 /**
@@ -169,7 +170,7 @@ export class ShapeStream {
 
   constructor(options: ShapeStreamOptions) {
     this.validateOptions(options)
-    this.options = { subscribe: true, ...options }
+    this.options = { subscribe: true, resyncOnShapeChange: true, ...options }
     this.lastOffset = this.options.offset ?? `-1`
     this.shapeId = this.options.shapeId
 
@@ -254,12 +255,24 @@ export class ShapeStream {
       } catch (e) {
         if (signal?.aborted) {
           break
-        } else if (e instanceof FetchError && e.status == 400) {
+        } else if (
+          e instanceof FetchError &&
+          e.status == 409 &&
+          this.options.resyncOnShapeChange
+        ) {
+          // Upon receiving a 409, we should start from scratch
+          // with the newly provided shape ID
+          this.reset(e.headers[`x-electric-shape-id`])
+        } else if (
+          e instanceof FetchError &&
+          e.status >= 400 &&
+          e.status < 500
+        ) {
           // Notify subscribers
           this.sendErrorToUpToDateSubscribers(e)
           this.sendErrorToSubscribers(e)
 
-          // We don't want to continue retrying on 400 errors
+          // We don't want to continue retrying on 4xx errors
           break
         } else {
           // Exponentially backoff on errors.
@@ -334,6 +347,16 @@ export class ShapeStream {
     this.upToDateSubscribers.forEach(([_, errorCallback]) =>
       errorCallback(error)
     )
+  }
+
+  /**
+   * Resets the state of the stream, optionally with a provided
+   * shape ID
+   */
+  private reset(shapeId?: string) {
+    this.lastOffset = `-1`
+    this.shapeId = shapeId
+    this.isUpToDate = false
   }
 
   private validateOptions(options: ShapeStreamOptions): void {
