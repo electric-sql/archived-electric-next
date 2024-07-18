@@ -74,6 +74,13 @@ class MessageProcessor {
   }
 }
 
+export class ShapeChangedError extends Error {
+  constructor(oldShapeId: string, newShapeId: string) {
+    super(`Shape ID changed from ${oldShapeId} to ${newShapeId}`)
+    this.name = `ShapeChangedError`
+  }
+}
+
 export class FetchError extends Error {
   status: number
   text?: string
@@ -262,7 +269,14 @@ export class ShapeStream {
         ) {
           // Upon receiving a 409, we should start from scratch
           // with the newly provided shape ID
-          this.reset(e.headers[`x-electric-shape-id`])
+          const newShapeId = e.headers[`x-electric-shape-id`]
+          this.reset(newShapeId)
+          const shapeChangedError = new ShapeChangedError(
+            this.shapeId!,
+            newShapeId
+          )
+          this.sendErrorToUpToDateSubscribers(shapeChangedError)
+          this.sendErrorToSubscribers(shapeChangedError)
         } else if (
           e instanceof FetchError &&
           e.status >= 400 &&
@@ -429,12 +443,13 @@ export class Shape {
 
   constructor(stream: ShapeStream) {
     this.stream = stream
-    this.stream.subscribe(this.process.bind(this))
+    this.stream.subscribe(this.process.bind(this), this.handleError.bind(this))
     const unsubscribe = this.stream.subscribeOnceToUpToDate(
       () => {
         unsubscribe()
       },
       (e) => {
+        this.handleError(e)
         throw e
       }
     )
@@ -520,6 +535,20 @@ export class Shape {
     if (newlyUpToDate || (isUpToDate && dataMayHaveChanged)) {
       this.hasNotifiedSubscribersUpToDate = true
       this.notify()
+    }
+  }
+
+  private handleError(e: Error): void {
+    // on shape rotations, clear the data and
+    // start accumulating from scratch
+    if (e instanceof ShapeChangedError) {
+      this.error = false
+      this.data.clear()
+      return
+    }
+
+    if (e instanceof FetchError) {
+      this.error = e
     }
   }
 
