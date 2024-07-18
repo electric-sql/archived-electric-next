@@ -16,11 +16,10 @@ services:
       - /var/lib/postgresql/data
       - /tmp
     command:
-      - postgres
       - -c
-      - config_file=/etc/postgresql/postgresql.conf
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - listen_addresses=*
+      - -c
+      - wal_level=logical
 
   backend:
     image: electricsql/electric-next:example
