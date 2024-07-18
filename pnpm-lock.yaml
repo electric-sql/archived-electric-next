@@ -454,8 +454,6 @@ importers:
 
   packages/sync-service: {}
 
-  packages/sync-service: {}
-
   packages/typescript-client:
     optionalDependencies:
       '@rollup/rollup-darwin-arm64':

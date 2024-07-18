@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
-      - run: pnpm install
+      - run: pnpm install --frozen-lockfile
       - name: Restore dependencies cache
         uses: actions/cache@v4
         with:
@@ -41,7 +41,7 @@ jobs:
           path: |
             packages/sync-service/_build/*/lib
             !packages/sync-service/_build/*/lib/electric
-          key: ${{ runner.os }}-build-${{ hashFiles('packages/sync-service/mix.lock') }}
+          key: ${{ runner.os }}-build-dev-${{ hashFiles('packages/sync-service/mix.lock') }}
       - name: Install dependencies
         run: mix deps.get && mix deps.compile
         working-directory: packages/sync-service
@@ -68,7 +68,7 @@ jobs:
         run: |
           sudo chown -R runner:docker /home/runner/work/electric-next/electric-next/
           sudo chmod -R 775 /home/runner/work/electric-next/electric-next/
-      - run: npm test
+      - run: pnpm test
   style_check:
     name: Formatting
     runs-on: ubuntu-latest
