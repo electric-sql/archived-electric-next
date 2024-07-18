@@ -1,4 +1,4 @@
-import { ShapeConflictError, ShapeStream } from '../../src/client'
+import { ShapeStream } from '../../src/client'
 import { Client, ClientConfig } from 'pg'
 import { JsonSerializable, Message } from '../../src/types'
 
@@ -26,29 +26,23 @@ export function forEachMessage<T extends JsonSerializable>(
   return new Promise<void>((resolve, reject) => {
     let messageIdx = 0
 
-    stream.subscribe(
-      async (messages) => {
-        for (const message of messages) {
-          try {
-            await handler(
-              () => {
-                controller.abort()
-                return resolve()
-              },
-              message as Message<T>,
-              messageIdx
-            )
-            if (`action` in message.headers) messageIdx++
-          } catch (e) {
-            controller.abort()
-            return reject(e)
-          }
+    stream.subscribe(async (messages) => {
+      for (const message of messages) {
+        try {
+          await handler(
+            () => {
+              controller.abort()
+              return resolve()
+            },
+            message as Message<T>,
+            messageIdx
+          )
+          if (`action` in message.headers) messageIdx++
+        } catch (e) {
+          controller.abort()
+          return reject(e)
         }
-      },
-      (e) => {
-        if (e instanceof ShapeConflictError) return
-        reject(e)
       }
-    )
+    }, reject)
   })
 }

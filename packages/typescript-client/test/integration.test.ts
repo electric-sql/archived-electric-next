@@ -2,7 +2,7 @@ import { parse } from 'cache-control-parser'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { v4 as uuidv4 } from 'uuid'
 import { ArgumentsType, assert, describe, expect, inject, vi } from 'vitest'
-import { FetchError, ShapeStream } from '../src/client'
+import { ShapeStream } from '../src/client'
 import { Message, Offset } from '../src/types'
 import { testWithIssuesTable as it } from './support/test-context'
 import * as h from './support/test-helpers'
@@ -481,7 +481,6 @@ describe(`HTTP Sync`, () => {
       shape: { table: issuesTableUrl },
       baseUrl: `${BASE_URL}`,
       subscribe: true,
-      resyncOnShapeConflict: true,
       signal: aborter.signal,
       fetchClient: fetchWrapper,
     })
@@ -533,63 +532,5 @@ describe(`HTTP Sync`, () => {
           throw new Error(`Received more messages than expected`)
       }
     })
-  })
-
-  it(`should detect shape deprecation and interrupt if specified`, async ({
-    insertIssues,
-    issuesTableUrl,
-    aborter,
-    clearIssuesShape,
-  }) => {
-    // With initial data
-    const rowId = uuidv4()
-    await insertIssues({ id: rowId, title: `foo1` })
-
-    const statusCodesReceived: number[] = []
-
-    const fetchWrapper = async (...args: ArgumentsType<typeof fetch>) => {
-      // before any subsequent requests after the initial one, ensure
-      // that the existing shape is deleted
-      if (statusCodesReceived.length === 1 && statusCodesReceived[0] === 200) {
-        await clearIssuesShape()
-      }
-
-      const response = await fetch(...args)
-      statusCodesReceived.push(response.status)
-      return response
-    }
-
-    const issueStream = new ShapeStream({
-      shape: { table: issuesTableUrl },
-      baseUrl: `${BASE_URL}`,
-      subscribe: true,
-      resyncOnShapeConflict: false,
-      signal: aborter.signal,
-      fetchClient: fetchWrapper,
-    })
-
-    let originalShapeId: string | undefined
-
-    await new Promise<void>((resolve, reject) => {
-      let msgCount = 0
-      issueStream.subscribe(
-        (messages) => {
-          messages.forEach((msg) => {
-            if (!(`key` in msg)) return
-            msgCount++
-            if (msgCount > 1)
-              reject(new Error(`Received more than one message`))
-            originalShapeId = issueStream.shapeId
-          })
-        },
-        (error) => {
-          expect(error).instanceOf(FetchError)
-          expect((error as FetchError).status).toBe(409)
-          resolve()
-        }
-      )
-    })
-    expect(originalShapeId).to.exist
-    expect(originalShapeId).toBe(issueStream.shapeId)
   })
 })

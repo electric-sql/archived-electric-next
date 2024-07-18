@@ -34,7 +34,6 @@ export interface ShapeStreamOptions extends ShapeOptions {
   subscribe?: boolean
   signal?: AbortSignal
   fetchClient?: typeof fetch
-  resyncOnShapeConflict?: boolean
 }
 
 /**
@@ -71,20 +70,6 @@ class MessageProcessor {
     }
 
     this.isProcessing = false
-  }
-}
-
-export class ShapeConflictError extends Error {
-  constructor(
-    message: string | undefined,
-    oldShapeId: string,
-    newShapeId: string
-  ) {
-    super(
-      message ??
-        `Shape with ID ${oldShapeId} conflicts with current ID ${newShapeId}`
-    )
-    this.name = `ShapeConflictError`
   }
 }
 
@@ -184,7 +169,7 @@ export class ShapeStream {
 
   constructor(options: ShapeStreamOptions) {
     this.validateOptions(options)
-    this.options = { subscribe: true, resyncOnShapeConflict: true, ...options }
+    this.options = { subscribe: true, ...options }
     this.lastOffset = this.options.offset ?? `-1`
     this.shapeId = this.options.shapeId
 
@@ -269,22 +254,12 @@ export class ShapeStream {
       } catch (e) {
         if (signal?.aborted) {
           break
-        } else if (
-          e instanceof FetchError &&
-          e.status == 409 &&
-          this.options.resyncOnShapeConflict
-        ) {
+        } else if (e instanceof FetchError && e.status == 409) {
           // Upon receiving a 409, we should start from scratch
           // with the newly provided shape ID
           const newShapeId = e.headers[`x-electric-shape-id`]
           this.reset(newShapeId)
-          const shapeExpiredError = new ShapeConflictError(
-            (e.json as Record<string, string>).message,
-            this.shapeId!,
-            newShapeId
-          )
-          this.sendErrorToUpToDateSubscribers(shapeExpiredError)
-          this.sendErrorToSubscribers(shapeExpiredError)
+          this.publish(e.json as Message[])
         } else if (
           e instanceof FetchError &&
           e.status >= 400 &&
@@ -536,6 +511,13 @@ export class Shape {
           newlyUpToDate = true
         }
       }
+
+      if (message.headers?.[`control`] === `must-refetch`) {
+        this.data.clear()
+        this.error = false
+        isUpToDate = false
+        newlyUpToDate = false
+      }
     })
 
     // Always notify subscribers when the Shape first is up to date.
@@ -547,14 +529,6 @@ export class Shape {
   }
 
   private handleError(e: Error): void {
-    // on shape rotations, clear the data and
-    // start accumulating from scratch
-    if (e instanceof ShapeConflictError) {
-      this.error = false
-      this.data.clear()
-      return
-    }
-
     if (e instanceof FetchError) {
       this.error = e
     }
