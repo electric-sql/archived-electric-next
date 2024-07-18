@@ -73,7 +73,11 @@ defmodule Electric.Plug.ServeShapePlugTest do
 
     test "returns 400 for live request offset == -1" do
       conn =
-        conn(:get, %{"root_table" => "public.users"}, "?offset=#{LogOffset.before_all()}&live=true")
+        conn(
+          :get,
+          %{"root_table" => "public.users"},
+          "?offset=#{LogOffset.before_all()}&live=true"
+        )
         |> ServeShapePlug.call([])
 
       assert conn.status == 400
