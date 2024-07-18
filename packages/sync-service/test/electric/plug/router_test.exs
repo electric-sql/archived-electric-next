@@ -4,7 +4,7 @@ defmodule Electric.Plug.RouterTest do
 
   Unit tests should be preferred wherever possible because they will run faster.
   """
-  use ExUnit.Case, async: true
+  use ExUnit.Case
 
   alias Electric.Replication.LogOffset
   alias Support.DbStructureSetup
