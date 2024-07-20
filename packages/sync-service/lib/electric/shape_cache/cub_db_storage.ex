@@ -1,4 +1,5 @@
 defmodule Electric.ShapeCache.CubDbStorage do
+  require OpenTelemetry.Tracer
   alias Electric.Replication.LogOffset
   alias Electric.Replication.Changes
   alias Electric.Utils
@@ -117,14 +118,17 @@ defmodule Electric.ShapeCache.CubDbStorage do
   end
 
   def make_new_snapshot!(shape_id, shape, query_info, data_stream, opts) do
-    data_stream
-    |> Stream.with_index()
-    |> Stream.map(&row_to_snapshot_item(&1, shape_id, shape, query_info))
-    |> Stream.chunk_every(500)
-    |> Stream.each(fn [{key, _} | _] = chunk -> CubDB.put(opts.db, key, chunk) end)
-    |> Stream.run()
+    OpenTelemetry.Tracer.with_span :make_new_snapshot do
+      data_stream
+      |> Stream.with_index()
+      |> Stream.map(&row_to_snapshot_item(&1, shape_id, shape, query_info))
+      |> Stream.chunk_every(500)
+      |> Stream.each(fn [{key, _} | _] = chunk -> CubDB.put(opts.db, key, chunk) end)
+      |> Stream.run()
 
-    CubDB.put(opts.db, snapshot_meta_key(shape_id), 0)
+        CubDB.put(opts.db, snapshot_meta_key(shape_id), 0)
+      end
+    end
   end
 
   def append_to_log!(shape_id, changes, opts) do

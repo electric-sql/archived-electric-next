@@ -22,7 +22,9 @@ defmodule Electric.MixProject do
       releases: [
         electric: [
           applications: [
-            electric: :permanent
+            electric: :permanent,
+            opentelemetry: :temporary,
+            opentelemetry_exporter: :permanent
           ],
           include_executables_for: [:unix]
         ]
@@ -61,6 +63,9 @@ defmodule Electric.MixProject do
         {:ecto, "~> 3.11"},
         {:jason, "~> 1.4"},
         {:nimble_options, "~> 1.1"},
+        {:opentelemetry, "~> 1.4"},
+        # {:opentelemetry_bandit, "~> 0.1.4"} I had to patch it to make it work
+        {:opentelemetry_exporter, "~> 1.6"},
         {:pg_query_ex, github: "electric-sql/pg_query_ex"},
         {:plug, "~> 1.16"},
         {:postgresql_uri, "~> 0.1"},

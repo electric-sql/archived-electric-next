@@ -1,4 +1,5 @@
 defmodule Electric.Shapes.Querying do
+  require OpenTelemetry.Tracer
   alias Electric.Utils
   alias Electric.Shapes.Shape
 
@@ -7,23 +8,26 @@ defmodule Electric.Shapes.Querying do
   @spec stream_initial_data(DBConnection.t(), Shape.t()) ::
           {Postgrex.Query.t(), Enumerable.t(row())}
   def stream_initial_data(conn, %Shape{root_table: root_table, table_info: table_info} = shape) do
-    table = Utils.relation_to_sql(root_table)
+    OpenTelemetry.Tracer.with_span :query_initial_data do
+      table = Utils.relation_to_sql(root_table)
 
-    where =
-      if not is_nil(shape.where), do: " WHERE " <> shape.where.query, else: ""
+        where =
+          if not is_nil(shape.where), do: " WHERE " <> shape.where.query, else: ""
 
-    query =
-      Postgrex.prepare!(
-        conn,
-        table,
-        ~s|SELECT #{columns(table_info, root_table)} FROM #{table} #{where}|
-      )
+      query =
+        Postgrex.prepare!(
+          conn,
+          table,
+          ~s|SELECT #{columns(table_info, root_table)} FROM #{table} #{where}|
+        )
 
-    stream =
-      Postgrex.stream(conn, query, [])
-      |> Stream.flat_map(& &1.rows)
+        stream =
+          Postgrex.stream(conn, query, [])
+          |> Stream.flat_map(& &1.rows)
 
-    {query, stream}
+        {query, stream}
+      end
+    end
   end
 
   defp columns(table_info, root_table) do

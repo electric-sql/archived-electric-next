@@ -1,4 +1,5 @@
 defmodule Electric.ShapeCache.InMemoryStorage do
+  require OpenTelemetry.Tracer
   alias Electric.Replication.LogOffset
   alias Electric.Replication.Changes
   alias Electric.Utils
@@ -90,16 +91,19 @@ defmodule Electric.ShapeCache.InMemoryStorage do
           map()
         ) :: :ok
   def make_new_snapshot!(shape_id, shape, query_info, data_stream, opts) do
-    ets_table = opts.snapshot_ets_table
+    OpenTelemetry.Tracer.with_span :make_new_snapshot do
+      ets_table = opts.snapshot_ets_table
 
-    data_stream
-    |> Stream.map(&__MODULE__.row_to_snapshot_entry(&1, shape_id, shape, query_info))
-    |> Stream.chunk_every(500)
-    |> Stream.each(fn chunk -> :ets.insert(ets_table, chunk) end)
-    |> Stream.run()
+      data_stream
+      |> Stream.map(&__MODULE__.row_to_snapshot_entry(&1, shape_id, shape, query_info))
+      |> Stream.chunk_every(500)
+      |> Stream.each(fn chunk -> :ets.insert(ets_table, chunk) end)
+      |> Stream.run()
 
-    :ets.insert(ets_table, {{:metadata, shape_id}, 0})
-    :ok
+        :ets.insert(ets_table, {{:metadata, shape_id}, 0})
+        :ok
+      end
+    end
   end
 
   def append_to_log!(shape_id, changes, opts) do
