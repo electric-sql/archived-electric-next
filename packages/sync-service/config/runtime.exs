@@ -19,17 +19,6 @@ config :opentelemetry,
 otel_export = env!("OTEL_EXPORT", :string, nil)
 
 case otel_export do
-  "honeycomb" ->
-    # Exporting directly to Honeycomb.io is left here mostly for debugging purposes. Prefer
-    # using the generic "otlp" export to a locally running OpenTelemetry Collector.
-    # Remove this in the future.
-    honeycomb_api_key = env!("HONEYCOMB_API_KEY", :string, "")
-
-    config :opentelemetry_exporter,
-      otlp_endpoint: "https://api.honeycomb.io",
-      otlp_headers: [{"x-honeycomb-team", honeycomb_api_key}],
-      otlp_compression: :gzip
-
   "otlp" ->
     if endpoint = env!("OTLP_ENDPOINT", :string, nil) do
       config :opentelemetry_exporter,
