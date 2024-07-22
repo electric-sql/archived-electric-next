@@ -9,7 +9,7 @@ class ElectricClient(HttpUser):
     wait_time = constant_pacing(1)
 
     shape_name = "issue"
-    base_url = "/shape/"+shape_name
+    base_url = "/v1/shape/"+shape_name
     
     shape_size = 0
     num_shapes = 0

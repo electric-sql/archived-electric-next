@@ -2,12 +2,20 @@
 
 Run load tests against Electric using Locust (https://locust.io/).
 
+# Install dependencies
+
+In your python3 environment, install locust:
+
+```bash
+pip3 install locust
+```
+
 # How to run tests
 
 Start Electric and infra.
 
 ```bash
-HOST=[electric_address] npm run load-test [testname]
+ELECTRIC_URL=[electric_address] npm run load-test [testname]
 ```
 
 You can access Locust dashboard at the default bind address (0.0.0.0:8089) and save load test data to `OUTPUT_DIR`. Override global test execution time with `TIME`.
@@ -67,4 +75,5 @@ And the configurations for the test:
 ```
 
 # TODO
+
 - Distribution
