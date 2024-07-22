@@ -129,8 +129,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
   def append_to_log!(shape_id, xid, changes, opts) do
     changes
     |> Enum.map(fn
-      %{relation: _} = change ->
-        change_key = Changes.build_key(change)
+      %{relation: _, key: change_key} = change ->
         value = Changes.to_json_value(change)
         action = Changes.get_action(change)
         offset = Changes.get_log_offset(change)

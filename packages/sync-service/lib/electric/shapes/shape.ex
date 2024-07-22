@@ -46,10 +46,10 @@ defmodule Electric.Shapes.Shape do
 
   defp load_table_info(table, {module, inspector_opts}) do
     case module.load_table_info(table, inspector_opts) do
-      [] ->
+      :table_not_found ->
         {:error, ["table not found"]}
 
-      table_info ->
+      {:ok, table_info} ->
         # %{["column_name"] => :type}
         Logger.debug("Table #{inspect(table)} found with #{length(table_info)} columns")
 

@@ -100,8 +100,7 @@ defmodule Electric.ShapeCache.InMemoryStorage do
 
     changes
     |> Enum.map(fn
-      %{relation: _} = change ->
-        key = Changes.build_key(change)
+      %{relation: _, key: key} = change ->
         value = Changes.to_json_value(change)
         action = Changes.get_action(change)
         offset = storage_offset(Changes.get_log_offset(change))

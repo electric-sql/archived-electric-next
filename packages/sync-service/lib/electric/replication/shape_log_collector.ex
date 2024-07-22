@@ -16,7 +16,8 @@ defmodule Electric.Replication.ShapeLogCollector do
               default: __MODULE__
             ],
             registry: [type: :atom, required: true],
-            shape_cache: [type: :mod_arg, required: true]
+            shape_cache: [type: :mod_arg, required: true],
+            inspector: [type: :mod_arg, required: true]
           )
 
   def start_link(opts) do
@@ -42,6 +43,22 @@ defmodule Electric.Replication.ShapeLogCollector do
       ) do
     Logger.info("Received transaction #{xid} from Postgres at #{lsn}")
     Logger.debug(fn -> "Txn received: #{inspect(txn)}" end)
+
+    {inspector, inspector_opts} = state.inspector
+    pk_cols_of_relations =
+      for relation <- txn.affected_relations, into: %{} do
+        {:ok, info} = inspector.load_table_info(relation, inspector_opts)
+
+        pk_cols =
+          info
+          |> Enum.reject(&is_nil(&1.pk_position))
+          |> Enum.sort_by(& &1.pk_position)
+          |> Enum.map(& &1.name)
+
+        {relation, pk_cols}
+      end
+
+    changes = Enum.map(changes, &Changes.fill_key(&1, pk_cols_of_relations[&1.relation]))
 
     {shape_cache, opts} = state.shape_cache
 
