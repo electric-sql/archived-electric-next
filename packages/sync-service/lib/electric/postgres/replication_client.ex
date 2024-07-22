@@ -95,6 +95,7 @@ defmodule Electric.Postgres.ReplicationClient do
       ) do
     rest
     |> Decoder.decode()
+    |> IO.inspect()
     |> Collector.handle_message(state.txn_collector)
     |> case do
       %Collector{} = txn_collector ->
