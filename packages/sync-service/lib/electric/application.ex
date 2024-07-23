@@ -43,7 +43,7 @@ defmodule Electric.Application do
                  name: Electric.DbPool,
                  pool_size: 10
                ]},
-            {Electric.Postgres.EtsInspector, pool: Electric.DbPool},
+            {Electric.Postgres.Inspector.EtsInspector, pool: Electric.DbPool},
             {ReplicationClient,
              Application.fetch_env!(:electric, :database_config) ++
                [
