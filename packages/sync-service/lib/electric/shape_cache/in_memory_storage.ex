@@ -1,9 +1,9 @@
 defmodule Electric.ShapeCache.InMemoryStorage do
-  require OpenTelemetry.Tracer
   alias Electric.Replication.LogOffset
   alias Electric.Replication.Changes
   alias Electric.Utils
   alias Electric.Shapes.Shape
+  alias Electric.Telemetry.OpenTelemetry
   use Agent
 
   @behaviour Electric.ShapeCache.Storage
@@ -91,7 +91,7 @@ defmodule Electric.ShapeCache.InMemoryStorage do
           map()
         ) :: :ok
   def make_new_snapshot!(shape_id, shape, query_info, data_stream, opts) do
-    OpenTelemetry.Tracer.with_span :make_new_snapshot do
+    OpenTelemetry.with_span("make_new_snapshot", [], fn ->
       ets_table = opts.snapshot_ets_table
 
       data_stream
@@ -100,10 +100,9 @@ defmodule Electric.ShapeCache.InMemoryStorage do
       |> Stream.each(fn chunk -> :ets.insert(ets_table, chunk) end)
       |> Stream.run()
 
-        :ets.insert(ets_table, {{:metadata, shape_id}, 0})
-        :ok
-      end
-    end
+      :ets.insert(ets_table, {{:metadata, shape_id}, 0})
+      :ok
+    end)
   end
 
   def append_to_log!(shape_id, changes, opts) do
