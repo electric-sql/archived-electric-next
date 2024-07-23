@@ -193,7 +193,6 @@ defmodule Electric.ShapeCache.CubDbStorage do
   defp snapshot_end(shape_id), do: snapshot_key(shape_id, :end)
 
   defp row_to_snapshot_item({row, index}, shape_id, shape, %Postgrex.Query{
-         name: change_key_prefix,
          columns: columns,
          result_types: types
        }) do

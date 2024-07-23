@@ -21,7 +21,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
   @start_offset_50 LogOffset.new(Lsn.from_integer(50), 0)
 
   defmodule Inspector do
-    def load_table_info({"public", "users"}, _), do: [%{name: "id", type: "int8"}]
+    def load_column_info({"public", "users"}, _), do: [%{name: "id", type: "int8"}]
   end
 
   setup do

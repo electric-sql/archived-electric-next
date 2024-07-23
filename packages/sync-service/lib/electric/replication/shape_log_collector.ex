@@ -47,7 +47,7 @@ defmodule Electric.Replication.ShapeLogCollector do
 
     pk_cols_of_relations =
       for relation <- txn.affected_relations, into: %{} do
-        {:ok, info} = Inspector.load_table_info(relation, state.inspector)
+        {:ok, info} = Inspector.load_column_info(relation, state.inspector)
         pk_cols = Inspector.get_pk_cols(info)
         {relation, pk_cols}
       end

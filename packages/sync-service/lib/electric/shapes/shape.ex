@@ -47,7 +47,7 @@ defmodule Electric.Shapes.Shape do
     opts = NimbleOptions.validate!(opts, @shape_schema)
 
     with {:ok, table} <- validate_table(table),
-         {:ok, column_info, pk_cols} <- load_table_info(table, Access.fetch!(opts, :inspector)),
+         {:ok, column_info, pk_cols} <- load_column_info(table, Access.fetch!(opts, :inspector)),
          refs = Inspector.columns_to_expr(column_info),
          {:ok, where} <- maybe_parse_where_clause(Access.get(opts, :where), refs) do
       {:ok,
@@ -64,8 +64,8 @@ defmodule Electric.Shapes.Shape do
   defp maybe_parse_where_clause(where, info),
     do: Parser.parse_and_validate_expression(where, info)
 
-  defp load_table_info(table, inspector) do
-    case Inspector.load_table_info(table, inspector) do
+  defp load_column_info(table, inspector) do
+    case Inspector.load_column_info(table, inspector) do
       :table_not_found ->
         {:error, ["table not found"]}
 

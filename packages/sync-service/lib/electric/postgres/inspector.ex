@@ -10,16 +10,16 @@ defmodule Electric.Postgres.Inspector do
           type_id: {typid :: non_neg_integer(), typmod :: integer()}
         }
 
-  @callback load_table_info(relation(), opts :: term()) ::
+  @callback load_column_info(relation(), opts :: term()) ::
               {:ok, [column_info()]} | :table_not_found
 
   @type inspector :: {module(), opts :: term()}
 
   @doc """
-  Load information about a given table using a provided inspector.
+  Load column information about a given table using a provided inspector.
   """
-  @spec load_table_info(relation(), inspector()) :: {:ok, [column_info()]} | :table_not_found
-  def load_table_info(relation, {module, opts}), do: module.load_table_info(relation, opts)
+  @spec load_column_info(relation(), inspector()) :: {:ok, [column_info()]} | :table_not_found
+  def load_column_info(relation, {module, opts}), do: module.load_column_info(relation, opts)
 
   @doc """
   Get columns that should be considered a PK for table. If the table

@@ -4,7 +4,7 @@ defmodule Electric.Postgres.Inspector.DirectInspector do
   @doc """
   Load table information (refs) from the database
   """
-  def load_table_info({namespace, tbl}, conn) do
+  def load_column_info({namespace, tbl}, conn) do
     query = """
     SELECT
       attname as name,

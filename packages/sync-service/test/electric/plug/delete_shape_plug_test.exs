@@ -15,7 +15,7 @@ defmodule Electric.Plug.DeleteShapePlugTest do
   @test_shape_id "test-shape-id"
 
   defmodule Inspector do
-    def load_table_info({"public", "users"}, _), do: [%{name: "id", type: "int8"}]
+    def load_column_info({"public", "users"}, _), do: [%{name: "id", type: "int8"}]
   end
 
   setup do
