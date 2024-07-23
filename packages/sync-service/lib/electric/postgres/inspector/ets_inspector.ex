@@ -1,4 +1,4 @@
-defmodule Electric.Postgres.EtsInspector do
+defmodule Electric.Postgres.Inspector.EtsInspector do
   alias Electric.Postgres.Inspector.DirectInspector
   use GenServer
   @behaviour Electric.Postgres.Inspector

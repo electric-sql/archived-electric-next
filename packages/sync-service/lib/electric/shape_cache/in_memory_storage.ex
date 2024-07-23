@@ -127,7 +127,6 @@ defmodule Electric.ShapeCache.InMemoryStorage do
 
   @doc false
   def row_to_snapshot_entry(row, shape_id, shape, %Postgrex.Query{
-        name: key_prefix,
         columns: columns,
         result_types: types
       }) do
@@ -139,9 +138,9 @@ defmodule Electric.ShapeCache.InMemoryStorage do
       end)
       |> Map.new()
 
-    pk = Changes.build_key(shape.root_table, serialized_row, Shape.pk(shape))
+    key = Changes.build_key(shape.root_table, serialized_row, Shape.pk(shape))
 
-    {{:data, shape_id, key_prefix <> "/" <> pk}, serialized_row}
+    {{:data, shape_id, key}, serialized_row}
   end
 
   defp snapshot_storage_item_to_log_item({_shape_id, snapshot_log_offset}, {key, value}) do

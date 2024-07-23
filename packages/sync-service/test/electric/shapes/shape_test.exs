@@ -173,11 +173,19 @@ defmodule Electric.Shapes.ShapeTest do
     end
   end
 
-  def load_column_info({"public", "table"}, _), do: [%{name: "id", type: "int8"}]
-  def load_column_info({"test", "table"}, _), do: [%{name: "id", type: "int8"}]
+  def load_column_info({"public", "table"}, _),
+    do: {:ok, [%{name: "id", type: "int8", pk_position: 0}]}
+
+  def load_column_info({"test", "table"}, _),
+    do: {:ok, [%{name: "id", type: "int8", pk_position: 0}]}
 
   def load_column_info({"public", "other_table"}, _),
-    do: [%{name: "id", type: "int8"}, %{name: "value", type: "text"}]
+    do:
+      {:ok,
+       [
+         %{name: "id", type: "int8", pk_position: 0},
+         %{name: "value", type: "text", pk_position: nil}
+       ]}
 
-  def load_column_info(_, _), do: []
+  def load_column_info(_, _), do: :table_not_found
 end

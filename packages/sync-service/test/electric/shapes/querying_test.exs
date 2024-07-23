@@ -1,7 +1,7 @@
 defmodule Electric.Shapes.QueryingTest do
   use Support.TransactionCase, async: true
 
-  alias Electric.Postgres.Inspector
+  alias Electric.Postgres.Inspector.DirectInspector
   alias Electric.Shapes.Shape
   alias Electric.Shapes.Querying
 
@@ -39,7 +39,7 @@ defmodule Electric.Shapes.QueryingTest do
     )
 
     Postgrex.query!(conn, "INSERT INTO items (value) VALUES (1), (2), (3), (4), (5)", [])
-    shape = Shape.new!("items", where: "value > 3", inspector: {Inspector, conn})
+    shape = Shape.new!("items", where: "value > 3", inspector: {DirectInspector, conn})
 
     assert {query_info, stream} = Querying.stream_initial_data(conn, shape)
 
