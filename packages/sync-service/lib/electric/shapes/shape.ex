@@ -8,9 +8,13 @@ defmodule Electric.Shapes.Shape do
   alias Electric.Replication.Changes
 
   @enforce_keys [:root_table]
-  defstruct [:root_table, :where]
+  defstruct [:root_table, :pk_cols, :where]
 
-  @type t() :: %__MODULE__{root_table: Electric.relation()}
+  @type t() :: %__MODULE__{
+          root_table: Electric.relation(),
+          pk_cols: [String.t()],
+          where: Electric.Replication.Eval.Expr.t() | nil
+        }
 
   def hash(%__MODULE__{} = shape), do: :erlang.phash2(shape)
 
@@ -33,9 +37,9 @@ defmodule Electric.Shapes.Shape do
     opts = NimbleOptions.validate!(opts, @shape_schema)
 
     with {:ok, table} <- validate_table(table),
-         {:ok, table_info} <- load_table_info(table, Access.fetch!(opts, :inspector)),
+         {:ok, table_info, pk_cols} <- load_table_info(table, Access.fetch!(opts, :inspector)),
          {:ok, where} <- maybe_parse_where_clause(Access.get(opts, :where), table_info) do
-      {:ok, %__MODULE__{root_table: table, where: where}}
+      {:ok, %__MODULE__{root_table: table, pk_cols: pk_cols, where: where}}
     end
   end
 
@@ -53,8 +57,11 @@ defmodule Electric.Shapes.Shape do
         # %{["column_name"] => :type}
         Logger.debug("Table #{inspect(table)} found with #{length(table_info)} columns")
 
+        pk_cols = Electric.Utils.get_pk_cols(table_info)
+
         {:ok,
-         Map.new(table_info, fn %{name: name, type: type} -> {[name], String.to_atom(type)} end)}
+         Map.new(table_info, fn %{name: name, type: type} -> {[name], String.to_atom(type)} end),
+         pk_cols}
     end
   end
 

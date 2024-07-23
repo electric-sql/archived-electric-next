@@ -10,7 +10,8 @@ defmodule Electric.Postgres.InspectorBehaviour do
           type_id: {typid :: non_neg_integer(), typmod :: integer()}
         }
 
-  @callback load_table_info(relation(), opts :: term()) :: {:ok, [column_info()]} | :table_not_found
+  @callback load_table_info(relation(), opts :: term()) ::
+              {:ok, [column_info()]} | :table_not_found
   @callback list_types(opts :: term()) :: [PgType.t()]
 end
 
@@ -20,7 +21,13 @@ defmodule Electric.Postgres.EtsInspector do
 
   @default_pg_info_table :pg_info_table
 
-  def start_link(opts), do: GenServer.start_link(__MODULE__, Map.new(opts) |> Map.put_new(:pg_info_table, @default_pg_info_table), name: Access.get(opts, :name, __MODULE__))
+  def start_link(opts),
+    do:
+      GenServer.start_link(
+        __MODULE__,
+        Map.new(opts) |> Map.put_new(:pg_info_table, @default_pg_info_table),
+        name: Access.get(opts, :name, __MODULE__)
+      )
 
   def init(opts) do
     pg_info_table = :ets.new(opts.pg_info_table, [:named_table, :public, :set])
@@ -35,31 +42,38 @@ defmodule Electric.Postgres.EtsInspector do
 
   def load_table_info({namespace, tbl}, opts) do
     ets_table = Access.get(opts, :pg_info_table, @default_pg_info_table)
+
     case :ets.lookup_element(ets_table, {{namespace, tbl}, :columns}, 2, :not_found) do
       :not_found ->
         case GenServer.call(opts[:server], {:load_table_info, {namespace, tbl}}) do
           {:error, err, stacktrace} -> reraise err, stacktrace
           result -> result
         end
-      found -> {:ok, found}
+
+      found ->
+        {:ok, found}
     end
   end
 
   def handle_call({:load_table_info, {namespace, tbl}}, _from, state) do
     case :ets.lookup(state.pg_info_table, {{namespace, tbl}, :columns}) do
-      [found] -> {:reply, {:ok, found}, state}
+      [found] ->
+        {:reply, {:ok, found}, state}
+
       [] ->
         case Electric.Postgres.Inspector.load_table_info({namespace, tbl}, state.pg_pool) do
-          :table_not_found -> {:reply, :table_not_found, state}
+          :table_not_found ->
+            {:reply, :table_not_found, state}
+
           {:ok, info} ->
             # store
             :ets.insert(state.pg_info_table, {{{namespace, tbl}, :columns}, info})
             {:reply, {:ok, info}, state}
         end
-      end
-    rescue
-      e -> {:reply, {:error, e, __STACKTRACE__}, state}
     end
+  rescue
+    e -> {:reply, {:error, e, __STACKTRACE__}, state}
+  end
 end
 
 defmodule Electric.Postgres.Inspector do

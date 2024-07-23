@@ -32,7 +32,9 @@ defmodule Electric.Application do
              name: Registry.ShapeChanges, keys: :duplicate, partitions: System.schedulers_online()},
             shape_cache,
             {Electric.Replication.ShapeLogCollector,
-             registry: Registry.ShapeChanges, shape_cache: shape_cache, inspector: {Electric.Postgres.EtsInspector, server: Electric.Postgres.EtsInspector}},
+             registry: Registry.ShapeChanges,
+             shape_cache: shape_cache,
+             inspector: {Electric.Postgres.EtsInspector, server: Electric.Postgres.EtsInspector}},
             {Postgrex,
              Application.fetch_env!(:electric, :database_config) ++
                [
@@ -56,7 +58,8 @@ defmodule Electric.Application do
                 storage: storage,
                 registry: Registry.ShapeChanges,
                 shape_cache: {Electric.ShapeCache, []},
-                inspector: {Electric.Postgres.EtsInspector, server: Electric.Postgres.EtsInspector},
+                inspector:
+                  {Electric.Postgres.EtsInspector, server: Electric.Postgres.EtsInspector},
                 long_poll_timeout: 20_000,
                 max_age: Application.fetch_env!(:electric, :cache_max_age),
                 stale_age: Application.fetch_env!(:electric, :cache_stale_age),

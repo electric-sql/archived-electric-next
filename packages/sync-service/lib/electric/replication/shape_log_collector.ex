@@ -45,16 +45,11 @@ defmodule Electric.Replication.ShapeLogCollector do
     Logger.debug(fn -> "Txn received: #{inspect(txn)}" end)
 
     {inspector, inspector_opts} = state.inspector
+
     pk_cols_of_relations =
       for relation <- txn.affected_relations, into: %{} do
         {:ok, info} = inspector.load_table_info(relation, inspector_opts)
-
-        pk_cols =
-          info
-          |> Enum.reject(&is_nil(&1.pk_position))
-          |> Enum.sort_by(& &1.pk_position)
-          |> Enum.map(& &1.name)
-
+        pk_cols = Electric.Utils.get_pk_cols(info)
         {relation, pk_cols}
       end
 

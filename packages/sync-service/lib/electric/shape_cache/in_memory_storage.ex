@@ -81,12 +81,18 @@ defmodule Electric.ShapeCache.InMemoryStorage do
     end
   end
 
-  @spec make_new_snapshot!(String.t(), Postgrex.Query.t(), Enumerable.t(), map()) :: :ok
-  def make_new_snapshot!(shape_id, query_info, data_stream, opts) do
+  @spec make_new_snapshot!(
+          String.t(),
+          Electric.Shapes.Shape.t(),
+          Postgrex.Query.t(),
+          Enumerable.t(),
+          map()
+        ) :: :ok
+  def make_new_snapshot!(shape_id, shape, query_info, data_stream, opts) do
     ets_table = opts.snapshot_ets_table
 
     data_stream
-    |> Stream.map(&__MODULE__.row_to_snapshot_entry(&1, shape_id, query_info))
+    |> Stream.map(&__MODULE__.row_to_snapshot_entry(&1, shape_id, shape, query_info))
     |> Stream.chunk_every(500)
     |> Stream.each(fn chunk -> :ets.insert(ets_table, chunk) end)
     |> Stream.run()
@@ -119,7 +125,7 @@ defmodule Electric.ShapeCache.InMemoryStorage do
   end
 
   @doc false
-  def row_to_snapshot_entry(row, shape_id, %Postgrex.Query{
+  def row_to_snapshot_entry(row, shape_id, shape, %Postgrex.Query{
         name: key_prefix,
         columns: columns,
         result_types: types
@@ -132,8 +138,7 @@ defmodule Electric.ShapeCache.InMemoryStorage do
       end)
       |> Map.new()
 
-    # FIXME: This should not assume pk columns, but we're not querying PG for that info yet
-    pk = Map.fetch!(serialized_row, "id")
+    pk = Changes.build_key(shape.root_table, serialized_row, shape.pk_cols)
 
     {{:data, shape_id, key_prefix <> "/" <> pk}, serialized_row}
   end

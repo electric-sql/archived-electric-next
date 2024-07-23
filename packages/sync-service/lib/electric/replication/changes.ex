@@ -162,7 +162,7 @@ defmodule Electric.Replication.Changes do
           }
   end
 
-  defp build_key(rel, record, pk_cols) do
+  def build_key(rel, record, pk_cols) do
     IO.iodata_to_binary([prefix_from_rel(rel), ?/, record |> Map.take(pk_cols) |> Map.values()])
   end
 
@@ -171,11 +171,17 @@ defmodule Electric.Replication.Changes do
   def fill_key(%UpdatedRecord{old_record: old_record, record: new_record} = change, pk) do
     old_key = build_key(change.relation, old_record, pk)
     new_key = build_key(change.relation, new_record, pk)
-    if old_key == new_key, do: %{change | key: new_key}, else: %{change | old_key: old_key, key: new_key}
+
+    if old_key == new_key,
+      do: %{change | key: new_key},
+      else: %{change | old_key: old_key, key: new_key}
   end
 
-  def fill_key(%NewRecord{relation: relation, record: record} = change, pk), do: %{change | key: build_key(relation, record, pk)}
-  def fill_key(%DeletedRecord{relation: relation, old_record: old_record} = change, pk), do: %{change | key: build_key(relation, old_record, pk)}
+  def fill_key(%NewRecord{relation: relation, record: record} = change, pk),
+    do: %{change | key: build_key(relation, record, pk)}
+
+  def fill_key(%DeletedRecord{relation: relation, old_record: old_record} = change, pk),
+    do: %{change | key: build_key(relation, old_record, pk)}
 
   defp prefix_from_rel({schema, table}), do: [?", schema, ?", ?., ?", table, ?"]
 

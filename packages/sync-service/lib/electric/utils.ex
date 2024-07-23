@@ -216,4 +216,12 @@ defmodule Electric.Utils do
   def apply_fn_or_mfa({mod, fun, args}, more_args)
       when is_atom(mod) and is_atom(fun) and is_list(args) and is_list(more_args),
       do: apply(mod, fun, more_args ++ args)
+
+  @spec get_pk_cols([Electric.Postgres.InspectorBehaviour.column_info()]) :: [String.t()]
+  def get_pk_cols(table_info) do
+    table_info
+    |> Enum.reject(&is_nil(&1.pk_position))
+    |> Enum.sort_by(& &1.pk_position)
+    |> Enum.map(& &1.name)
+  end
 end

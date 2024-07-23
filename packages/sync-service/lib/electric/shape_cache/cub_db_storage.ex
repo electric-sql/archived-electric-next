@@ -115,10 +115,10 @@ defmodule Electric.ShapeCache.CubDbStorage do
       (snapshot_exists?(shape_id, opts) and offset == LogOffset.first())
   end
 
-  def make_new_snapshot!(shape_id, query_info, data_stream, opts) do
+  def make_new_snapshot!(shape_id, shape, query_info, data_stream, opts) do
     data_stream
     |> Stream.with_index()
-    |> Stream.map(&row_to_snapshot_item(&1, shape_id, query_info))
+    |> Stream.map(&row_to_snapshot_item(&1, shape_id, shape, query_info))
     |> Stream.chunk_every(500)
     |> Stream.each(fn [{key, _} | _] = chunk -> CubDB.put(opts.db, key, chunk) end)
     |> Stream.run()
@@ -191,7 +191,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
   defp snapshot_start(shape_id), do: snapshot_key(shape_id, 0)
   defp snapshot_end(shape_id), do: snapshot_key(shape_id, :end)
 
-  defp row_to_snapshot_item({row, index}, shape_id, %Postgrex.Query{
+  defp row_to_snapshot_item({row, index}, shape_id, shape, %Postgrex.Query{
          name: change_key_prefix,
          columns: columns,
          result_types: types
@@ -204,8 +204,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
       end)
       |> Map.new()
 
-    # FIXME: This should not assume pk columns, but we're not querying PG for that info yet
-    pk = Map.fetch!(serialized_row, "id")
+    pk = Changes.build_key(shape.root_table, serialized_row, shape.pk_cols)
     change_key = "#{change_key_prefix}/#{pk}"
 
     {snapshot_key(shape_id, index), {_xid = nil, change_key, "insert", serialized_row}}
