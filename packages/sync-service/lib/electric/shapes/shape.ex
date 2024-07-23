@@ -3,6 +3,7 @@ defmodule Electric.Shapes.Shape do
   Struct describing the requested shape
   """
   require Logger
+  alias Electric.Postgres.Inspector
   alias Electric.Replication.Eval.Parser
   alias Electric.Replication.Eval.Runner
   alias Electric.Replication.Changes
@@ -48,8 +49,8 @@ defmodule Electric.Shapes.Shape do
   defp maybe_parse_where_clause(where, info),
     do: Parser.parse_and_validate_expression(where, info)
 
-  defp load_table_info(table, {module, inspector_opts}) do
-    case module.load_table_info(table, inspector_opts) do
+  defp load_table_info(table, inspector) do
+    case Inspector.load_table_info(table, inspector) do
       :table_not_found ->
         {:error, ["table not found"]}
 
@@ -57,7 +58,7 @@ defmodule Electric.Shapes.Shape do
         # %{["column_name"] => :type}
         Logger.debug("Table #{inspect(table)} found with #{length(table_info)} columns")
 
-        pk_cols = Electric.Utils.get_pk_cols(table_info)
+        pk_cols = Inspector.get_pk_cols(table_info)
 
         {:ok,
          Map.new(table_info, fn %{name: name, type: type} -> {[name], String.to_atom(type)} end),
