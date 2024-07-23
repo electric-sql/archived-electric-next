@@ -30,7 +30,7 @@ defmodule Electric.Shapes.Querying do
   defp columns(root_table, conn) do
     root_table
     |> Inspector.load_table_info(conn)
-    |> Enum.map(&"#{&1.name}::text")
+    |> Enum.map(&~s("#{&1.name}"::text))
     |> Enum.join(", ")
   end
 end
