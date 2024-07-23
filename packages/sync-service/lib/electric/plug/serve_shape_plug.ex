@@ -142,14 +142,28 @@ defmodule Electric.Plug.ServeShapePlug do
   end
 
   defp load_shape_info(%Plug.Conn{} = conn, _) do
+    shape = conn.assigns.shape_definition
+
     {shape_id, last_offset} =
-      Shapes.get_or_create_shape_id(conn.assigns.shape_definition, conn.assigns.config)
+      Shapes.get_or_create_shape_id(shape, conn.assigns.config)
+
+    col_info =
+      shape.table_info
+      |> Map.fetch!(shape.root_table)
+      |> Map.fetch!(:columns)
 
     conn
     |> assign(:active_shape_id, shape_id)
     |> assign(:last_offset, last_offset)
     |> put_resp_header("x-electric-shape-id", shape_id)
     |> put_resp_header("x-electric-chunk-last-offset", "#{last_offset}")
+    |> put_resp_header("x-electric-schema", schema_from_cols(col_info))
+  end
+
+  defp schema_from_cols(col_info) do
+    col_info
+    |> Map.new(fn col -> {col.name, col.type} end)
+    |> Jason.encode!()
   end
 
   # If the offset requested is -1, noop as we can always serve it

@@ -168,6 +168,30 @@ defmodule Electric.Plug.ServeShapePlugTest do
              ]
     end
 
+    test "response has correct schema header" do
+      Electric.ShapeCacheMock
+      |> expect(:get_or_create_shape_id, fn @test_shape, _opts ->
+        {@test_shape_id, @test_offset}
+      end)
+      |> expect(:wait_for_snapshot, fn _, @test_shape_id -> :ready end)
+
+      next_offset = LogOffset.increment(@first_offset)
+
+      MockStorage
+      |> expect(:get_snapshot, fn @test_shape_id, _opts ->
+        {@first_offset, [%{key: "snapshot"}]}
+      end)
+      |> expect(:get_log_stream, fn @test_shape_id, @first_offset, _, _opts ->
+        [%{key: "log", value: "foo", headers: %{}, offset: next_offset}]
+      end)
+
+      conn =
+        conn(:get, %{"root_table" => "public.users"}, "?offset=-1")
+        |> ServeShapePlug.call([])
+
+      assert Plug.Conn.get_resp_header(conn, "x-electric-schema") == [~s|{"id":"int8"}|]
+    end
+
     test "returns log when offset is >= 0" do
       expect(Electric.ShapeCacheMock, :get_or_create_shape_id, fn @test_shape, _opts ->
         {@test_shape_id, @test_offset}
