@@ -23,7 +23,7 @@ defmodule Electric.Shapes.QueryingTest do
              Querying.stream_initial_data(conn, %Shape{root_table: {"public", "items"}})
 
     assert %{columns: ["id", "value"]} = query_info
-    assert [[_, 1], [_, 2], [_, 3], [_, 4], [_, 5]] = Enum.to_list(stream)
+    assert [[_, "1"], [_, "2"], [_, "3"], [_, "4"], [_, "5"]] = Enum.to_list(stream)
   end
 
   test "respects the where clauses", %{db_conn: conn} do
@@ -44,6 +44,6 @@ defmodule Electric.Shapes.QueryingTest do
     assert {query_info, stream} = Querying.stream_initial_data(conn, shape)
 
     assert %{columns: ["id", "value"]} = query_info
-    assert [[_, 4], [_, 5]] = Enum.to_list(stream)
+    assert [[_, "4"], [_, "5"]] = Enum.to_list(stream)
   end
 end
