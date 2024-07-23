@@ -9,15 +9,20 @@ defmodule Electric.Shapes.Shape do
   alias Electric.Replication.Changes
 
   @enforce_keys [:root_table]
-  defstruct [:root_table, :pk_cols, :where]
+  defstruct [:root_table, :table_info, :where]
 
   @type t() :: %__MODULE__{
           root_table: Electric.relation(),
-          pk_cols: [String.t()],
+          table_info: %{
+            Electric.relation() => %{
+              columns: [Inspector.column_info(), ...],
+              pk: [String.t(), ...]
+            }
+          },
           where: Electric.Replication.Eval.Expr.t() | nil
         }
 
-  def hash(%__MODULE__{} = shape), do: :erlang.phash2(shape)
+  def hash(%__MODULE__{} = shape), do: shape |> Map.drop([:table_info]) |> :erlang.phash2()
 
   def new!(table, opts \\ []) do
     case new(table, opts) do
@@ -26,6 +31,10 @@ defmodule Electric.Shapes.Shape do
       {:error, message} when is_binary(message) -> raise message
     end
   end
+
+  def pk(%__MODULE__{table_info: table_info, root_table: root_table}, relation \\ nil)
+      when is_nil(relation) or is_map_key(table_info, relation),
+      do: Map.fetch!(table_info, relation || root_table).pk
 
   @shape_schema NimbleOptions.new!(
                   where: [type: {:or, [:string, nil]}],
@@ -38,9 +47,15 @@ defmodule Electric.Shapes.Shape do
     opts = NimbleOptions.validate!(opts, @shape_schema)
 
     with {:ok, table} <- validate_table(table),
-         {:ok, table_info, pk_cols} <- load_table_info(table, Access.fetch!(opts, :inspector)),
-         {:ok, where} <- maybe_parse_where_clause(Access.get(opts, :where), table_info) do
-      {:ok, %__MODULE__{root_table: table, pk_cols: pk_cols, where: where}}
+         {:ok, column_info, pk_cols} <- load_table_info(table, Access.fetch!(opts, :inspector)),
+         refs = Inspector.columns_to_expr(column_info),
+         {:ok, where} <- maybe_parse_where_clause(Access.get(opts, :where), refs) do
+      {:ok,
+       %__MODULE__{
+         root_table: table,
+         table_info: %{table => %{pk: pk_cols, columns: column_info}},
+         where: where
+       }}
     end
   end
 
@@ -54,15 +69,13 @@ defmodule Electric.Shapes.Shape do
       :table_not_found ->
         {:error, ["table not found"]}
 
-      {:ok, table_info} ->
+      {:ok, column_info} ->
         # %{["column_name"] => :type}
-        Logger.debug("Table #{inspect(table)} found with #{length(table_info)} columns")
+        Logger.debug("Table #{inspect(table)} found with #{length(column_info)} columns")
 
-        pk_cols = Inspector.get_pk_cols(table_info)
+        pk_cols = Inspector.get_pk_cols(column_info)
 
-        {:ok,
-         Map.new(table_info, fn %{name: name, type: type} -> {[name], String.to_atom(type)} end),
-         pk_cols}
+        {:ok, column_info, pk_cols}
     end
   end
 

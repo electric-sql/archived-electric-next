@@ -2,6 +2,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
   alias Electric.Replication.LogOffset
   alias Electric.Replication.Changes
   alias Electric.Utils
+  alias Electric.Shapes.Shape
   @behaviour Electric.ShapeCache.Storage
 
   @snapshot_key_type 0
@@ -204,8 +205,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
       end)
       |> Map.new()
 
-    pk = Changes.build_key(shape.root_table, serialized_row, shape.pk_cols)
-    change_key = "#{change_key_prefix}/#{pk}"
+    change_key = Changes.build_key(shape.root_table, serialized_row, Shape.pk(shape))
 
     {snapshot_key(shape_id, index), {_xid = nil, change_key, "insert", serialized_row}}
   end

@@ -2,6 +2,7 @@ defmodule Electric.ShapeCache.InMemoryStorage do
   alias Electric.Replication.LogOffset
   alias Electric.Replication.Changes
   alias Electric.Utils
+  alias Electric.Shapes.Shape
   use Agent
 
   @behaviour Electric.ShapeCache.Storage
@@ -138,7 +139,7 @@ defmodule Electric.ShapeCache.InMemoryStorage do
       end)
       |> Map.new()
 
-    pk = Changes.build_key(shape.root_table, serialized_row, shape.pk_cols)
+    pk = Changes.build_key(shape.root_table, serialized_row, Shape.pk(shape))
 
     {{:data, shape_id, key_prefix <> "/" <> pk}, serialized_row}
   end

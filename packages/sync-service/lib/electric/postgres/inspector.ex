@@ -1,6 +1,6 @@
 defmodule Electric.Postgres.Inspector do
-  alias Electric.Postgres.PgType
-  @type relation :: {String.t(), String.t()}
+  alias Electric.Replication.Eval.Parser
+  @type relation :: Electric.relation()
 
   @type column_info :: %{
           name: String.t(),
@@ -12,7 +12,6 @@ defmodule Electric.Postgres.Inspector do
 
   @callback load_table_info(relation(), opts :: term()) ::
               {:ok, [column_info()]} | :table_not_found
-  @callback list_types!(opts :: term()) :: [PgType.t()]
 
   @type inspector :: {module(), opts :: term()}
 
@@ -23,15 +22,27 @@ defmodule Electric.Postgres.Inspector do
   def load_table_info(relation, {module, opts}), do: module.load_table_info(relation, opts)
 
   @doc """
-  List all known PostgreSQL types using a provided inspector.
+  Get columns that should be considered a PK for table. If the table
+  has no PK, then we're considering all columns as identifying.
   """
-  @spec list_types!(inspector()) :: [PgType.t()]
-  def list_types!({module, opts}), do: module.list_types!(opts)
-
-  def get_pk_cols(table_info) do
-    table_info
+  @spec get_pk_cols([column_info(), ...]) :: [String.t(), ...]
+  def get_pk_cols([_ | _] = columns) do
+    columns
     |> Enum.reject(&is_nil(&1.pk_position))
     |> Enum.sort_by(& &1.pk_position)
     |> Enum.map(& &1.name)
+    |> case do
+      [] -> Enum.map(columns, & &1.name)
+      results -> results
+    end
+  end
+
+  @doc """
+  Convert a column list into something that can be used by
+  `Electric.Replication.Eval.Parser.parse_and_validate_expression/2`
+  """
+  @spec columns_to_expr([column_info(), ...]) :: Parser.refs_map()
+  def columns_to_expr(columns) when is_list(columns) do
+    Map.new(columns, fn %{name: name, type: type} -> {[name], String.to_atom(type)} end)
   end
 end

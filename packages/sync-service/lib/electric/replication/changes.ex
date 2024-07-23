@@ -162,7 +162,7 @@ defmodule Electric.Replication.Changes do
           }
   end
 
-  def build_key(rel, record, pk_cols) do
+  def build_key(rel, record, pk_cols) when is_list(pk_cols) do
     IO.iodata_to_binary([prefix_from_rel(rel), ?/, record |> Map.take(pk_cols) |> Map.values()])
   end
 

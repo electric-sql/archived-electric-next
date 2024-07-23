@@ -1,5 +1,4 @@
 defmodule Electric.Postgres.Inspector.DirectInspector do
-  alias Electric.Postgres.PgType
   @behaviour Electric.Postgres.Inspector
 
   @doc """
@@ -31,34 +30,5 @@ defmodule Electric.Postgres.Inspector.DirectInspector do
       rows = Enum.map(result.rows, fn row -> Enum.zip(columns, row) |> Map.new() end)
       {:ok, rows}
     end
-  end
-
-  @doc """
-  List all types in the database
-  """
-  def list_types!(conn) do
-    query = """
-    SELECT
-      nspname,
-      t.typname,
-      t.oid,
-      t.typarray,
-      t.typelem,
-      t.typlen,
-      t.typtype,
-      a.oid IS NOT NULL as is_array
-    FROM pg_type t
-    JOIN pg_namespace ON pg_namespace.oid = t.typnamespace
-    LEFT JOIN pg_type a ON t.oid = a.typarray
-    WHERE
-      t.typtype = ANY($1::char[])
-    ORDER BY t.oid
-    """
-
-    types = Enum.map([:BASE, :DOMAIN, :ENUM], &PgType.encode_kind/1)
-
-    %{rows: rows} = Postgrex.query!(conn, query, [types])
-
-    Enum.map(rows, &PgType.from_list/1)
   end
 end
