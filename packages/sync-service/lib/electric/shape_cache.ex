@@ -28,12 +28,13 @@ end
 
 defmodule Electric.ShapeCache do
   require Logger
-  require OpenTelemetry.Tracer
   alias Electric.Utils
   alias Electric.ShapeCache.Storage
   alias Electric.Shapes.Querying
   alias Electric.Shapes.Shape
   alias Electric.Replication.LogOffset
+  alias Electric.Telemetry.OpenTelemetry
+
   use GenServer
   @behaviour Electric.ShapeCacheBehaviour
 
@@ -289,15 +290,10 @@ defmodule Electric.ShapeCache do
 
       affected_tables = Shape.affected_tables(shape)
 
-      span_ctx = OpenTelemetry.Tracer.start_span(:create_snapshot)
-      ctx = OpenTelemetry.Ctx.get_current()
-
-      Task.start(fn ->
-        OpenTelemetry.Ctx.attach(ctx)
-        OpenTelemetry.Tracer.set_current_span(span_ctx)
-        link = OpenTelemetry.link(span_ctx)
-
-        OpenTelemetry.Tracer.with_span :create_snapshot_task, %{links: [link]} do
+      OpenTelemetry.async_fun(
+        "create_snapshot_task",
+        [],
+        fn ->
           try do
             Utils.apply_fn_or_mfa(prepare_tables_fn_or_mfa, [pool, affected_tables])
 
@@ -307,9 +303,8 @@ defmodule Electric.ShapeCache do
             error -> GenServer.cast(parent, {:snapshot_failed, shape_id, error, __STACKTRACE__})
           end
         end
-
-        OpenTelemetry.Tracer.end_span(span_ctx)
-      end)
+        |> Task.start()
+      )
 
       add_waiter(state, shape_id, nil)
     else
@@ -333,7 +328,7 @@ defmodule Electric.ShapeCache do
   @doc false
   def query_in_readonly_txn(parent, shape_id, shape, db_pool, storage) do
     Postgrex.transaction(db_pool, fn conn ->
-      OpenTelemetry.Tracer.with_span :snapshot_query_txn do
+      OpenTelemetry.with_span("snapshot_query_txn", [], fn ->
         Postgrex.query!(
           conn,
           "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY",
@@ -342,8 +337,6 @@ defmodule Electric.ShapeCache do
 
         %{rows: [[xmin]]} =
           Postgrex.query!(conn, "SELECT pg_snapshot_xmin(pg_current_snapshot())", [])
-
-        OpenTelemetry.Tracer.add_event("Got snapshot xmin", %{})
 
         # Enforce display settings *before* querying initial data to maintain consistent
         # formatting between snapshot and live log entries.
@@ -355,7 +348,7 @@ defmodule Electric.ShapeCache do
         # could pass the shape and then make_new_snapshot! can pass it to row_to_snapshot_item
         # that way it has the relation, but it is still missing the pk_cols
         Storage.make_new_snapshot!(shape_id, shape, query, stream, storage)
-      end
+      end)
     end)
   end
 
