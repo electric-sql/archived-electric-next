@@ -6,6 +6,8 @@
   "main": "main.js",
   "scripts": {
     "load-test": "node main.js",
+    "docker-compose:up": "docker-compose -- -f $COMPOSE_FILE --env-file $ENV_FILE up -d",
+    "docker-compose:down": "docker-compose -f $COMPOSE_FILE  --env-file $ENV_FILE down",
     "run-sql": "node utils.js script",
     "table-dump": "node utils.js dump",
     "table-load": "node utils.js load"
