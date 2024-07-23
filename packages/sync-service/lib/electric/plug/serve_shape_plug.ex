@@ -1,6 +1,7 @@
 defmodule Electric.Plug.ServeShapePlug do
   require Logger
   alias Electric.Shapes
+  alias Electric.Schema
   alias Electric.Replication.LogOffset
   use Plug.Builder
 
@@ -147,22 +148,19 @@ defmodule Electric.Plug.ServeShapePlug do
     {shape_id, last_offset} =
       Shapes.get_or_create_shape_id(shape, conn.assigns.config)
 
-    col_info =
-      shape.table_info
-      |> Map.fetch!(shape.root_table)
-      |> Map.fetch!(:columns)
-
     conn
     |> assign(:active_shape_id, shape_id)
     |> assign(:last_offset, last_offset)
     |> put_resp_header("x-electric-shape-id", shape_id)
     |> put_resp_header("x-electric-chunk-last-offset", "#{last_offset}")
-    |> put_resp_header("x-electric-schema", schema_from_cols(col_info))
+    |> put_resp_header("x-electric-schema", schema(shape))
   end
 
-  defp schema_from_cols(col_info) do
-    col_info
-    |> Map.new(fn col -> {col.name, col.type} end)
+  defp schema(shape) do
+    shape.table_info
+    |> Map.fetch!(shape.root_table)
+    |> Map.fetch!(:columns)
+    |> Schema.from_column_info()
     |> Jason.encode!()
   end
 
