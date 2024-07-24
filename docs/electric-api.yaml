@@ -32,14 +32,23 @@ paths:
           in: path
           schema:
             type: string
-            example: issues
+          examples:
+            simple:
+              value: issues
+              summary: the issues table in the public schema
+            qualified:
+              value: foo.issues
+              summary: the issues table in the foo schema
           required: true
-          # FIXME: qualified tablename.
           description: |-
-            Root table of the shape. Must match the name of a table in your
-            Postgres database.
+            Root table of the shape. Must match a table in your Postgres database.
 
-            Note that currently the table must be in the `public.` schema.
+            Can be just a tablename, or can be prefixed by the database schema
+            using a `.` delimiter, such as `foo.issues`. If you don't provide
+            a schema prefix, then the table is assumed to be in the `public.` schema.
+
+            Note that tablenames with special characters may not be parsed correctly
+            pending https://github.com/electric-sql/electric-next/issues/185
         # Query parameters
         - name: offset
           in: query
@@ -283,8 +292,18 @@ paths:
           in: path
           schema:
             type: string
+          examples:
+            simple:
+              value: issues
+              summary: the issues table in the public schema
+            qualified:
+              value: foo.issues
+              summary: the issues table in the foo schema
           required: true
-          description: The name of the table for which to delete the shape.
+          description: |-
+            The name of the table for which to delete the shape.
+
+            Can be qualified by the schema name.
         # Query parameters
         - name: shape_id
           in: query
