@@ -30,7 +30,7 @@ First you make an initial sync request to get the current data for the Shape, su
 curl -i 'http://localhost:3000/v1/shape/foo?offset=-1'
 ```
 
-Then you switch into a live mode to use long-polling to recieve real-time updates. We'll go over these steps in more detail below. First a note on the data that the endpoint returns.
+Then you switch into a live mode to use long-polling to receive real-time updates. We'll go over these steps in more detail below. First a note on the data that the endpoint returns.
 
 ### Shape Log
 
