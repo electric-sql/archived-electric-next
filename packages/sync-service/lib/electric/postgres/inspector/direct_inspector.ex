@@ -36,18 +36,3 @@ defmodule Electric.Postgres.Inspector.DirectInspector do
     end
   end
 end
-
-# NOTE: this load_column_info only works if the table has a PK
-
-# attndims -> 0 if not an array, N for an N-dimensional array
-# atttypmod -> for the precision (do special casing for varchar)
-# atttypid | typname -> for the type name
-# pg_type.oid -> ID of the type
-# pg_type.typelem -> if non-zero, this is an array and this is the OID of the array element type
-# pg_type.typarray -> if non-zero, this is the OID of the array type that contains this type (WE DON'T NEED THIS)
-
-# So basically:
-#  - if typelem = 0
-#      type = oid
-#    else
-#      type = Array<typelem>   (dimension is attndims)
