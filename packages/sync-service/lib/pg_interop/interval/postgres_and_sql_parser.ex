@@ -31,8 +31,6 @@ defmodule PgInterop.Interval.PostgresAndSQLParser do
       ~r/(?<=\s|^)(?<day>(?:\+|-)?\s*\d+(?:\.\d+)?)?\s+(?<sign>\+|-)?\s*(?<minute>\d+):(?<second>\d+\.\d+)(?=\s|$)/
   ]
 
-  # (?<ym_sign>\+|-)?
-
   @doc """
   Parses an Postgres classic and SQL formatted duration string into
   a Interval struct. The parse result is wrapped in a :ok/:error tuple.
