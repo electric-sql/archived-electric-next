@@ -18,7 +18,7 @@ defmodule Electric.Plug.ServeShapePlugTest do
     root_table: {"public", "users"},
     table_info: %{
       {"public", "users"} => %{
-        columns: [%{name: "id", type: "int8", pk_position: 0}],
+        columns: [%{name: "id", type: "int8", pk_position: 0, array_dimensions: 0}],
         pk: ["id"]
       }
     }
@@ -189,7 +189,9 @@ defmodule Electric.Plug.ServeShapePlugTest do
         conn(:get, %{"root_table" => "public.users"}, "?offset=-1")
         |> ServeShapePlug.call([])
 
-      assert Plug.Conn.get_resp_header(conn, "x-electric-schema") == [~s|{"id":"int8"}|]
+      assert Plug.Conn.get_resp_header(conn, "x-electric-schema") == [
+               ~s|{"id":{"type":"int8","dimensions":0}}|
+             ]
     end
 
     test "returns log when offset is >= 0" do
