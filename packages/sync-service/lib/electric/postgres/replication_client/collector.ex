@@ -132,7 +132,7 @@ defmodule Electric.Postgres.ReplicationClient.Collector do
     {%Transaction{
        txn
        | changes: Enum.reverse(txn.changes),
-         last_log_offset: LogOffset.new(txn.lsn, max(0, state.tx_op_index - 1))
+         last_log_offset: LogOffset.new(txn.lsn, max(0, state.tx_op_index - 2))
      }, %__MODULE__{state | transaction: nil, tx_op_index: nil}}
   end
 
