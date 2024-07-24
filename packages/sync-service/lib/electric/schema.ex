@@ -22,6 +22,14 @@ defmodule Electric.Schema do
     Map.new(column_info, fn col -> {col.name, schema(col)} end)
   end
 
+  defp schema(%{array_dimensions: array_dimensions} = col_info) do
+    %{
+      type: type(col_info),
+      dimensions: array_dimensions
+    }
+    |> add_modifier(col_info)
+  end
+
   defp type(%{type: type, array_dimensions: 0}), do: type
   defp type(%{array_type: type}), do: type
 
@@ -66,14 +74,6 @@ defmodule Electric.Schema do
   end
 
   defp add_modifier(schema, _), do: schema
-
-  defp schema(%{array_dimensions: array_dimensions} = col_info) do
-    %{
-      type: type(col_info),
-      dimensions: array_dimensions
-    }
-    |> add_modifier(col_info)
-  end
 
   # When precision is -1 that means it was not provided
   defp interval_precision(@minus_1), do: %{}
