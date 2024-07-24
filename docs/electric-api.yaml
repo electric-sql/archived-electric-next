@@ -295,7 +295,9 @@ paths:
             If not provided, deletes the current shape.
       responses:
         '202':
-          description: No content. The shape was deleted.
+          description: |-
+            Accepted. The shape has been deleted (or to be more precise: the shape ID
+            has been invalidated and the storage will be cleaned up eventually).
         '400':
           description: Bad request.
         '404':
