@@ -95,6 +95,7 @@ paths:
           in: query
           schema:
             type: string
+          example: "3833821-1721812114261"
           description: |-
             The shape ID returned by the initial shape request.
 
@@ -141,7 +142,7 @@ paths:
               description: |-
                 Etag header specifying the shape ID and offset for efficient caching.
 
-                In the format `{shape_id}-{start_offset}-{end_offset}`.
+                In the format `{shape_id}:{start_offset}:{end_offset}`.
             pragma:
               schema:
                 type: string
@@ -309,6 +310,7 @@ paths:
           in: query
           schema:
             type: string
+          example: "3833821-1721812114261"
           description:
             Optional, deletes the current shape if it matches the shape_id.
             If not provided, deletes the current shape.
