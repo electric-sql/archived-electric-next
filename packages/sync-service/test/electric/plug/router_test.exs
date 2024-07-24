@@ -311,5 +311,56 @@ defmodule Electric.Plug.RouterTest do
       assert key3 != key2
       assert key3 != key
     end
+
+    @tag with_sql: [
+           "CREATE TABLE test_table (col1 TEXT NOT NULL, col2 TEXT NOT NULL)",
+           "INSERT INTO test_table VALUES ('test1', 'test2')"
+         ]
+    test "GET works correctly when table has no PK",
+         %{opts: opts, db_conn: db_conn} do
+      conn = conn("GET", "/v1/shape/test_table?offset=-1") |> Router.call(opts)
+      assert %{status: 200} = conn
+      [shape_id] = Plug.Conn.get_resp_header(conn, "x-electric-shape-id")
+
+      assert [%{"value" => %{"col1" => "test1", "col2" => "test2"}, "key" => key}, _] =
+               Jason.decode!(conn.resp_body)
+
+      task =
+        Task.async(fn ->
+          conn("GET", "/v1/shape/test_table?offset=0_0&shape_id=#{shape_id}&live")
+          |> Router.call(opts)
+        end)
+
+      # We're doing multiple operations here to check if splitting an operation breaks offsets in some manner
+      Postgrex.transaction(db_conn, fn tx_conn ->
+        Postgrex.query!(tx_conn, "UPDATE test_table SET col1 = 'test3'", [])
+        Postgrex.query!(tx_conn, "INSERT INTO test_table VALUES ('test4', 'test5')", [])
+      end)
+
+      assert %{status: 200} = conn = Task.await(task)
+
+      assert [
+               %{
+                 "headers" => %{"action" => "delete"},
+                 "value" => %{"col1" => "test1", "col2" => "test2"},
+                 "key" => ^key
+               },
+               %{
+                 "headers" => %{"action" => "insert"},
+                 "value" => %{"col1" => "test3", "col2" => "test2"},
+                 "key" => key2
+               },
+               %{
+                 "headers" => %{"action" => "insert"},
+                 "value" => %{"col1" => "test4", "col2" => "test5"},
+                 "key" => key3
+               },
+               _
+             ] = Jason.decode!(conn.resp_body)
+
+      assert key2 != key
+      assert key3 != key2
+      assert key3 != key
+    end
   end
 end
