@@ -210,5 +210,106 @@ defmodule Electric.Plug.RouterTest do
                %{"headers" => %{"control" => "up-to-date"}}
              ] = Jason.decode!(conn.resp_body)
     end
+
+    @tag with_sql: [
+           "CREATE TABLE wide_table (id BIGINT PRIMARY KEY, value1 TEXT NOT NULL, value2 TEXT NOT NULL, value3 TEXT NOT NULL)",
+           "INSERT INTO wide_table VALUES (1, 'test value 1', 'test value 1', 'test value 1')"
+         ]
+    test "GET received only a diff when receiving updates", %{opts: opts, db_conn: db_conn} do
+      conn = conn("GET", "/v1/shape/wide_table?offset=-1") |> Router.call(opts)
+      assert %{status: 200} = conn
+      [shape_id] = Plug.Conn.get_resp_header(conn, "x-electric-shape-id")
+
+      assert [
+               %{
+                 "value" => %{"id" => _, "value1" => _, "value2" => _, "value3" => _},
+                 "key" => key
+               },
+               _
+             ] =
+               Jason.decode!(conn.resp_body)
+
+      task =
+        Task.async(fn ->
+          conn("GET", "/v1/shape/wide_table?offset=0_0&shape_id=#{shape_id}&live")
+          |> Router.call(opts)
+        end)
+
+      Postgrex.query!(db_conn, "UPDATE wide_table SET value2 = 'test value 2' WHERE id = 1", [])
+
+      assert %{status: 200} = conn = Task.await(task)
+
+      assert [%{"key" => ^key, "value" => value}, _] = Jason.decode!(conn.resp_body)
+
+      # No extra keys should be present, so this is equality assertion, not a match
+      assert value == %{"id" => "1", "value2" => "test value 2"}
+    end
+
+    @tag with_sql: [
+           "CREATE TABLE wide_table (id BIGINT PRIMARY KEY, value1 TEXT NOT NULL, value2 TEXT NOT NULL, value3 TEXT NOT NULL)",
+           "INSERT INTO wide_table VALUES (1, 'test value 1', 'test value 1', 'test value 1')"
+         ]
+    test "GET splits up updates into 2 operations if PK was changed", %{
+      opts: opts,
+      db_conn: db_conn
+    } do
+      conn = conn("GET", "/v1/shape/wide_table?offset=-1") |> Router.call(opts)
+      assert %{status: 200} = conn
+      [shape_id] = Plug.Conn.get_resp_header(conn, "x-electric-shape-id")
+
+      assert [
+               %{
+                 "value" => %{"id" => _, "value1" => _, "value2" => _, "value3" => _},
+                 "key" => key
+               },
+               _
+             ] =
+               Jason.decode!(conn.resp_body)
+
+      task =
+        Task.async(fn ->
+          conn("GET", "/v1/shape/wide_table?offset=0_0&shape_id=#{shape_id}&live")
+          |> Router.call(opts)
+        end)
+
+      Postgrex.transaction(db_conn, fn tx_conn ->
+        Postgrex.query!(
+          tx_conn,
+          "UPDATE wide_table SET id = 2, value2 = 'test value 2' WHERE id = 1",
+          []
+        )
+
+        Postgrex.query!(
+          tx_conn,
+          "INSERT INTO wide_table VALUES (3, 'other', 'other', 'other')",
+          []
+        )
+      end)
+
+      assert %{status: 200} = conn = Task.await(task)
+
+      assert [
+               %{
+                 "headers" => %{"action" => "delete"},
+                 "value" => %{"id" => "1"},
+                 "key" => ^key
+               },
+               %{
+                 "headers" => %{"action" => "insert"},
+                 "value" => %{"id" => "2", "value1" => _, "value2" => _, "value3" => _},
+                 "key" => key2
+               },
+               %{
+                 "headers" => %{"action" => "insert"},
+                 "value" => %{"id" => "3", "value1" => _, "value2" => _, "value3" => _},
+                 "key" => key3
+               },
+               _
+             ] = Jason.decode!(conn.resp_body)
+
+      assert key2 != key
+      assert key3 != key2
+      assert key3 != key
+    end
   end
 end
