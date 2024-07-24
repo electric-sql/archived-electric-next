@@ -81,7 +81,7 @@ Note that the other control message is `must-refetch` which indicates that the c
 
 ### Live mode
 
-Once a client is up-to-date, it can switch to live mode to recieve real-time updates, by making requests with `live=true`, an `offset` and a `shape_id`, e.g.:
+Once a client is up-to-date, it can switch to live mode to receive real-time updates, by making requests with `live=true`, an `offset` and a `shape_id`, e.g.:
 
 ```sh
 curl -i 'http://localhost:3000/v1/shape/foo?live=true&offset=0_0&shape_id=3833821-1721812114261'
