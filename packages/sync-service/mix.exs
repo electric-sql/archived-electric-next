@@ -70,6 +70,7 @@ defmodule Electric.MixProject do
         {:plug, "~> 1.16"},
         {:postgresql_uri, "~> 0.1"},
         {:postgrex, "~> 0.18"},
+        {:telemetry_metrics_prometheus_core, "~> 1.1"},
         {:telemetry_metrics_statsd, "~> 0.7"},
         {:telemetry_poller, "~> 1.1"},
         {:tz, "~> 0.27"}
