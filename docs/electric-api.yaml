@@ -171,10 +171,10 @@ paths:
                 subsequent requests where `offset` is not `-1`.
             x-electric-schema:
               schema:
-                type: object
-                example: { "id": { "type": "int4", "dimensions": 0 }, "title": { "type": "text", "dimensions": 0 }, "status": { "type": "text", "dimensions": 0, "max_length": 8 } }
+                type: string
+                example: "{\"id\":{\"type\":\"int4\",\"dimensions\":0},\"title\":{\"type\":\"text\",\"dimensions\":0},\"status\":{\"type\":\"text\",\"dimensions\":0,\"max_length\":8}}"
                 description: |-
-                  Object mapping column names to the corresponding schema object.
+                  A JSON string of an object that maps column names to the corresponding schema object.
                   The schema object contains the type of the column, the number of dimensions, and possibly additional properties.
                   Non-array types have a dimension of `0`, while array types have a dimension of 1 or more.
                   For instance, an array of booleans would have a type of `bool` and a dimension of `1`.
