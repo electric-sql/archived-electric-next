@@ -239,10 +239,9 @@ defmodule Electric.Plug.RouterTest do
 
       assert %{status: 200} = conn = Task.await(task)
 
-      assert [%{"key" => ^key, "value" => value}, _] = Jason.decode!(conn.resp_body)
-
-      # No extra keys should be present, so this is equality assertion, not a match
-      assert value == %{"id" => "1", "value2" => "test value 2"}
+      # No extra keys should be present, so this is a pin
+      value = %{"id" => "1", "value2" => "test value 2"}
+      assert [%{"key" => ^key, "value" => ^value}, _] = Jason.decode!(conn.resp_body)
     end
 
     @tag with_sql: [
