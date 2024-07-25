@@ -42,25 +42,25 @@ export class MutableShape extends Shape {
 export class TentativeShapeStream extends ShapeStream {
   private handlers: Map<string, TentativeStateHandler>
 
-  private mergeFunction: MergeFunction
-  private matchFunction: MatchFunction
+  private defaultMergeFunction?: MergeFunction
+  private defaultMatchFunction?: MatchFunction
   private getKey: GetKeyFunction
 
   private prePublishHookCloseHandler: () => void
 
   constructor(
     options: ShapeStreamOptions,
-    mergeFunction: MergeFunction,
-    matchFunction: MatchFunction,
-    getKey: GetKeyFunction
+    getKey: GetKeyFunction,
+    mergeFunction?: MergeFunction,
+    matchFunction?: MatchFunction
   ) {
     super(options)
 
     this.handlers = new Map()
 
     this.getKey = getKey
-    this.mergeFunction = mergeFunction
-    this.matchFunction = matchFunction
+    this.defaultMergeFunction = mergeFunction
+    this.defaultMatchFunction = matchFunction
 
     this.prePublishHookCloseHandler = this.registerPrePublishHook((m) =>
       this.modifyAgainstTentativeState(m)
@@ -71,13 +71,22 @@ export class TentativeShapeStream extends ShapeStream {
     this.prePublishHookCloseHandler()
   }
 
-  registerMutation(mutation: Mutation) {
+  registerMutation(
+    mutation: Mutation,
+    mergeFunction?: MergeFunction,
+    matchFunction?: MatchFunction
+  ) {
+    const merge = mergeFunction ?? this.defaultMergeFunction
+    const match = matchFunction ?? this.defaultMatchFunction
+
+    if (merge === undefined || match === undefined) {
+      throw new Error(
+        `No merge or match function defined for the mutation your are trying to register`
+      )
+    }
+
     const key = mutation.key
-    const handler = this.makeTentativeStateHandler(
-      mutation,
-      this.mergeFunction,
-      this.matchFunction
-    )
+    const handler = this.makeTentativeStateHandler(mutation, merge, match)
 
     this.handlers.set(key, handler)
   }
