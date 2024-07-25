@@ -117,7 +117,7 @@ defmodule Electric.ShapeCache.CubDbStorage do
       (snapshot_exists?(shape_id, opts) and offset == LogOffset.first())
   end
 
-  def make_new_snapshot!(shape_id, query_info, data_stream, opts) do
+  def make_new_snapshot!(shape_id, shape, query_info, data_stream, opts) do
     OpenTelemetry.with_span("make_new_snapshot", [], fn ->
       data_stream
       |> Stream.with_index()
