@@ -13,6 +13,7 @@ const BASE_URL = inject(`baseUrl`)
 
 const localChangeWins: MergeFunction = (c, _) => c
 const neverMatch: MatchFunction = () => false
+const alwaysMatch: MatchFunction = () => true
 const getKeyFunction: GetKeyFunction = (message: Message) => {
   if (`key` in message) {
     return message.value.id as string
@@ -43,9 +44,9 @@ describe(`TentativeShapeStream`, () => {
         shape: { table: issuesTableUrl },
         baseUrl: BASE_URL,
       },
+      getKeyFunction,
       localChangeWins,
-      neverMatch,
-      getKeyFunction
+      neverMatch
     )
     const shape = new MutableShape(shapeStream)
     const map = await shape.value
@@ -66,9 +67,9 @@ describe(`TentativeShapeStream`, () => {
         shape: { table: issuesTableUrl },
         baseUrl: BASE_URL,
       },
+      getKeyFunction,
       localChangeWins,
-      matchOnTitle,
-      getKeyFunction
+      matchOnTitle
     )
 
     const id = `00000000-0000-0000-0000-000000000000`
@@ -101,9 +102,9 @@ describe(`MutableShape`, () => {
         shape: { table: issuesTableUrl },
         baseUrl: BASE_URL,
       },
+      getKeyFunction,
       localChangeWins,
-      neverMatch,
-      getKeyFunction
+      neverMatch
     )
 
     const mutableShape = new MutableShape(tentativeShapeStream)
@@ -119,14 +120,56 @@ describe(`MutableShape`, () => {
     })
 
     expect(mutableShape.valueSync.get(id)!.title).toEqual(title)
+    expect(tentativeShapeStream[`handlers`].size).toEqual(1)
 
     await new Promise<void>((resolve, reject) => {
       setTimeout(() => reject(`Timed out waiting for data changes`), 1000)
 
       insertIssues({ id, title: `more recent title` })
 
-      tentativeShapeStream.subscribe(() => {
+      tentativeShapeStream.subscribe((message) => {
         expect(mutableShape.valueSync.get(id)!.title).toEqual(title)
+        expect(tentativeShapeStream[`handlers`].size).toEqual(1)
+        resolve()
+      })
+    })
+  })
+
+  it(`don't merge if match`, async ({ issuesTableUrl, insertIssues }) => {
+    const tentativeShapeStream = new TentativeShapeStream(
+      {
+        shape: { table: issuesTableUrl },
+        baseUrl: BASE_URL,
+      },
+      getKeyFunction,
+      localChangeWins,
+      alwaysMatch
+    )
+
+    const mutableShape = new MutableShape(tentativeShapeStream)
+    await mutableShape.value
+
+    const id = `00000000-0000-0000-0000-000000000000`
+    const title = `test title`
+
+    mutableShape.applyMutation({
+      action: `insert`,
+      key: id,
+      value: { id, title },
+    })
+
+    expect(mutableShape.valueSync.get(id)!.title).toEqual(title)
+    expect(tentativeShapeStream[`handlers`].size).toEqual(1)
+
+    const incomingTitle = `more recent title`
+    await new Promise<void>((resolve, reject) => {
+      setTimeout(() => reject(`Timed out waiting for data changes`), 1000)
+
+      insertIssues({ id, title: incomingTitle })
+
+      tentativeShapeStream.subscribe(() => {
+        expect(mutableShape.valueSync.get(id)!.title).toEqual(incomingTitle)
+        expect(tentativeShapeStream[`handlers`].size).toEqual(0)
         resolve()
       })
     })

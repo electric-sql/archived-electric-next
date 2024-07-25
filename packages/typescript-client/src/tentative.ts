@@ -10,12 +10,19 @@ import {
 type TentativeStateHandler = (incoming: Mutation) => Mutation
 
 export class MutableShape extends Shape {
+  protected stream: TentativeShapeStream
+
   constructor(stream: TentativeShapeStream) {
     super(stream)
+    this.stream = stream
   }
 
   // FIX: a mutation should be a group of effects
-  applyMutation(mutation: Mutation) {
+  applyMutation(
+    mutation: Mutation,
+    mergeFunction?: MergeFunction,
+    matchFunction?: MatchFunction
+  ) {
     // I'm not sure about lifting this restriction, so I'm leaving it here
     if (!this.hasNotifiedSubscribersUpToDate) {
       throw new Error(`cannot set tentative value before shape is ready`)
@@ -36,6 +43,8 @@ export class MutableShape extends Shape {
     } else {
       this.valueSync.set(key, mutation.value)
     }
+
+    this.stream.registerMutation(mutation, mergeFunction, matchFunction)
   }
 }
 

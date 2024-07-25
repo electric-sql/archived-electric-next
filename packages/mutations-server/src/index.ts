@@ -3,23 +3,18 @@ import bodyParser from "body-parser";
 import "dotenv/config";
 import { Client } from "pg";
 import { Writer } from "./writer";
-import { Mutation } from "./types";
 import { bodyToMutation } from "./utils";
 
 const app = express();
 app.use(bodyParser.json());
 
-const port = process.env.PORT || 3000;
-const databaseUrl = process.env.DATABASE_URL;
+const port = process.env.MUTATIONS_SERVER_PORT || 3100;
+const databaseUrl = process.env.DATABASE_URL || `http://localhost:3000`;
 
 const client = new Client({ connectionString: databaseUrl });
 const writer = new Writer(client);
 
-if (!databaseUrl) {
-  throw new Error(`DATABASE_URL is not set`);
-}
-
-app.listen(port, async () => {
+export const server = app.listen(port, async () => {
   console.log(`Server is listening on port ${port}`);
 
   try {
@@ -53,6 +48,10 @@ app.post(`/`, async (req: Request, res: Response, next: NextFunction) => {
   } catch (error) {
     return next(error);
   }
+});
+
+app.get(`/`, async (req: Request, res: Response, next: NextFunction) => {
+  res.send(`Hello World!`);
 });
 
 app.use(

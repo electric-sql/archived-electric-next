@@ -449,7 +449,7 @@ export class ShapeStream {
  *     })
  */
 export class Shape {
-  private stream: ShapeStream
+  protected stream: ShapeStream
 
   private data: ShapeData = new Map()
   private subscribers = new Map<number, ShapeChangedCallback>()
