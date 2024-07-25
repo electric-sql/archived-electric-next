@@ -106,8 +106,11 @@ export class TentativeShapeStream extends ShapeStream {
     }
 
     const { value, headers } = message
-
     const key = this.getKey(message)
+
+    // this is an hack: if the row is created locally, it doesn't
+    // have an id yet, so we chaging the keys
+    message.key = key
 
     const handler = this.handlers.get(key!)
     if (handler) {
