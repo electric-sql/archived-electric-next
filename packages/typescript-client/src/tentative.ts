@@ -16,6 +16,7 @@ export class MutableShape extends Shape {
 
   // FIX: a mutation should be a group of effects
   applyMutation(mutation: Mutation) {
+    // I'm not sure about lifting this restriction, so I'm leaving it here
     if (!this.hasNotifiedSubscribersUpToDate) {
       throw new Error(`cannot set tentative value before shape is ready`)
     }
