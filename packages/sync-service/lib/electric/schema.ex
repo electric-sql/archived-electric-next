@@ -1,10 +1,31 @@
 defmodule Electric.Schema do
   import Bitwise
+  alias Electric.Replication.Eval.Env.BasicTypes
+  alias Electric.Postgres.Inspector
+
+  @type column_name :: String.t()
+  @type type_name :: String.t()
+  @type schema :: %{
+          type: type_name(),
+          dims: non_neg_integer(),
+          max_length: non_neg_integer() | nil,
+          length: non_neg_integer() | nil,
+          precision: non_neg_integer() | nil,
+          scale: non_neg_integer() | nil,
+          fields: String.t() | nil
+        }
 
   @bit_types ["bit", "varbit"]
   @variable_length_character_types ["varchar", "text"]
   @fixed_length_character_types ["bpchar"]
-  @time_types ["time", "timetz", "timestamp", "timestamptz", "interval", "date"]
+  @time_types [
+    "timetz"
+    | BasicTypes.known()
+      |> Map.filter(fn {_, v} -> v.category in [:datetime, :timestamp] end)
+      |> Map.keys()
+      |> Enum.map(fn type -> to_string(type) end)
+  ]
+
   @interval_field_masks [
     %{unit: "YEAR", mask: 1 <<< 2},
     %{unit: "MONTH", mask: 1 <<< 1},
@@ -13,19 +34,24 @@ defmodule Electric.Schema do
     %{unit: "MINUTE", mask: 1 <<< 11},
     %{unit: "SECOND", mask: 1 <<< 12}
   ]
-  # -1 encoded as a 16 bit integer
-  @minus_1 65535
-  # all bits set in a 16 bit integer
-  @all_set 32767
+  # -1 encoded as a binary signed 2s' complement (16 bits)
+  @minus_1 0b1111111111111111
+  # all bits set in a binary signed 2s' complement (16 bits)
+  @all_set 0b0111111111111111
 
+  @doc """
+  Convert column information into a schema map
+  """
+  @spec from_column_info(Inspector.column_info()) :: %{column_name() => schema()}
   def from_column_info(column_info) do
     Map.new(column_info, fn col -> {col.name, schema(col)} end)
   end
 
+  @spec schema(Inspector.column_info()) :: schema()
   defp schema(%{array_dimensions: array_dimensions} = col_info) do
     %{
       type: type(col_info),
-      dimensions: array_dimensions
+      dims: array_dimensions
     }
     |> add_modifier(col_info)
   end
