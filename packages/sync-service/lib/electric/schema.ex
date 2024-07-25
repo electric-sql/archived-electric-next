@@ -6,13 +6,13 @@ defmodule Electric.Schema do
   @type column_name :: String.t()
   @type type_name :: String.t()
   @type schema :: %{
-          type: type_name(),
-          dims: non_neg_integer(),
-          max_length: non_neg_integer() | nil,
-          length: non_neg_integer() | nil,
-          precision: non_neg_integer() | nil,
-          scale: non_neg_integer() | nil,
-          fields: String.t() | nil
+          :type => type_name(),
+          :dims => non_neg_integer(),
+          optional(:max_length) => String.t(),
+          optional(:length) => String.t(),
+          optional(:precision) => String.t(),
+          optional(:scale) => String.t(),
+          optional(:fields) => String.t()
         }
 
   @bit_types ["bit", "varbit"]
