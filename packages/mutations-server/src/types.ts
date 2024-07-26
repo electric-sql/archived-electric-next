@@ -7,3 +7,22 @@ export type Mutation = {
   tablename: string;
   row: Record<string, JsonSerializable>;
 };
+
+export type MutationIdentifier = {
+  xid: string;
+};
+
+export type User = {
+  userId: string;
+};
+
+export type Session = User & {
+  lastRequest: string;
+  lastCommit: string;
+};
+
+export enum RequestStatus {
+  OK = `OK`,
+  IDEMPOTENT = `IDEMPOTENT`,
+  OLD = `OLD`,
+}

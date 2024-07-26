@@ -10,7 +10,7 @@ import { JsonSerializable } from "../../typescript-client/src/types";
 // Interestingly, we can know if conflict resolution was applied for a row
 // and inform the client immediately.
 
-export class Writer {
+export class MutationWriter {
   pg: Client;
 
   constructor(pg: Client) {
@@ -18,12 +18,15 @@ export class Writer {
   }
 
   async validateMutationTableSchema(mutation: Mutation): Promise<boolean> {
+    // This code can probably be done better. A table name that has spaces
+    // is passed around with quotes, but for this WHERE clause we need to remove them
+    const tablename = mutation.tablename.replace(/['"]+/g, ``);
     const columnNamesQuery = {
-      name: "get-column-names",
+      name: `get-column-names`,
       text: `SELECT column_name
              FROM information_schema.columns
              WHERE table_schema = $1::text AND table_name = $2::text`,
-      values: [mutation.schema, mutation.tablename],
+      values: [mutation.schema, tablename],
     };
 
     const { rows } = await this.pg.query(columnNamesQuery);
@@ -43,11 +46,11 @@ export class Writer {
         acc[key].push(mutation);
         return acc;
       },
-      {}
+      {},
     );
 
     try {
-      await this.pg.query("BEGIN");
+      await this.pg.query(`BEGIN`);
 
       for (const [_, mutations] of Object.entries(mutationsPerTable)) {
         const firstMutation = mutations[0];
@@ -63,39 +66,39 @@ export class Writer {
           firstMutation.tablename,
           columnNames,
           mutations.map((mutation) =>
-            getValuesInColumnOrder(columnNames, mutation.row)
-          )
+            getValuesInColumnOrder(columnNames, mutation.row),
+          ),
         );
       }
 
-      const res = await this.pg.query("SELECT txid_current()::TEXT as xid");
+      const res = await this.pg.query(`SELECT txid_current()::TEXT as xid`);
 
-      await this.pg.query("COMMIT");
+      await this.pg.query(`COMMIT`);
 
       return res.rows[0].xid;
     } catch (error) {
-      await this.pg.query("ROLLBACK");
+      await this.pg.query(`ROLLBACK`);
       throw error;
     }
   }
 
   async writeRows(
-    schema: string,
+    _schema: string,
     tablename: string,
     columnNames: string[],
-    rows: JsonSerializable[][]
+    rows: JsonSerializable[][],
   ): Promise<void> {
     const { values } = rows.reduce(
       ({ count, values }, row: JsonSerializable[]) => {
-        values.push(`(${row.map((_, i) => `$${count + i + 1}`).join(", ")})`);
+        values.push(`(${row.map((_, i) => `$${count + i + 1}`).join(`, `)})`);
         return { count: count + columnNames.length, values };
       },
-      { count: 0, values: [] as string[] }
+      { count: 0, values: [] as string[] },
     );
 
     const insertQuery = {
-      text: `INSERT INTO "${schema}"."${tablename}" (${columnNames.join(", ")})
-             VALUES ${values.join(", ")}`,
+      text: `INSERT INTO ${tablename} (${columnNames.join(`, `)})
+             VALUES ${values.join(`, `)}`,
       values: rows.flat(),
     };
 

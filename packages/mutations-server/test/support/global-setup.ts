@@ -1,7 +1,8 @@
 import type { GlobalSetupContext } from "vitest/node";
 import { makePgClient } from "../../../typescript-client/test/support/test-helpers";
 import { FetchError } from "../../../typescript-client/src/client";
-import { makeMutationServerWithClient } from "../../src/server";
+import { createServer } from "../../src/server";
+import { SessionStorePg } from "../../src/session";
 
 const url = process.env.ELECTRIC_URL ?? `http://localhost:3000`;
 const proxyUrl =
@@ -41,14 +42,13 @@ export default async function ({ provide }: GlobalSetupContext) {
 
   provide(`baseUrl`, url);
   provide(`testPgSchema`, `electric_test`);
-  provide(`proxyCacheBaseUrl`, proxyUrl);
-  provide(`proxyCacheContainerName`, proxyCacheContainerName);
-  provide(`proxyCachePath`, proxyCachePath);
   provide(`mutationsServerUrl`, mutationsServerUrl);
 
-  const server = makeMutationServerWithClient(client);
+  const server = createServer(client);
 
   return async () => {
+    await new SessionStorePg(client).cleanup();
+
     await client.query(`DROP SCHEMA electric_test`);
     await client.end();
 

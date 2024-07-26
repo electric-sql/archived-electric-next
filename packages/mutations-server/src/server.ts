@@ -2,52 +2,70 @@ import express, { Request, Response, NextFunction } from "express";
 import bodyParser from "body-parser";
 import "dotenv/config";
 import { Client } from "pg";
-import { Writer } from "./writer";
-import { bodyToMutation } from "./utils";
 import { Server } from "http";
+import { ElectricMutations } from "./mutations";
 
 const app = express();
 app.use(bodyParser.json());
 
 const port = process.env.MUTATIONS_SERVER_PORT || 8080;
 
-export async function makeMutationServer(databaseUrl: string): Promise<Server> {
-  const client = new Client({ connectionString: databaseUrl });
-
-  try {
-    await client.connect();
-  } catch (error) {
-    console.error(`Error connecting to the database: ${error}`);
-    process.exit(1);
-  } finally {
-    console.log(`Connected to the database`);
-  }
-
-  return makeMutationServerWithClient(client);
-}
-
-export function makeMutationServerWithClient(client: Client) {
-  const writer = new Writer(client);
+export function createServer(pg: Client): Server {
+  const electric = new ElectricMutations(pg);
 
   const server = app.listen(port, async () => {
+    await electric.init();
     console.log(`Server is listening on port ${port}`);
   });
 
   app.post(`/`, async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const postData = req.body;
-      if (!Array.isArray(postData)) {
-        throw new Error(`Expected an array of mutations`);
+      const userId = req.header(`X-Electric-User-Id`);
+      if (!userId) {
+        const reason = `X-Electric-User-Id header is missing`;
+        return res.status(400).send(reason);
       }
 
-      const mutations = bodyToMutation(postData);
-      console.log(`Received mutations: ${JSON.stringify(mutations)}`);
-      const xid = await writer.write(mutations);
+      const requestId = req.header(`X-Electric-Request-Id`);
+      if (!requestId) {
+        const reason = `X-Electric-Request-Id header is missing`;
+        return res.status(400).send(reason);
+      }
 
-      // This is not enough for idempotent requests
-      // a client might disconnect without knowing that
-      // the request was handled.
-      res.header(`X-Electric-Postgres-Xid`, xid);
+      // need to validate request
+      const mutations = req.body;
+      if (!Array.isArray(mutations)) {
+        return res.status(400).send(`mutations should not be empty`);
+      }
+
+      if (mutations.length === 0) {
+        return res.status(400).send(`mutations should not be empty`);
+      }
+
+      const user = { userId };
+      const { status, session } = await electric.handleRequest(
+        requestId,
+        user,
+        mutations,
+      );
+
+      if (status === `OLD`) {
+        return res
+          .status(409)
+          .send(
+            `Client has already submitted a request with an higher requestId than ${requestId}`,
+          );
+      }
+
+      // A client will only miss the response if the server
+      // rotates the shape or performs a compaction
+      // before the client observing xid.
+
+      // When a shape rotation occurs, any accepted
+      // operations will be in the initial snapshot
+      // for the new shapeId, therefore it is safe
+      // to drop pending mutations.
+      res.header(`X-Electric-Postgres-Xid`, session.lastCommit);
 
       return res.send();
     } catch (error) {
@@ -69,7 +87,7 @@ export function makeMutationServerWithClient(client: Client) {
         message: err.message,
         stack: process.env.NODE_ENV === `development` ? err.stack : undefined,
       });
-    }
+    },
   );
 
   return server;

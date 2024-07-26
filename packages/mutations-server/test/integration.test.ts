@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from "uuid";
+import { v7 as uuidv7 } from "uuid";
 import { describe, expect, inject } from "vitest";
 import { testWithIssuesTable as it } from "../../typescript-client/test/support/test-context";
 
@@ -15,9 +15,9 @@ import {
   Mutation as ShapeMutation,
 } from "../../typescript-client/src/types";
 import { Mutation } from "../src/types";
+import { buildRequest } from "../src/utils";
 
 const localChangeWins: MergeFunction = (c, _) => c;
-const neverMatch: MatchFunction = () => false;
 const getKeyFunction: GetKeyFunction = (message: Message) => {
   if (`key` in message) {
     return message.value.id as string;
@@ -33,9 +33,79 @@ describe(`mutation server setup`, () => {
     const res = await fetch(`${mutationsServerUrl}`);
     expect(res.status).toBe(200);
   });
+
+  it(`request requires headers`, async () => {
+    const request = new Request(`${mutationsServerUrl}`, {
+      method: `POST`,
+    });
+
+    const res = await fetch(request);
+    expect(res.status).toBe(400);
+  });
 });
 
 describe(`mutation round trip`, () => {
+  it(`idempotency test`, async ({ issuesTableName, insertIssues }) => {
+    // hack to init schema
+    await insertIssues({ title: `test title` });
+
+    const uuid = uuidv7();
+
+    const mutationForServer: Mutation = {
+      action: `insert`,
+      schema: inject(`testPgSchema`),
+      tablename: issuesTableName,
+      row: { id: uuid, title: `test title`, priority: 1 },
+    };
+
+    const request1 = buildRequest(mutationsServerUrl, `fake-user`, uuid, [
+      mutationForServer,
+    ]);
+
+    const res1 = await fetch(request1);
+    expect(res1.status).toEqual(200);
+    const xid1 = res1.headers.get(`X-Electric-Postgres-Xid`);
+
+    const request2 = buildRequest(mutationsServerUrl, `fake-user`, uuid, [
+      mutationForServer,
+    ]);
+
+    const res2 = await fetch(request2);
+    expect(res2.status).toEqual(200);
+
+    const xid2 = res2.headers.get(`X-Electric-Postgres-Xid`);
+    expect(xid2).toEqual(xid1);
+  });
+
+  it(`late operations are rejected`, async ({
+    issuesTableName,
+    insertIssues,
+  }) => {
+    // hack to init schema
+    await insertIssues({ title: `test title` });
+
+    const oldUuid = uuidv7();
+    const newUuid = uuidv7();
+
+    const mutationForServer: Mutation = {
+      action: `insert`,
+      schema: inject(`testPgSchema`),
+      tablename: issuesTableName,
+      row: { id: uuidv7(), title: `test title`, priority: 1 },
+    };
+
+    const request1 = buildRequest(mutationsServerUrl, `fake-user`, newUuid, [
+      mutationForServer,
+    ]);
+    await fetch(request1);
+
+    const request2 = buildRequest(mutationsServerUrl, `fake-user`, oldUuid, [
+      mutationForServer,
+    ]);
+    const res2 = await fetch(request2);
+    expect(res2.status).toEqual(409);
+  });
+
   it(`match tentative state`, async ({ issuesTableName, issuesTableUrl }) => {
     const title = `hello`;
     const matchOnTitle: MatchFunction = (_, incoming) =>
@@ -48,13 +118,13 @@ describe(`mutation round trip`, () => {
       },
       getKeyFunction,
       localChangeWins,
-      matchOnTitle
+      matchOnTitle,
     );
 
     const shape = new MutableShape(shapeStream);
     expect((await shape.value).size).toEqual(0);
 
-    const uuid = uuidv4();
+    const uuid = uuidv7();
 
     // This will be fixed
     const mutationForServer: Mutation = {
@@ -73,7 +143,7 @@ describe(`mutation round trip`, () => {
     shape.applyMutation(mutationForShape);
     expect(shapeStream[`handlers`].size).toEqual(1);
 
-    await new Promise<void>(async (resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       setTimeout(() => reject(`Timed out waiting for data changes`), 1000);
 
       shape.subscribe(() => {
@@ -81,16 +151,13 @@ describe(`mutation round trip`, () => {
         resolve();
       });
 
-      const request = new Request(`${mutationsServerUrl}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify([mutationForServer]),
-      });
+      const request = buildRequest(mutationsServerUrl, `fake-user`, uuidv7(), [
+        mutationForServer,
+      ]);
 
-      const res = await fetch(request);
-      expect(res.headers.has(`X-Electric-Postgres-Xid`)).toBeDefined();
+      fetch(request).then((res) =>
+        expect(res.headers.has(`X-Electric-Postgres-Xid`)).toBeTruthy(),
+      );
     });
   });
 });
