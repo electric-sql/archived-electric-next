@@ -57,6 +57,7 @@ export const testWithDbClient = test.extend<{
 })
 
 export const testWithIssuesTable = testWithDbClient.extend<{
+  issuesTableName: string
   issuesTableSql: string
   issuesTableUrl: string
   issuesTableKey: string
@@ -65,6 +66,9 @@ export const testWithIssuesTable = testWithDbClient.extend<{
   insertIssues: InsertIssuesFn
   clearIssuesShape: ClearIssuesShapeFn
 }>({
+  issuesTableName: async ({ task }, use) => {
+    use(`issues for ${task.id}`)
+  },
   issuesTableSql: async ({ dbClient, task }, use) => {
     const tableName = `"issues for ${task.id}"`
     await dbClient.query(`

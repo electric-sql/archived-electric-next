@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from "uuid";
 import { describe, expect, inject } from "vitest";
 import { testWithIssuesTable as it } from "../../typescript-client/test/support/test-context";
 
@@ -29,17 +30,16 @@ const BASE_URL = inject(`baseUrl`);
 
 describe(`mutation server setup`, () => {
   it(`should be up`, async () => {
-    expect(mutationsServerUrl).toBeDefined();
-
-    await fetch(`${mutationsServerUrl}`).then((res) => {
-      expect(res.status).toBe(200);
-    });
+    const res = await fetch(`${mutationsServerUrl}`);
+    expect(res.status).toBe(200);
   });
 });
 
 describe(`mutation round trip`, () => {
-  it(`match tentative state`, async ({ issuesTableUrl }) => {
-    console.log(BASE_URL);
+  it(`match tentative state`, async ({ issuesTableName, issuesTableUrl }) => {
+    const title = `hello`;
+    const matchOnTitle: MatchFunction = (_, incoming) =>
+      incoming!.value.title === title;
 
     const shapeStream = new TentativeShapeStream(
       {
@@ -48,47 +48,49 @@ describe(`mutation round trip`, () => {
       },
       getKeyFunction,
       localChangeWins,
-      neverMatch
+      matchOnTitle
     );
+
     const shape = new MutableShape(shapeStream);
-    const map = await shape.value;
+    expect((await shape.value).size).toEqual(0);
 
-    expect(map).toEqual(new Map());
-
-    const uuid = `00000000-0000-0000-0000-000000000000`;
+    const uuid = uuidv4();
 
     // This will be fixed
     const mutationForServer: Mutation = {
       action: `insert`,
-      schema: `public`,
-      tablename: `issues`,
-      row: { id: uuid, title: `hello` },
+      schema: inject(`testPgSchema`),
+      tablename: issuesTableName,
+      row: { id: uuid, title, priority: 1 },
     };
 
     const mutationForShape: ShapeMutation = {
       action: `insert`,
       key: uuid,
-      value: { id: uuid, title: `hello` },
+      value: { id: uuid, title, priority: 1 },
     };
 
     shape.applyMutation(mutationForShape);
     expect(shapeStream[`handlers`].size).toEqual(1);
 
-    await new Promise<void>((resolve, reject) => {
+    await new Promise<void>(async (resolve, reject) => {
       setTimeout(() => reject(`Timed out waiting for data changes`), 1000);
-
-      fetch(`${mutationsServerUrl}/mutations`, {
-        method: `POST`,
-        headers: {
-          "Content-Type": `application/json`,
-        },
-        body: JSON.stringify([mutationForServer]),
-      });
 
       shape.subscribe(() => {
         expect(shapeStream[`handlers`].size).toEqual(0);
         resolve();
       });
+
+      const request = new Request(`${mutationsServerUrl}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify([mutationForServer]),
+      });
+
+      const res = await fetch(request);
+      expect(res.headers.has(`X-Electric-Postgres-Xid`)).toBeDefined();
     });
   });
 });
