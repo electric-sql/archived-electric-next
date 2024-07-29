@@ -38,6 +38,10 @@ describe(`Default parser`, () => {
     expect(defaultParser.json(`true`)).toEqual(true)
     expect(defaultParser.json(`5`)).toEqual(5)
     expect(defaultParser.json(`"foo"`)).toEqual(`foo`)
+    expect(defaultParser.json(`{}`)).toEqual({})
+    expect(defaultParser.json(`null`)).toEqual(null)
+    expect(defaultParser.json(`{"a":null}`)).toEqual({ a: null })
+    expect(defaultParser.json(`[]`)).toEqual([])
     expect(defaultParser.json(`{"a":1}`)).toEqual({ a: 1 })
     expect(defaultParser.json(`{"a":1,"b":2}`)).toEqual({ a: 1, b: 2 })
     expect(defaultParser.json(`[{"a":1,"b":2},{"c": [{"d": 5}]}]`)).toEqual([
@@ -45,9 +49,13 @@ describe(`Default parser`, () => {
       { c: [{ d: 5 }] },
     ])
 
-    expect(defaultParser.json(`true`)).toEqual(true)
-    expect(defaultParser.json(`5`)).toEqual(5)
-    expect(defaultParser.json(`"foo"`)).toEqual(`foo`)
+    expect(defaultParser.jsonb(`true`)).toEqual(true)
+    expect(defaultParser.jsonb(`5`)).toEqual(5)
+    expect(defaultParser.jsonb(`"foo"`)).toEqual(`foo`)
+    expect(defaultParser.jsonb(`{}`)).toEqual({})
+    expect(defaultParser.jsonb(`null`)).toEqual(null)
+    expect(defaultParser.json(`{"a":null}`)).toEqual({ a: null })
+    expect(defaultParser.jsonb(`[]`)).toEqual([])
     expect(defaultParser.jsonb(`{"a":1}`)).toEqual({ a: 1 })
     expect(defaultParser.jsonb(`{"a":1,"b":2}`)).toEqual({ a: 1, b: 2 })
     expect(defaultParser.jsonb(`[{"a":1,"b":2},{"c": [{"d": 5}]}]`)).toEqual([
@@ -70,11 +78,17 @@ describe(`Postgres array parser`, () => {
       BigInt(5),
     ])
     expect(pgArrayParser(`{"foo","bar"}`, (v) => v)).toEqual([`foo`, `bar`])
+    expect(pgArrayParser(`{foo,"}"}`, (v) => v)).toEqual([`foo`, `}`])
     expect(pgArrayParser(`{t,f,f}`, defaultParser.bool)).toEqual([
       true,
       false,
       false,
     ])
+    
+    expect(pgArrayParser(`{}`, defaultParser.json)).toEqual([])
+    expect(pgArrayParser(`{"{}"}`, defaultParser.json)).toEqual([{}])
+    expect(pgArrayParser(`{null}`, defaultParser.json)).toEqual([null])
+    expect(pgArrayParser(`{"{\\\"a\\\":null}"}`, defaultParser.json)).toEqual([{ a: null }])
   })
 
   it(`should parse nested arrays`, () => {
@@ -94,5 +108,10 @@ describe(`Postgres array parser`, () => {
       [BigInt(1), BigInt(2)],
       [BigInt(3), BigInt(4)],
     ])
+
+    expect(pgArrayParser(`{{},{}}`, defaultParser.json)).toEqual([[], []])
+    expect(pgArrayParser(`{"{}","{}"}`, defaultParser.json)).toEqual([{}, {}])
+    expect(pgArrayParser(`{null,null}`, defaultParser.json)).toEqual([null, null])
+    expect(pgArrayParser(`{"{\\\"a\\\":null}", "{\\\"b\\\":null}"}`, defaultParser.json)).toEqual([{ a: null }, { b: null }])
   })
 })
