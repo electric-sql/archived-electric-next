@@ -189,13 +189,14 @@ describe(`HTTP Sync`, () => {
         complexes complex[],
         posints posint[],
         jsons JSONB[],
-        txts TEXT[]
+        txts TEXT[],
+        value JSON
       )
     `)
 
     await dbClient.query(
       `
-      INSERT INTO ${table} (txt, i2, i4, i8, f8, b, json, jsonb, ints, ints2, int4s, bools, moods, moods2, complexes, posints, jsons, txts)
+      INSERT INTO ${table} (txt, i2, i4, i8, f8, b, json, jsonb, ints, ints2, int4s, bools, moods, moods2, complexes, posints, jsons, txts, value)
       VALUES (
         'test',
         1,
@@ -214,7 +215,8 @@ describe(`HTTP Sync`, () => {
         $6,
         $7,
         $8,
-        $9
+        $9,
+        $10
       )
     `,
       [
@@ -233,6 +235,7 @@ describe(`HTTP Sync`, () => {
         [5, 9, 2],
         [{ foo: `bar` }, { bar: `baz` }],
         [`foo`, `bar`, `baz`],
+        { a: 5, b: [{ c: `foo` }] },
       ]
     )
 
@@ -272,6 +275,7 @@ describe(`HTTP Sync`, () => {
         posints: [`5`, `9`, `2`],
         jsons: [{ foo: `bar` }, { bar: `baz` }],
         txts: [`foo`, `bar`, `baz`],
+        value: { a: 5, b: [{ c: `foo` }] },
       },
     ])
 
@@ -296,7 +300,8 @@ describe(`HTTP Sync`, () => {
         complexes = $2,
         posints = '{6,10,3}',
         jsons = $3,
-        txts = $4
+        txts = $4,
+        value = $5
       WHERE i2 = 1
     `,
       [
@@ -304,6 +309,7 @@ describe(`HTTP Sync`, () => {
         [`(2.2,3.3)`, `(4.4,5.5)`],
         [{ bar: `foo` }, { baz: 1 }],
         [`new`, `values`],
+        { a: 6 },
       ]
     )
 
@@ -336,6 +342,7 @@ describe(`HTTP Sync`, () => {
         posints: [`6`, `10`, `3`],
         jsons: [{ bar: `foo` }, { baz: 1 }],
         txts: [`new`, `values`],
+        value: { a: 6 },
       },
     ])
 

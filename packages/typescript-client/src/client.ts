@@ -249,7 +249,10 @@ export class ShapeStream {
 
         const messages = status === 204 ? `[]` : await response.text()
         const batch = JSON.parse(messages, (key, value) => {
-          if (key === `value`) {
+          // typeof value === `object` is needed because
+          // there could be a column named `value`
+          // and the value associated to that column will be a string
+          if (key === `value` && typeof value === `object`) {
             // Parse the row values
             const row = value as Record<string, Value>
             Object.keys(row).forEach((key) => {
@@ -259,23 +262,21 @@ export class ShapeStream {
           return value
         }) as Message[]
 
-        // Update isUpToDate & lastOffset
+        // Update isUpToDate
         if (batch.length > 0) {
-          const lastMessages = batch.slice(-2)
+          const lastMessage = batch[batch.length - 1]
 
-          lastMessages.forEach((message) => {
-            if (message.headers?.[`control`] === `up-to-date`) {
-              const wasUpToDate = this.isUpToDate
+          if (lastMessage.headers?.[`control`] === `up-to-date`) {
+            const wasUpToDate = this.isUpToDate
 
-              this.isUpToDate = true
+            this.isUpToDate = true
 
-              if (!wasUpToDate) {
-                this.hasBeenUpToDate = true
+            if (!wasUpToDate) {
+              this.hasBeenUpToDate = true
 
-                this.notifyUpToDateSubscribers()
-              }
+              this.notifyUpToDateSubscribers()
             }
-          })
+          }
 
           this.publish(batch)
         }
