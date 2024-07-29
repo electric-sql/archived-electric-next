@@ -4,9 +4,11 @@ import "dotenv/config";
 import { Client } from "pg";
 import { Server } from "http";
 import { ElectricMutations } from "./mutations";
+import cors from "cors";
 
 const app = express();
 app.use(bodyParser.json());
+app.use(cors());
 
 const port = process.env.MUTATIONS_SERVER_PORT || 8080;
 
@@ -19,6 +21,8 @@ export function createServer(pg: Client): Server {
   });
 
   app.post(`/`, async (req: Request, res: Response, next: NextFunction) => {
+    console.log("handling request", req.body);
+
     try {
       const userId = req.header(`X-Electric-User-Id`);
       if (!userId) {
@@ -46,14 +50,14 @@ export function createServer(pg: Client): Server {
       const { status, session } = await electric.handleRequest(
         requestId,
         user,
-        mutations,
+        mutations
       );
 
       if (status === `OLD`) {
         return res
           .status(409)
           .send(
-            `Client has already submitted a request with an higher requestId than ${requestId}`,
+            `Client has already submitted a request with an higher requestId than ${requestId}`
           );
       }
 
@@ -87,7 +91,7 @@ export function createServer(pg: Client): Server {
         message: err.message,
         stack: process.env.NODE_ENV === `development` ? err.stack : undefined,
       });
-    },
+    }
   );
 
   return server;
