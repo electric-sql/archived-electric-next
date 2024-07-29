@@ -32,6 +32,9 @@ describe(`Default parser`, () => {
     expect(defaultParser.float8(`1.797e308`)).toBe(1.797e308)
     expect(defaultParser.float8(`-1.797e+308`)).toBe(-1.797e308)
     expect(defaultParser.float8(`0`)).toBe(0)
+    expect(defaultParser.float8(`Infinity`)).toBe(Infinity)
+    expect(defaultParser.float8(`-Infinity`)).toBe(-Infinity)
+    expect(defaultParser.float8(`NaN`)).toBe(NaN)
   })
 
   it(`should parse json`, () => {
@@ -84,11 +87,18 @@ describe(`Postgres array parser`, () => {
       false,
       false,
     ])
-    
+
     expect(pgArrayParser(`{}`, defaultParser.json)).toEqual([])
     expect(pgArrayParser(`{"{}"}`, defaultParser.json)).toEqual([{}])
     expect(pgArrayParser(`{null}`, defaultParser.json)).toEqual([null])
-    expect(pgArrayParser(`{"{\\\"a\\\":null}"}`, defaultParser.json)).toEqual([{ a: null }])
+    // eslint-disable-next-line no-useless-escape -- The backslashes are not useless, they are required in Postgres wire format
+    expect(pgArrayParser(`{"{\\\"a\\\":null}"}`, defaultParser.json)).toEqual([
+      { a: null },
+    ])
+
+    expect(
+      pgArrayParser(`{Infinity,-Infinity,NaN}`, defaultParser.float8)
+    ).toEqual([Infinity, -Infinity, NaN])
   })
 
   it(`should parse nested arrays`, () => {
@@ -111,7 +121,26 @@ describe(`Postgres array parser`, () => {
 
     expect(pgArrayParser(`{{},{}}`, defaultParser.json)).toEqual([[], []])
     expect(pgArrayParser(`{"{}","{}"}`, defaultParser.json)).toEqual([{}, {}])
-    expect(pgArrayParser(`{null,null}`, defaultParser.json)).toEqual([null, null])
-    expect(pgArrayParser(`{"{\\\"a\\\":null}", "{\\\"b\\\":null}"}`, defaultParser.json)).toEqual([{ a: null }, { b: null }])
+    expect(pgArrayParser(`{null,null}`, defaultParser.json)).toEqual([
+      null,
+      null,
+    ])
+    expect(
+      pgArrayParser(
+        // eslint-disable-next-line no-useless-escape -- The backslashes are not useless, they are required in Postgres wire format
+        `{"{\\\"a\\\":null}", "{\\\"b\\\":null}"}`,
+        defaultParser.json
+      )
+    ).toEqual([{ a: null }, { b: null }])
+
+    expect(
+      pgArrayParser(
+        `{{Infinity,-Infinity,NaN},{NaN,Infinity,-Infinity}}`,
+        defaultParser.float8
+      )
+    ).toEqual([
+      [Infinity, -Infinity, NaN],
+      [NaN, Infinity, -Infinity],
+    ])
   })
 })

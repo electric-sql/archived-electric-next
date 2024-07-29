@@ -146,6 +146,7 @@ export const testWithMultitypeTable = testWithDbClient.extend<{
         ints INT8[],
         ints2 INT8[][],
         int4s INT4[],
+        doubles FLOAT8[],
         bools BOOLEAN[],
         moods mood[],
         moods2 mood[][],

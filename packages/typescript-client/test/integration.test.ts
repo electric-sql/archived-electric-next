@@ -163,13 +163,13 @@ describe(`HTTP Sync`, () => {
     expect(values).toMatchObject([{ title: `foo + ${uuid}` }])
   })
 
-  mit.only(
+  mit(
     `should parse incoming data`,
     async ({ dbClient, aborter, tableSql, tableUrl }) => {
       // Create a table with data we want to be parsed
       await dbClient.query(
         `
-      INSERT INTO ${tableSql} (txt, i2, i4, i8, f8, b, json, jsonb, ints, ints2, int4s, bools, moods, moods2, complexes, posints, jsons, txts, value)
+      INSERT INTO ${tableSql} (txt, i2, i4, i8, f8, b, json, jsonb, ints, ints2, int4s, bools, moods, moods2, complexes, posints, jsons, txts, value, doubles)
       VALUES (
         'test',
         1,
@@ -189,7 +189,8 @@ describe(`HTTP Sync`, () => {
         $7,
         $8,
         $9,
-        $10
+        $10,
+        $11
       )
     `,
         [
@@ -209,6 +210,7 @@ describe(`HTTP Sync`, () => {
           [{ foo: `bar` }, { bar: `baz` }],
           [`foo`, `bar`, `baz`],
           { a: 5, b: [{ c: `foo` }] },
+          [Infinity, -Infinity, NaN],
         ]
       )
 
@@ -249,6 +251,7 @@ describe(`HTTP Sync`, () => {
           jsons: [{ foo: `bar` }, { bar: `baz` }],
           txts: [`foo`, `bar`, `baz`],
           value: { a: 5, b: [{ c: `foo` }] },
+          doubles: [Infinity, -Infinity, NaN],
         },
       ])
 
@@ -274,7 +277,8 @@ describe(`HTTP Sync`, () => {
         posints = '{6,10,3}',
         jsons = $3,
         txts = $4,
-        value = $5
+        value = $5,
+        doubles = $6
       WHERE i2 = 1
     `,
         [
@@ -283,6 +287,7 @@ describe(`HTTP Sync`, () => {
           [{}],
           [`new`, `values`],
           { a: 6 },
+          [Infinity, NaN, -Infinity],
         ]
       )
 
@@ -316,6 +321,7 @@ describe(`HTTP Sync`, () => {
           jsons: [{}],
           txts: [`new`, `values`],
           value: { a: 6 },
+          doubles: [Infinity, NaN, -Infinity],
         },
       ])
     }
