@@ -31,10 +31,9 @@ export class MutationWriter {
 
     const { rows } = await this.pg.query(columnNamesQuery);
 
-    // we should allow sending primary key + changes
-    return (
-      rows.every(({ column_name }) => mutation.row[column_name]) &&
-      rows.length === Object.keys(mutation.row).length
+    // check that every sent column exists in the table
+    return Object.keys(mutation.row).every((key) =>
+      rows.some(({ column_name }) => column_name === key)
     );
   }
 
