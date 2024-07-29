@@ -188,7 +188,7 @@ defmodule Electric.ConnectionManager do
   defp start_connection_pool(connection_opts, pool_opts) do
     # Disable the reconnection logic in DBConnection to force it to exit with the connection
     # error.
-    Postgrex.start_link([backoff_type: :stop] ++ pool_opts ++ connection_opts)
+    Postgrex.start_link([backoff_type: :stop, max_restarts: 0] ++ pool_opts ++ connection_opts)
   end
 
   defp handle_connection_error(error, state) do
