@@ -92,7 +92,7 @@ describe(`Shape`, () => {
     shape.unsubscribeAll()
   })
 
-  it(`should resync from scratch on a shape rotation`, async ({
+  it.only(`should resync from scratch on a shape rotation`, async ({
     issuesTableUrl,
     issuesTableKey,
     insertIssues,

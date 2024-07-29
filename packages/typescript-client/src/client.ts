@@ -181,8 +181,7 @@ export class ShapeStream {
 
   private lastOffset: Offset
   private schema?: Schema
-  private parser?: Parser
-  public hasBeenUpToDate: boolean = false
+  private parser: Parser
   public isUpToDate: boolean = false
 
   shapeId?: string
@@ -192,7 +191,10 @@ export class ShapeStream {
     this.options = { subscribe: true, ...options }
     this.lastOffset = this.options.offset ?? `-1`
     this.shapeId = this.options.shapeId
-    this.parser = this.options.parser
+    // Merge the provided parser with the default parser
+    // to use the provided parser whenever defined
+    // and otherwise fall back to the default parser
+    this.parser = { ...defaultParser, ...this.options.parser }
 
     this.backoffOptions = options.backoffOptions ?? BackoffDefaults
     this.fetchClient =
@@ -206,15 +208,12 @@ export class ShapeStream {
     this.isUpToDate = false
 
     const { url, where, signal } = this.options
-    const { initialDelay, maxDelay, multiplier } = this.backoffOptions
-
-    let attempt = 0
-    let delay = initialDelay
 
     while ((!signal?.aborted && !this.isUpToDate) || this.options.subscribe) {
       const fetchUrl = new URL(url)
       if (where) fetchUrl.searchParams.set(`where`, where)
       fetchUrl.searchParams.set(`offset`, this.lastOffset)
+      
       if (this.isUpToDate) {
         fetchUrl.searchParams.set(`live`, `true`)
       }
@@ -224,93 +223,73 @@ export class ShapeStream {
         fetchUrl.searchParams.set(`shape_id`, this.shapeId!)
       }
 
+      let response!: Response
+
       try {
-        const response = await this.fetchClient(fetchUrl.toString(), { signal })
-
-        if (!response.ok) {
-          throw await FetchError.fromResponse(response, fetchUrl.toString())
-        }
-
-        const { headers, status } = response
-        const shapeId = headers.get(`X-Electric-Shape-Id`)
-        if (shapeId) {
-          this.shapeId = shapeId
-        }
-
-        const lastOffset = headers.get(`X-Electric-Chunk-Last-Offset`)
-        if (lastOffset) {
-          this.lastOffset = lastOffset as Offset
-        }
-
-        const schemaHeader = headers.get(`X-Electric-Schema`)!
-        this.schema = schemaHeader ? JSON.parse(schemaHeader) : {}
-
-        attempt = 0
-
-        const messages = status === 204 ? `[]` : await response.text()
-        const batch = JSON.parse(messages, (key, value) => {
-          // typeof value === `object` is needed because
-          // there could be a column named `value`
-          // and the value associated to that column will be a string
-          if (key === `value` && typeof value === `object`) {
-            // Parse the row values
-            const row = value as Record<string, Value>
-            Object.keys(row).forEach((key) => {
-              row[key] = this.parse(key, row[key] as string)
-            })
-          }
-          return value
-        }) as Message[]
-
-        // Update isUpToDate
-        if (batch.length > 0) {
-          const lastMessage = batch[batch.length - 1]
-
-          if (lastMessage.headers?.[`control`] === `up-to-date`) {
-            const wasUpToDate = this.isUpToDate
-
-            this.isUpToDate = true
-
-            if (!wasUpToDate) {
-              this.hasBeenUpToDate = true
-
-              this.notifyUpToDateSubscribers()
-            }
-          }
-
-          this.publish(batch)
-        }
+        const maybeResponse = await this.fetchWithBackoff(fetchUrl)
+        if (maybeResponse) response = maybeResponse
+        else break
       } catch (e) {
-        if (signal?.aborted) {
-          break
-        } else if (e instanceof FetchError && e.status == 409) {
+        if (!(e instanceof FetchError)) throw e // should never happen
+        if (e.status == 409) {
           // Upon receiving a 409, we should start from scratch
           // with the newly provided shape ID
           const newShapeId = e.headers[`x-electric-shape-id`]
           this.reset(newShapeId)
           this.publish(e.json as Message[])
-        } else if (
-          e instanceof FetchError &&
-          e.status >= 400 &&
-          e.status < 500
-        ) {
+          continue
+        } else if (e.status >= 400 && e.status < 500) {
           // Notify subscribers
           this.sendErrorToUpToDateSubscribers(e)
           this.sendErrorToSubscribers(e)
 
-          // We don't want to continue retrying on 4xx errors
-          break
-        } else {
-          // Exponentially backoff on errors.
-          // Wait for the current delay duration
-          await new Promise((resolve) => setTimeout(resolve, delay))
-
-          // Increase the delay for the next attempt
-          delay = Math.min(delay * multiplier, maxDelay)
-
-          attempt++
-          console.log(`Retry attempt #${attempt} after ${delay}ms`)
+          // 400 errors are not actionable without additional user input, so we're throwing them.
+          throw e
         }
+      }
+
+      const { headers, status } = response
+      const shapeId = headers.get(`X-Electric-Shape-Id`)
+      if (shapeId) {
+        this.shapeId = shapeId
+      }
+
+      const lastOffset = headers.get(`X-Electric-Chunk-Last-Offset`)
+      if (lastOffset) {
+        this.lastOffset = lastOffset as Offset
+      }
+
+      const schemaHeader = headers.get(`X-Electric-Schema`)!
+      this.schema = schemaHeader ? JSON.parse(schemaHeader) : {}
+
+      const messages = status === 204 ? `[]` : await response.text()
+
+      const batch = JSON.parse(messages, (key, value) => {
+        // typeof value === `object` is needed because
+        // there could be a column named `value`
+        // and the value associated to that column will be a string
+        if (key === `value` && typeof value === `object`) {
+          // Parse the row values
+          const row = value as Record<string, Value>
+          Object.keys(row).forEach((key) => {
+            row[key] = this.parse(key, row[key] as string)
+          })
+        }
+        return value
+      }) as Message[]
+
+      // Update isUpToDate
+      if (batch.length > 0) {
+        const lastMessage = batch[batch.length - 1]
+        if (
+          lastMessage.headers?.[`control`] === `up-to-date` &&
+          !this.isUpToDate
+        ) {
+          this.isUpToDate = true
+          this.notifyUpToDateSubscribers()
+        }
+
+        this.publish(batch)
       }
     }
   }
@@ -407,6 +386,44 @@ export class ShapeStream {
     }
   }
 
+  private async fetchWithBackoff(url: URL) {
+    const { initialDelay, maxDelay, multiplier } = this.backoffOptions
+    const signal = this.options.signal
+
+    let delay = initialDelay
+    let attempt = 0
+
+    // eslint-disable-next-line no-constant-condition -- we're retrying with a lag until we get a non-500 response or the abort signal is triggered
+    while (true) {
+      try {
+        const result = await this.fetchClient(url.toString(), { signal })
+        if (result.ok) return result
+        else throw await FetchError.fromResponse(result, url.toString())
+      } catch (e) {
+        if (signal?.aborted) {
+          return undefined
+        } else if (
+          e instanceof FetchError &&
+          e.status >= 400 &&
+          e.status < 500
+        ) {
+          // Any client errors cannot be backed off on, leave it to the caller to handle.
+          throw e
+        } else {
+          // Exponentially backoff on errors.
+          // Wait for the current delay duration
+          await new Promise((resolve) => setTimeout(resolve, delay))
+
+          // Increase the delay for the next attempt
+          delay = Math.min(delay * multiplier, maxDelay)
+
+          attempt++
+          console.log(`Retry attempt #${attempt} after ${delay}ms`)
+        }
+      }
+    }
+  }
+
   // Parses the message values using the provided parser based on the schema information
   private parse(key: string, value: string): Value {
     const columnInfo = this.schema?.[key]
@@ -418,8 +435,7 @@ export class ShapeStream {
     }
 
     // Pick the right parser for the type
-    const parser =
-      this.parser?.[columnInfo.type] ?? defaultParser[columnInfo.type]
+    const parser = this.parser[columnInfo.type]
 
     // Copy the object but don't include `dimensions` and `type`
     const { type: _typ, dims: dimensions, ...additionalInfo } = columnInfo
