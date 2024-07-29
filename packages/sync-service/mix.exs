@@ -67,7 +67,7 @@ defmodule Electric.MixProject do
         {:postgrex, "~> 0.18"},
         {:telemetry_metrics_statsd, "~> 0.7"},
         {:telemetry_poller, "~> 1.1"},
-        {:tz, "~> 0.26.5"}
+        {:tz, "~> 0.27"}
       ],
       dev_and_test_deps()
     ])
