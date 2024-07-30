@@ -1,6 +1,6 @@
 import { ArgumentsType } from 'vitest'
-import { Message, Value, Offset, Schema } from './types'
-import { Parser, defaultParser, pgArrayParser } from './parser'
+import { Message, Value, Offset } from './types'
+import { MessageParser, Parser } from './parser'
 
 export type ShapeData = Map<string, { [key: string]: Value }>
 export type ShapeChangedCallback = (value: ShapeData) => void
@@ -180,8 +180,7 @@ export class ShapeStream {
   >()
 
   private lastOffset: Offset
-  private schema?: Schema
-  private parser: Parser
+  private messageParser: MessageParser
   public isUpToDate: boolean = false
 
   shapeId?: string
@@ -191,10 +190,7 @@ export class ShapeStream {
     this.options = { subscribe: true, ...options }
     this.lastOffset = this.options.offset ?? `-1`
     this.shapeId = this.options.shapeId
-    // Merge the provided parser with the default parser
-    // to use the provided parser whenever defined
-    // and otherwise fall back to the default parser
-    this.parser = { ...defaultParser, ...this.options.parser }
+    this.messageParser = new MessageParser(options.parser)
 
     this.backoffOptions = options.backoffOptions ?? BackoffDefaults
     this.fetchClient =
@@ -260,23 +256,11 @@ export class ShapeStream {
       }
 
       const schemaHeader = headers.get(`X-Electric-Schema`)!
-      this.schema = schemaHeader ? JSON.parse(schemaHeader) : {}
+      const schema = schemaHeader ? JSON.parse(schemaHeader) : {}
 
       const messages = status === 204 ? `[]` : await response.text()
 
-      const batch = JSON.parse(messages, (key, value) => {
-        // typeof value === `object` is needed because
-        // there could be a column named `value`
-        // and the value associated to that column will be a string
-        if (key === `value` && typeof value === `object`) {
-          // Parse the row values
-          const row = value as Record<string, Value>
-          Object.keys(row).forEach((key) => {
-            row[key] = this.parse(key, row[key] as string)
-          })
-        }
-        return value
-      }) as Message[]
+      const batch = this.messageParser.parse(messages, schema)
 
       // Update isUpToDate
       if (batch.length > 0) {
@@ -362,7 +346,6 @@ export class ShapeStream {
     this.lastOffset = `-1`
     this.shapeId = shapeId
     this.isUpToDate = false
-    this.schema = undefined
   }
 
   private validateOptions(options: ShapeStreamOptions): void {
@@ -422,36 +405,6 @@ export class ShapeStream {
         }
       }
     }
-  }
-
-  // Parses the message values using the provided parser based on the schema information
-  private parse(key: string, value: string): Value {
-    const columnInfo = this.schema?.[key]
-    // use guards for the "type" property
-    if (!columnInfo) {
-      // We don't have information about the value
-      // so we just return it
-      return value
-    }
-
-    // Pick the right parser for the type
-    const parser = this.parser[columnInfo.type]
-
-    // Copy the object but don't include `dimensions` and `type`
-    const { type: _typ, dims: dimensions, ...additionalInfo } = columnInfo
-
-    if (dimensions > 0) {
-      // It's an array
-      const identityParser = (v: string) => v
-      return pgArrayParser(value, parser ?? identityParser)
-    }
-
-    if (!parser) {
-      // No parser was provided for this type of values
-      return value
-    }
-
-    return parser(value, additionalInfo)
   }
 }
 

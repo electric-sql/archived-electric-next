@@ -1,4 +1,4 @@
-import { ColumnInfo, Value } from './types'
+import { ColumnInfo, Message, Schema, Value } from './types'
 
 export type ParseFunction = (
   value: string,
@@ -71,4 +71,59 @@ export function pgArrayParser(
   }
 
   return loop(value)[0]
+}
+
+export class MessageParser {
+  private parser: Parser
+  constructor(parser?: Parser) {
+    // Merge the provided parser with the default parser
+    // to use the provided parser whenever defined
+    // and otherwise fall back to the default parser
+    this.parser = { ...defaultParser, ...parser }
+  }
+
+  parse(messages: string, schema: Schema): Message[] {
+    return JSON.parse(messages, (key, value) => {
+      // typeof value === `object` is needed because
+      // there could be a column named `value`
+      // and the value associated to that column will be a string
+      if (key === `value` && typeof value === `object`) {
+        // Parse the row values
+        const row = value as Record<string, Value>
+        Object.keys(row).forEach((key) => {
+          row[key] = this.parseRow(key, row[key] as string, schema)
+        })
+      }
+      return value
+    }) as Message[]
+  }
+
+  // Parses the message values using the provided parser based on the schema information
+  private parseRow(key: string, value: string, schema: Schema): Value {
+    const columnInfo = schema[key]
+    if (!columnInfo) {
+      // We don't have information about the value
+      // so we just return it
+      return value
+    }
+
+    // Pick the right parser for the type
+    const parser = this.parser[columnInfo.type]
+
+    // Copy the object but don't include `dimensions` and `type`
+    const { type: _typ, dims: dimensions, ...additionalInfo } = columnInfo
+
+    if (dimensions > 0) {
+      // It's an array
+      const identityParser = (v: string) => v
+      return pgArrayParser(value, parser ?? identityParser)
+    }
+
+    if (!parser) {
+      // No parser was provided for this type of values
+      return value
+    }
+
+    return parser(value, additionalInfo)
+  }
 }
