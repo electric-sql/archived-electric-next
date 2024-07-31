@@ -3,13 +3,14 @@ defmodule Electric.Plug.ServeShapePlug do
   alias Electric.Shapes
   alias Electric.Schema
   alias Electric.Replication.LogOffset
+  alias Plug.Conn
   use Plug.Builder
 
   # Aliasing for pattern matching
   @before_all_offset LogOffset.before_all()
 
   # Control messages
-  @up_to_date %{headers: %{control: "up-to-date"}}
+  @up_to_date [%{headers: %{control: "up-to-date"}}]
   @must_refetch [%{headers: %{control: "must-refetch"}}]
 
   defmodule Params do
@@ -124,7 +125,7 @@ defmodule Electric.Plug.ServeShapePlug do
   plug :put_resp_cache_headers
   plug :serve_log_or_snapshot
 
-  defp validate_query_params(%Plug.Conn{} = conn, _) do
+  defp validate_query_params(%Conn{} = conn, _) do
     Logger.info("Query String: #{conn.query_string}")
 
     all_params =
@@ -142,7 +143,7 @@ defmodule Electric.Plug.ServeShapePlug do
     end
   end
 
-  defp load_shape_info(%Plug.Conn{} = conn, _) do
+  defp load_shape_info(%Conn{} = conn, _) do
     shape = conn.assigns.shape_definition
 
     {shape_id, last_offset} =
@@ -165,7 +166,7 @@ defmodule Electric.Plug.ServeShapePlug do
   end
 
   # If the offset requested is -1, noop as we can always serve it
-  def validate_shape_offset(%Plug.Conn{assigns: %{offset: @before_all_offset}} = conn, _) do
+  def validate_shape_offset(%Conn{assigns: %{offset: @before_all_offset}} = conn, _) do
     # noop
     conn
   end
@@ -173,7 +174,7 @@ defmodule Electric.Plug.ServeShapePlug do
   # If the offset requested is not found, returns 409 along with a location redirect for clients to
   # re-request the shape from scratch with the new shape id which acts as a consistent cache buster
   # e.g. GET /v1/shape/{root_table}?shape_id={new_shape_id}&offset=-1
-  def validate_shape_offset(%Plug.Conn{assigns: %{offset: offset}} = conn, _) do
+  def validate_shape_offset(%Conn{assigns: %{offset: offset}} = conn, _) do
     shape_id = conn.assigns.shape_id
     active_shape_id = conn.assigns.active_shape_id
 
@@ -195,7 +196,7 @@ defmodule Electric.Plug.ServeShapePlug do
     end
   end
 
-  defp generate_etag(%Plug.Conn{} = conn, _) do
+  defp generate_etag(%Conn{} = conn, _) do
     %{
       offset: offset,
       active_shape_id: active_shape_id,
@@ -209,7 +210,7 @@ defmodule Electric.Plug.ServeShapePlug do
     )
   end
 
-  defp validate_and_put_etag(%Plug.Conn{} = conn, _) do
+  defp validate_and_put_etag(%Conn{} = conn, _) do
     if_none_match =
       get_req_header(conn, "if-none-match")
       |> Enum.flat_map(&String.split(&1, ","))
@@ -230,7 +231,7 @@ defmodule Electric.Plug.ServeShapePlug do
     end
   end
 
-  defp put_resp_cache_headers(%Plug.Conn{} = conn, _) do
+  defp put_resp_cache_headers(%Conn{} = conn, _) do
     if conn.assigns.live do
       conn
       |> put_resp_header("cache-control", "no-store, no-cache, must-revalidate, max-age=0")
@@ -247,14 +248,14 @@ defmodule Electric.Plug.ServeShapePlug do
 
   def cors(conn, _opts) do
     conn
-    |> Plug.Conn.put_resp_header("access-control-allow-origin", "*")
-    |> Plug.Conn.put_resp_header("access-control-expose-headers", "*")
-    |> Plug.Conn.put_resp_header("access-control-allow-methods", "GET, POST, OPTIONS")
+    |> Conn.put_resp_header("access-control-allow-origin", "*")
+    |> Conn.put_resp_header("access-control-expose-headers", "*")
+    |> Conn.put_resp_header("access-control-allow-methods", "GET, POST, OPTIONS")
   end
 
   # If offset is -1, we're serving a snapshot
   defp serve_log_or_snapshot(
-         %Plug.Conn{
+         %Conn{
            assigns: %{
              offset: @before_all_offset,
              last_offset: last_offset,
@@ -268,27 +269,12 @@ defmodule Electric.Plug.ServeShapePlug do
         log =
           Shapes.get_log_stream(conn.assigns.config, shape_id, since: offset, up_to: last_offset)
 
-        conn = Plug.Conn.send_chunked(conn, 200)
-
-        item_stream =
-          snapshot
-          |> Stream.concat(log)
-          |> Stream.map(&[Jason.encode_to_iodata!(&1), ?,])
-          |> Stream.concat([Jason.encode!(@up_to_date)])
-
-        [?[]
-        |> Stream.concat(item_stream)
-        |> Stream.concat([?]])
+        snapshot
+        |> Stream.concat(log)
+        |> Stream.concat(@up_to_date)
+        |> to_json_stream()
         |> Stream.chunk_every(500)
-        |> Enum.reduce_while(conn, fn chunk, conn ->
-          case Plug.Conn.chunk(conn, chunk) do
-            {:ok, conn} ->
-              {:cont, conn}
-
-            {:error, :closed} ->
-              {:halt, conn}
-          end
-        end)
+        |> send_stream(conn, 200)
 
       {:error, reason} ->
         Logger.warning("Could not serve a snapshot because of #{inspect(reason)}")
@@ -303,7 +289,7 @@ defmodule Electric.Plug.ServeShapePlug do
 
   # Otherwise, serve log since that offset
   defp serve_log_or_snapshot(
-         %Plug.Conn{
+         %Conn{
            assigns: %{offset: offset, last_offset: last_offset, active_shape_id: shape_id}
          } = conn,
          _
@@ -315,13 +301,40 @@ defmodule Electric.Plug.ServeShapePlug do
     if log == [] and conn.assigns.live do
       hold_until_change(conn, shape_id)
     else
-      send_resp(conn, 200, Jason.encode_to_iodata!(log ++ [@up_to_date]))
+      send_resp(conn, 200, Jason.encode_to_iodata!(log ++ @up_to_date))
     end
   end
 
-  defp listen_for_new_changes(%Plug.Conn{} = conn, _) when not conn.assigns.live, do: conn
+  @json_list_start "["
+  @json_list_end "]"
+  @json_item_separator ","
+  defp to_json_stream(items) do
+    [@json_list_start]
+    |> Stream.concat(
+      items
+      |> Stream.map(&Jason.encode_to_iodata!/1)
+      |> Stream.intersperse(@json_item_separator)
+    )
+    |> Stream.concat([@json_list_end])
+  end
 
-  defp listen_for_new_changes(%Plug.Conn{assigns: assigns} = conn, _) do
+  defp send_stream(stream, conn, status) do
+    conn = Conn.send_chunked(conn, status)
+
+    Enum.reduce_while(stream, conn, fn chunk, conn ->
+      case Conn.chunk(conn, chunk) do
+        {:ok, conn} ->
+          {:cont, conn}
+
+        {:error, :closed} ->
+          {:halt, conn}
+      end
+    end)
+  end
+
+  defp listen_for_new_changes(%Conn{} = conn, _) when not conn.assigns.live, do: conn
+
+  defp listen_for_new_changes(%Conn{assigns: assigns} = conn, _) do
     # Only start listening when we know there is a possibility that nothing is going to be returned
     if LogOffset.compare(assigns.offset, assigns.last_offset) != :lt do
       shape_id = assigns.shape_id
@@ -354,10 +367,10 @@ defmodule Electric.Plug.ServeShapePlug do
       {^ref, :shape_rotation} ->
         # We may want to notify the client better that the shape ID had changed, but just closing the response
         # and letting the client handle it on reconnection is good enough.
-        send_resp(conn, 200, Jason.encode_to_iodata!([@up_to_date]))
+        send_resp(conn, 200, Jason.encode_to_iodata!(@up_to_date))
     after
       # If we timeout, return an empty body and 204 as there's no response body.
-      long_poll_timeout -> send_resp(conn, 204, Jason.encode_to_iodata!([@up_to_date]))
+      long_poll_timeout -> send_resp(conn, 204, Jason.encode_to_iodata!(@up_to_date))
     end
   end
 end
