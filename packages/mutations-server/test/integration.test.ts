@@ -112,8 +112,7 @@ describe(`mutation round trip`, () => {
       incoming!.value.title === title;
 
     const shapeStream = new TentativeShapeStream({
-      shape: { table: issuesTableUrl },
-      baseUrl: BASE_URL,
+      url: `${BASE_URL}/v1/shape/${issuesTableUrl}`,
       getKey: getKeyFunction,
       mergeFunction: localChangeWins,
       matchFunction: matchOnTitle,
@@ -136,6 +135,7 @@ describe(`mutation round trip`, () => {
       action: `insert`,
       key: uuid,
       value: { id: uuid, title, priority: 1 },
+      headers: {},
     };
 
     shape.applyMutation(mutationForShape);
