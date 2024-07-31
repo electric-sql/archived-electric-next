@@ -8,7 +8,7 @@ import cors from "cors";
 
 const app = express();
 app.use(bodyParser.json());
-app.use(cors());
+app.use(cors({ exposedHeaders: "X-Electric-Postgres-Xid" }));
 
 const port = process.env.MUTATIONS_SERVER_PORT || 8080;
 

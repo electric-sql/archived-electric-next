@@ -48,6 +48,12 @@ export class MutableShape extends Shape {
   }
 }
 
+export type TentativeShapeStreamOptions = ShapeStreamOptions & {
+  getKey: GetKeyFunction
+  mergeFunction?: MergeFunction
+  matchFunction?: MatchFunction
+}
+
 export class TentativeShapeStream extends ShapeStream {
   private handlers: Map<string, TentativeStateHandler>
 
@@ -57,23 +63,18 @@ export class TentativeShapeStream extends ShapeStream {
 
   private prePublishHookCloseHandler: () => void
 
-  constructor(
-    options: ShapeStreamOptions,
-    getKey: GetKeyFunction,
-    mergeFunction?: MergeFunction,
-    matchFunction?: MatchFunction
-  ) {
+  constructor(options: TentativeShapeStreamOptions) {
     super(options)
 
     this.handlers = new Map()
 
-    this.getKey = getKey
-    this.defaultMergeFunction = mergeFunction
-    this.defaultMatchFunction = matchFunction
+    this.getKey = options.getKey
+    this.defaultMergeFunction = options.mergeFunction
+    this.defaultMatchFunction = options.matchFunction
 
-    this.prePublishHookCloseHandler = this.registerPrePublishHook((m) =>
+    this.prePublishHookCloseHandler = this.registerPrePublishHook((m) => {
       this.modifyAgainstTentativeState(m)
-    )
+    })
   }
 
   destroy() {
@@ -118,6 +119,7 @@ export class TentativeShapeStream extends ShapeStream {
         action: headers?.[`action`] as `insert` | `update` | `delete`,
         key: key!,
         value,
+        headers,
       }
 
       const mutation = handler(incomingMutation)
@@ -127,6 +129,13 @@ export class TentativeShapeStream extends ShapeStream {
     }
   }
 
+  // The code for matching based on a xid is prone to
+  // a race condition that happens if we receive the
+  // change on the stream before registering the match
+  // function (as response to the fetch).
+
+  // For xid comparisons we can match with xid < server.xid
+  // as an unsafe to recover after a long period of disconnection
   private makeTentativeStateHandler =
     (current: Mutation, merge: MergeFunction, match: MatchFunction) =>
     (incoming: Mutation) => {

@@ -111,15 +111,13 @@ describe(`mutation round trip`, () => {
     const matchOnTitle: MatchFunction = (_, incoming) =>
       incoming!.value.title === title;
 
-    const shapeStream = new TentativeShapeStream(
-      {
-        shape: { table: issuesTableUrl },
-        baseUrl: BASE_URL,
-      },
-      getKeyFunction,
-      localChangeWins,
-      matchOnTitle,
-    );
+    const shapeStream = new TentativeShapeStream({
+      shape: { table: issuesTableUrl },
+      baseUrl: BASE_URL,
+      getKey: getKeyFunction,
+      mergeFunction: localChangeWins,
+      matchFunction: matchOnTitle,
+    });
 
     const shape = new MutableShape(shapeStream);
     expect((await shape.value).size).toEqual(0);
