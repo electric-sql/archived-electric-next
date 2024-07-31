@@ -15,10 +15,31 @@ import StatusMenu from './contextmenu/StatusMenu'
 
 import { Priority, Status, PriorityDisplay } from '../types/types'
 import { showInfo } from '../utils/notification'
+import { v4 as uuidv4 } from 'uuid'
+import { useShape, MutableShape } from '@electric-sql/react'
+
+import { issueShape } from '../shapes'
 
 interface Props {
   isOpen: boolean
   onDismiss?: () => void
+}
+
+function buildRequest(
+  url: string,
+  userId: string,
+  requestId: string,
+  mutations: Mutation[]
+) {
+  return new Request(url, {
+    method: `POST`,
+    headers: {
+      'Content-Type': `application/json`,
+      'X-Electric-Request-Id': requestId,
+      'X-Electric-User-Id': userId,
+    },
+    body: JSON.stringify(mutations),
+  })
 }
 
 function IssueModal({ isOpen, onDismiss }: Props) {
@@ -28,33 +49,67 @@ function IssueModal({ isOpen, onDismiss }: Props) {
   const [priority, setPriority] = useState(Priority.NONE)
   const [status, setStatus] = useState(Status.BACKLOG)
 
+  const issues = useShape(issueShape) as MutableShape
+
   const handleSubmit = async () => {
-    // if (title === '') {
-    //   showWarning('Please enter a title before submitting', 'Title required')
-    //   return
-    // }
+    if (title === '') {
+      showWarning('Please enter a title before submitting', 'Title required')
+      return
+    }
 
-    // const lastIssue = await db.issue.findFirst({
-    //   orderBy: {
-    //     kanbanorder: 'desc',
-    //   },
-    // })
-    // const kanbanorder = generateKeyBetween(lastIssue?.kanbanorder, null)
+    const kanbanorder = 'AAA'
 
-    // const date = new Date()
-    // db.issue.create({
-    //   data: {
-    //     id: uuidv4(),
-    //     title: title,
-    //     username: 'testuser',
-    //     priority: priority,
-    //     status: status,
-    //     description: description ?? '',
-    //     modified: date,
-    //     created: date,
-    //     kanbanorder: kanbanorder,
-    //   },
-    // })
+    const date = new Date()
+
+    const mutationForServer: Mutation = {
+      action: `insert`,
+      schema: `public`,
+      tablename: `issue`,
+      row: {
+        id: uuidv4(),
+        title,
+        username: 'testuser',
+        priority,
+        status,
+        description: description ?? '',
+        modified: date,
+        created: date,
+        kanbanorder,
+      },
+    }
+
+    const req = buildRequest(
+      `http://localhost:8080/`,
+      `fake-user`,
+      date.getTime(), // request id
+      [mutationForServer]
+    )
+    await fetch(req).then((res) => {
+      // this code waits until a server response to apply the tentative mutation.
+      // a framework integration would probably talk directly with the
+      // TentativeShapeStream and handle this for the developer.
+
+      // You have to match on something that you know is comming on the other end,
+      // I think is reasonable to think that developers would add stuff to the
+      // table schema or the transaction to identify the change  (we can write an
+      // example with a shadow table)
+
+      // when we can get the xid it can be totally transparent because we
+      // can generate the matching function as below
+      // The mutation server I made is almost the same as old electric
+      // write path (triggers were installed in the db, electric would not touch
+      // incoming mutations -- we called them effects).
+
+      const xid = res.headers.get(`x-electric-postgres-xid`)
+      const mutationForShape = {
+        action: 'insert',
+        key: mutationForServer.row.id,
+        value: mutationForServer.row,
+      }
+      const merge = (c, _) => c
+      const match = (_, i) => `${i.headers.txid}` === xid
+      issues.shape.applyMutation(mutationForShape, merge, match)
+    })
 
     if (onDismiss) onDismiss()
     reset()

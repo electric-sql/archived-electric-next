@@ -10,7 +10,7 @@ import {
 type TentativeStateHandler = (incoming: Mutation) => Mutation
 
 export class MutableShape extends Shape {
-  protected stream: TentativeShapeStream
+  protected declare stream: TentativeShapeStream
 
   constructor(stream: TentativeShapeStream) {
     super(stream)
@@ -110,7 +110,8 @@ export class TentativeShapeStream extends ShapeStream {
     const key = this.getKey(message)
 
     // this is an hack: if the row is created locally, it doesn't
-    // have an id yet, so we chaging the keys
+    // have an id yet, so we're chaging the keys to be generated
+    // consistently on the server and the client
     message.key = key
 
     const handler = this.handlers.get(key!)

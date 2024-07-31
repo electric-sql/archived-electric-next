@@ -111,7 +111,7 @@ export type Mutation<T extends Value = { [key: string]: Value }> = {
   action: `insert` | `update` | `delete`
   key: string
   value: T
-  headers: Record<string, string>
+  headers: Record<string, Value> & { action: `insert` | `update` | `delete` }
 }
 
 export type MergeFunction = (current: Mutation, incoming: Mutation) => Mutation
