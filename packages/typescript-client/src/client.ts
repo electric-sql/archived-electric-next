@@ -209,7 +209,7 @@ export class ShapeStream {
       const fetchUrl = new URL(url)
       if (where) fetchUrl.searchParams.set(`where`, where)
       fetchUrl.searchParams.set(`offset`, this.lastOffset)
-      
+
       if (this.isUpToDate) {
         fetchUrl.searchParams.set(`live`, `true`)
       }

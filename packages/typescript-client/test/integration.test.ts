@@ -216,8 +216,7 @@ describe(`HTTP Sync`, () => {
 
       // Now fetch the data from the HTTP endpoint
       const issueStream = new ShapeStream({
-        shape: { table: tableUrl },
-        baseUrl: `${BASE_URL}`,
+        url: `${BASE_URL}/v1/shape/${tableUrl}`,
         signal: aborter.signal,
       })
       const client = new Shape(issueStream)
