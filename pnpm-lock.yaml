@@ -399,6 +399,9 @@ importers:
       body-parser:
         specifier: ^1.20.2
         version: 1.20.2
+      cors:
+        specifier: ^2.8.5
+        version: 2.8.5
       dotenv:
         specifier: ^16.3.1
         version: 16.4.5
@@ -408,14 +411,14 @@ importers:
       pg:
         specifier: ^8.12.0
         version: 8.12.0
+      uuid:
+        specifier: ^10.0.0
+        version: 10.0.0
     optionalDependencies:
       '@rollup/rollup-darwin-arm64':
         specifier: ^4.18.1
         version: 4.18.1
     devDependencies:
-      '@types/better-sqlite3':
-        specifier: ^7.6.10
-        version: 7.6.11
       '@types/express':
         specifier: ^4.17.21
         version: 4.17.21
@@ -425,6 +428,9 @@ importers:
       '@types/pg':
         specifier: ^8.11.6
         version: 8.11.6
+      '@types/uuid':
+        specifier: ^10.0.0
+        version: 10.0.0
       '@typescript-eslint/eslint-plugin':
         specifier: ^6.15.0
         version: 6.21.0(@typescript-eslint/parser@6.21.0(eslint@8.57.0)(typescript@5.5.3))(eslint@8.57.0)(typescript@5.5.3)
@@ -701,6 +707,10 @@ packages:
 
   '@babel/runtime@7.24.8':
     resolution: {integrity: sha512-5F7SDGs1T72ZczbRwbGO9lQi0NLjQxzl6i4lJxLxfW9U5UluCSyEJeniWvnhl3/euNiqQVbo8zruhsDfid0esA==}
+    engines: {node: '>=6.9.0'}
+
+  '@babel/runtime@7.25.0':
+    resolution: {integrity: sha512-7dRy4DwXwtzBrPbZflqxnvfxLF8kdZXPkhymtDeFoFqE6ldzjQFgYTtYIFARcLEYDrqfBfYcZt1WqFxRoyC9Rw==}
     engines: {node: '>=6.9.0'}
 
   '@babel/template@7.24.7':
@@ -2455,9 +2465,6 @@ packages:
   '@types/babel__traverse@7.20.6':
     resolution: {integrity: sha512-r1bzfrm0tomOI8g1SzvCaQHo6Lcv6zu0EA+W2kHrt8dyrHQxGzBBL4kdkzIS+jBMV+EYcMAEAqXqYaLJq5rOZg==}
 
-  '@types/better-sqlite3@7.6.11':
-    resolution: {integrity: sha512-i8KcD3PgGtGBLl3+mMYA8PdKkButvPyARxA7IQAd6qeslht13qxb1zzO8dRCtE7U3IoJS782zDBAeoKiM695kg==}
-
   '@types/body-parser@1.19.5':
     resolution: {integrity: sha512-fB3Zu92ucau0iQ0JMCFQE7b/dv8Ot07NI3KaZIkIUNXq82k4eBAqUaneXfleGY9JWskeS9y+u0nXMyspcuQrCg==}
 
@@ -3157,6 +3164,15 @@ packages:
 
   debug@4.3.5:
     resolution: {integrity: sha512-pt0bNEmneDIvdL1Xsd9oDQ/wrQRkXDT4AUWlNZNPKvW5x/jyO9VFXkJUP07vQ2upmw5PlaITaPKc31jK13V+jg==}
+    engines: {node: '>=6.0'}
+    peerDependencies:
+      supports-color: '*'
+    peerDependenciesMeta:
+      supports-color:
+        optional: true
+
+  debug@4.3.6:
+    resolution: {integrity: sha512-O/09Bd4Z1fBrU4VzkhFqVgpPzaGbw6Sm9FEkBT1A/YBXQFGuuSxa1dN2nxgxS34JmKXqYx8CZAwEVoJFImUXIg==}
     engines: {node: '>=6.0'}
     peerDependencies:
       supports-color: '*'
@@ -6051,6 +6067,10 @@ snapshots:
     dependencies:
       regenerator-runtime: 0.14.1
 
+  '@babel/runtime@7.25.0':
+    dependencies:
+      regenerator-runtime: 0.14.1
+
   '@babel/template@7.24.7':
     dependencies:
       '@babel/code-frame': 7.24.7
@@ -6088,7 +6108,7 @@ snapshots:
 
   '@changesets/apply-release-plan@7.0.4':
     dependencies:
-      '@babel/runtime': 7.24.8
+      '@babel/runtime': 7.25.0
       '@changesets/config': 3.0.2
       '@changesets/get-version-range-type': 0.4.0
       '@changesets/git': 3.0.0
@@ -6105,7 +6125,7 @@ snapshots:
 
   '@changesets/assemble-release-plan@6.0.3':
     dependencies:
-      '@babel/runtime': 7.24.8
+      '@babel/runtime': 7.25.0
       '@changesets/errors': 0.2.0
       '@changesets/get-dependents-graph': 2.1.1
       '@changesets/should-skip-package': 0.1.0
@@ -6119,7 +6139,7 @@ snapshots:
 
   '@changesets/cli@2.27.7':
     dependencies:
-      '@babel/runtime': 7.24.8
+      '@babel/runtime': 7.25.0
       '@changesets/apply-release-plan': 7.0.4
       '@changesets/assemble-release-plan': 6.0.3
       '@changesets/changelog-git': 0.2.0
@@ -6176,7 +6196,7 @@ snapshots:
 
   '@changesets/get-release-plan@4.0.3':
     dependencies:
-      '@babel/runtime': 7.24.8
+      '@babel/runtime': 7.25.0
       '@changesets/assemble-release-plan': 6.0.3
       '@changesets/config': 3.0.2
       '@changesets/pre': 2.0.0
@@ -6188,7 +6208,7 @@ snapshots:
 
   '@changesets/git@3.0.0':
     dependencies:
-      '@babel/runtime': 7.24.8
+      '@babel/runtime': 7.25.0
       '@changesets/errors': 0.2.0
       '@changesets/types': 6.0.0
       '@manypkg/get-packages': 1.1.3
@@ -6207,7 +6227,7 @@ snapshots:
 
   '@changesets/pre@2.0.0':
     dependencies:
-      '@babel/runtime': 7.24.8
+      '@babel/runtime': 7.25.0
       '@changesets/errors': 0.2.0
       '@changesets/types': 6.0.0
       '@manypkg/get-packages': 1.1.3
@@ -6215,7 +6235,7 @@ snapshots:
 
   '@changesets/read@0.6.0':
     dependencies:
-      '@babel/runtime': 7.24.8
+      '@babel/runtime': 7.25.0
       '@changesets/git': 3.0.0
       '@changesets/logger': 0.1.0
       '@changesets/parse': 0.4.0
@@ -6226,7 +6246,7 @@ snapshots:
 
   '@changesets/should-skip-package@0.1.0':
     dependencies:
-      '@babel/runtime': 7.24.8
+      '@babel/runtime': 7.25.0
       '@changesets/types': 6.0.0
       '@manypkg/get-packages': 1.1.3
 
@@ -6236,7 +6256,7 @@ snapshots:
 
   '@changesets/write@0.3.1':
     dependencies:
-      '@babel/runtime': 7.24.8
+      '@babel/runtime': 7.25.0
       '@changesets/types': 6.0.0
       fs-extra: 7.0.1
       human-id: 1.0.2
@@ -6663,14 +6683,14 @@ snapshots:
 
   '@manypkg/find-root@1.1.0':
     dependencies:
-      '@babel/runtime': 7.24.8
+      '@babel/runtime': 7.25.0
       '@types/node': 12.20.55
       find-up: 4.1.0
       fs-extra: 8.1.0
 
   '@manypkg/get-packages@1.1.3':
     dependencies:
-      '@babel/runtime': 7.24.8
+      '@babel/runtime': 7.25.0
       '@changesets/types': 4.1.0
       '@manypkg/find-root': 1.1.0
       fs-extra: 8.1.0
@@ -7584,7 +7604,7 @@ snapshots:
   '@testing-library/dom@10.3.2':
     dependencies:
       '@babel/code-frame': 7.24.7
-      '@babel/runtime': 7.24.8
+      '@babel/runtime': 7.25.0
       '@types/aria-query': 5.0.4
       aria-query: 5.3.0
       chalk: 4.1.2
@@ -7797,10 +7817,6 @@ snapshots:
   '@types/babel__traverse@7.20.6':
     dependencies:
       '@babel/types': 7.24.9
-
-  '@types/better-sqlite3@7.6.11':
-    dependencies:
-      '@types/node': 20.14.11
 
   '@types/body-parser@1.19.5':
     dependencies:
@@ -8225,7 +8241,7 @@ snapshots:
 
   agent-base@7.1.1:
     dependencies:
-      debug: 4.3.5(supports-color@5.5.0)
+      debug: 4.3.6
     transitivePeerDependencies:
       - supports-color
 
@@ -8613,6 +8629,10 @@ snapshots:
       ms: 2.1.2
     optionalDependencies:
       supports-color: 5.5.0
+
+  debug@4.3.6:
+    dependencies:
+      ms: 2.1.2
 
   decimal.js@10.4.3: {}
 
@@ -9378,14 +9398,14 @@ snapshots:
   http-proxy-agent@7.0.2:
     dependencies:
       agent-base: 7.1.1
-      debug: 4.3.5(supports-color@5.5.0)
+      debug: 4.3.6
     transitivePeerDependencies:
       - supports-color
 
   https-proxy-agent@7.0.5:
     dependencies:
       agent-base: 7.1.1
-      debug: 4.3.5(supports-color@5.5.0)
+      debug: 4.3.6
     transitivePeerDependencies:
       - supports-color
 
