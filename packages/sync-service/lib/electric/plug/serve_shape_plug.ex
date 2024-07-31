@@ -267,9 +267,28 @@ defmodule Electric.Plug.ServeShapePlug do
       {:ok, {offset, snapshot}} ->
         log =
           Shapes.get_log_stream(conn.assigns.config, shape_id, since: offset, up_to: last_offset)
-          |> Enum.to_list()
 
-        send_resp(conn, 200, Jason.encode_to_iodata!(snapshot ++ log ++ @up_to_date))
+        conn = Plug.Conn.send_chunked(conn, 200)
+
+        item_stream =
+          snapshot
+          |> Stream.concat(log)
+          |> Stream.map(&[Jason.encode_to_iodata!(&1), ?,])
+          |> Stream.concat([Jason.encode!(@up_to_date)])
+
+        [?[]
+        |> Stream.concat(item_stream)
+        |> Stream.concat([?]])
+        |> Stream.chunk_every(500)
+        |> Enum.reduce_while(conn, fn chunk, conn ->
+          case Plug.Conn.chunk(conn, chunk) do
+            {:ok, conn} ->
+              {:cont, conn}
+
+            {:error, :closed} ->
+              {:halt, conn}
+          end
+        end)
 
       {:error, reason} ->
         Logger.warning("Could not serve a snapshot because of #{inspect(reason)}")
