@@ -303,8 +303,8 @@ defmodule Electric.ShapeCache do
             error -> GenServer.cast(parent, {:snapshot_failed, shape_id, error, __STACKTRACE__})
           end
         end
-        |> Task.start()
       )
+      |> Task.start()
 
       add_waiter(state, shape_id, nil)
     else
