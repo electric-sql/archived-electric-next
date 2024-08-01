@@ -41,6 +41,15 @@ stream.subscribe(messages => {
 })
 ```
 
+By default, the `ShapeStream` parses the following Postgres types into native JavaScript values:
+- `int2`, `int4`, and `float8` are parsed into JavaScript `Number`
+- `int8` is parsed into a JavaScript `BigInt`
+- `bool` is parsed into a JavaScript `Boolean`
+- `json` and `jsonb` are parsed into JavaScript values/arrays/objects using `JSON.parse`
+
+All other types aren't parsed and are left in the string format as they were served by the HTTP endpoint.
+Arrays are parsed into JavaScript arrays, e.g. `"{{1,2},{3,4}}"` is parsed into `[[1,2],[3,4]]`.
+
 ### `Shape`
 
 ```tsx
