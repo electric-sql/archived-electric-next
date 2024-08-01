@@ -200,15 +200,84 @@ defmodule Electric.ShapeCacheTest do
       :ok
     end
 
-    test "creates initial snapshot from DB data",
-         %{storage: storage, shape_cache_opts: opts} do
+    test "creates initial snapshot from DB data", %{storage: storage, shape_cache_opts: opts} do
       {shape_id, _} = ShapeCache.get_or_create_shape_id(@shape, opts)
       assert :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id)
       assert Storage.snapshot_exists?(shape_id, storage)
       assert {@zero_offset, stream} = Storage.get_snapshot(shape_id, storage)
 
       assert [%{value: %{"value" => "test1"}}, %{value: %{"value" => "test2"}}] =
-               Enum.to_list(stream)
+               stream_to_list(stream)
+    end
+
+    # Set the DB's display settings to something else than Electric.Postgres.display_settings
+    @tag database_settings: [
+           "DateStyle='Postgres, DMY'",
+           "TimeZone='CET'",
+           "extra_float_digits=-1",
+           "bytea_output='escape'",
+           "IntervalStyle='postgres'"
+         ]
+    @tag additional_fields:
+           "date DATE, timestamptz TIMESTAMPTZ, float FLOAT8, bytea BYTEA, interval INTERVAL"
+    test "uses correct display settings when querying initial data", %{
+      pool: pool,
+      storage: storage,
+      shape_cache_opts: opts
+    } do
+      shape =
+        update_in(
+          @shape.table_info[{"public", "items"}].columns,
+          &(&1 ++
+              [
+                %{name: "date", type: :date},
+                %{name: "timestamptz", type: :timestamptz},
+                %{name: "float", type: :float8},
+                %{name: "bytea", type: :bytea},
+                %{name: "interval", type: :interval}
+              ])
+        )
+
+      Postgrex.query!(
+        pool,
+        """
+        INSERT INTO items (
+          id, value, date, timestamptz, float, bytea, interval
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7
+        )
+        """,
+        [
+          Ecto.UUID.bingenerate(),
+          "test value",
+          ~D[2022-05-17],
+          ~U[2022-01-12 00:01:00.00Z],
+          1.234567890123456,
+          <<0x5, 0x10, 0xFA>>,
+          %Postgrex.Interval{
+            days: 1,
+            months: 0,
+            # 12 hours, 59 minutes, 10 seconds
+            secs: 46750,
+            microsecs: 0
+          }
+        ]
+      )
+
+      {shape_id, _} = ShapeCache.get_or_create_shape_id(shape, opts)
+      assert :ready = ShapeCache.wait_for_snapshot(opts[:server], shape_id)
+      assert {@zero_offset, stream} = Storage.get_snapshot(shape_id, storage)
+
+      assert [%{value: map}, %{value: %{"value" => "test1"}}, %{value: %{"value" => "test2"}}] =
+               stream_to_list(stream)
+
+      assert %{
+               "date" => "2022-05-17",
+               "timestamptz" => "2022-01-12 00:01:00+00",
+               "float" => "1.234567890123456",
+               "bytea" => "\\x0510fa",
+               "interval" => "P1DT12H59M10S"
+             } = map
     end
 
     test "updates latest offset correctly",
@@ -630,4 +699,7 @@ defmodule Electric.ShapeCacheTest do
   end
 
   def prepare_tables_noop(_, _), do: :ok
+
+  defp stream_to_list(stream),
+    do: Enum.sort_by(stream, fn %{value: %{"value" => val}} -> val end)
 end
