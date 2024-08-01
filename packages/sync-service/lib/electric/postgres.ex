@@ -58,6 +58,7 @@ defmodule Electric.Postgres do
     * `TimeZone`           - affects the time zone offset Postgres uses for timestamptz and timetz values.
 
     * `extra_float_digits` - determines whether floating-point values are rounded or are encoded precisely.
+
     * `IntervalStyle`      - determines how Postgres interprets and formats interval values.
   """
   @spec display_settings :: [String.t()]
