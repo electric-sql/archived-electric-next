@@ -308,13 +308,13 @@ defmodule Electric.Plug.ServeShapePlug do
   @json_list_end "]"
   @json_item_separator ","
   defp to_json_stream(items) do
-    [@json_list_start]
-    |> Stream.concat(
+    Stream.concat([
+      [@json_list_start],
       items
       |> Stream.map(&Jason.encode_to_iodata!/1)
-      |> Stream.intersperse(@json_item_separator)
-    )
-    |> Stream.concat([@json_list_end])
+      |> Stream.intersperse(@json_item_separator),
+      [@json_list_end]
+    ])
   end
 
   defp send_stream(stream, conn, status) do
