@@ -90,7 +90,8 @@ defmodule Electric.Postgres.ReplicationClientTest do
       assert {:ok, _} = ReplicationClient.start_link(config, replication_opts)
     end
 
-    @tag additional_fields: "date DATE, timestamptz TIMESTAMPTZ, float FLOAT8, bytea BYTEA"
+    @tag additional_fields:
+           "date DATE, timestamptz TIMESTAMPTZ, float FLOAT8, bytea BYTEA, interval INTERVAL"
     test "returns data formatted according to display settings", %{
       db_config: config,
       replication_opts: replication_opts,
@@ -104,13 +105,14 @@ defmodule Electric.Postgres.ReplicationClientTest do
       Postgrex.query!(conn, "ALTER DATABASE \"#{db_name}\" SET TimeZone='CET';", [])
       Postgrex.query!(conn, "ALTER DATABASE \"#{db_name}\" SET extra_float_digits=-1;", [])
       Postgrex.query!(conn, "ALTER DATABASE \"#{db_name}\" SET bytea_output='escape';", [])
+      Postgrex.query!(conn, "ALTER DATABASE \"#{db_name}\" SET IntervalStyle='postgres';", [])
 
       assert {:ok, _} = ReplicationClient.start_link(config, replication_opts)
 
       {:ok, _} =
         Postgrex.query(
           conn,
-          "INSERT INTO items (id, value, date, timestamptz, float, bytea) VALUES ($1, $2, $3, $4, $5, $6)",
+          "INSERT INTO items (id, value, date, timestamptz, float, bytea, interval) VALUES ($1, $2, $3, $4, $5, $6, $7)",
           [
             Ecto.UUID.bingenerate(),
             "test value",
@@ -118,7 +120,14 @@ defmodule Electric.Postgres.ReplicationClientTest do
             ~U[2022-01-12 00:01:00.00Z],
             1.234567890123456,
             # 5 in hex
-            "0x5"
+            "0x5",
+            %Postgrex.Interval{
+              days: 1,
+              months: 0,
+              # 12 hours, 59 minutes, 10 seconds
+              secs: 46750,
+              microsecs: 0
+            }
           ]
         )
 
@@ -130,7 +139,8 @@ defmodule Electric.Postgres.ReplicationClientTest do
                  "date" => "2022-05-17",
                  "timestamptz" => timestamp,
                  "float" => "1.234567890123456",
-                 "bytea" => "\\x307835"
+                 "bytea" => "\\x307835",
+                 "interval" => "P1DT12H59M10S"
                }
              } = change
 
