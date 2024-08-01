@@ -1,16 +1,17 @@
 defmodule Electric.ShapeCacheTest do
   use ExUnit.Case, async: true
+
   import ExUnit.CaptureLog
   import Support.ComponentSetup
   import Support.DbSetup
   import Support.DbStructureSetup
   import Support.TestUtils
 
-  alias Electric.ShapeCache.Storage
-  alias Electric.ShapeCache
-  alias Electric.Shapes.Shape
   alias Electric.Replication.Changes
   alias Electric.Replication.LogOffset
+  alias Electric.ShapeCache
+  alias Electric.ShapeCache.Storage
+  alias Electric.Shapes.Shape
 
   @shape %Shape{
     root_table: {"public", "items"},
@@ -41,17 +42,14 @@ defmodule Electric.ShapeCacheTest do
   @prepare_tables_noop {__MODULE__, :prepare_tables_noop, []}
 
   describe "get_or_create_shape_id/2" do
-    setup :with_in_memory_storage
+    setup [:with_in_memory_storage, :with_no_pool]
 
-    setup(do: %{pool: :no_pool})
-
-    setup(ctx,
-      do:
-        with_shape_cache(ctx,
-          create_snapshot_fn: fn _, _, _, _, _ -> nil end,
-          prepare_tables_fn: @prepare_tables_noop
-        )
-    )
+    setup ctx do
+      with_shape_cache(ctx,
+        create_snapshot_fn: fn _, _, _, _, _ -> nil end,
+        prepare_tables_fn: @prepare_tables_noop
+      )
+    end
 
     test "creates a new shape_id", %{shape_cache_opts: opts} do
       {shape_id, @zero_offset} = ShapeCache.get_or_create_shape_id(@shape, opts)
@@ -183,11 +181,13 @@ defmodule Electric.ShapeCacheTest do
   end
 
   describe "get_or_create_shape_id/2 against real db" do
-    setup :with_in_memory_storage
-    setup :with_unique_db
-    setup :with_publication
-    setup :with_basic_tables
-    setup :with_shape_cache
+    setup [
+      :with_in_memory_storage,
+      :with_unique_db,
+      :with_publication,
+      :with_basic_tables,
+      :with_shape_cache
+    ]
 
     setup %{pool: pool} do
       Postgrex.query!(pool, "INSERT INTO items (id, value) VALUES ($1, $2), ($3, $4)", [
@@ -543,8 +543,7 @@ defmodule Electric.ShapeCacheTest do
     @describetag :tmp_dir
     @snapshot_xmin 10
 
-    setup :with_cub_db_storage
-    setup(do: %{pool: :no_pool})
+    setup [:with_cub_db_storage, :with_no_pool]
 
     setup(ctx,
       do:
