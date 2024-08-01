@@ -269,9 +269,8 @@ defmodule Electric.Plug.ServeShapePlug do
         log =
           Shapes.get_log_stream(conn.assigns.config, shape_id, since: offset, up_to: last_offset)
 
-        snapshot
-        |> Stream.concat(log)
-        |> Stream.concat(@up_to_date)
+        [snapshot, log, @up_to_date]
+        |> Stream.concat()
         |> to_json_stream()
         |> Stream.chunk_every(500)
         |> send_stream(conn, 200)
