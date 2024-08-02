@@ -244,24 +244,22 @@ defmodule Electric.Replication.Eval.ParserTest do
       assert %Const{value: ~N[2024-01-01 20:00:00], type: :timestamp} = result
     end
 
-    test "should work with IS DISTINCT FROM clauses" do
-      env =
-        Env.empty(
-          operators: %{
-            {~s|"="|, 2} => [
-              %{args: [:int4, :int4], returns: :bool, implementation: & &1, name: "="}
-            ]
-          }
-        )
+    test "should work with IS [NOT] DISTINCT FROM clauses" do
+      env = Env.new()
 
-      assert {:ok, %Expr{eval: result}} =
-               Parser.parse_and_validate_expression(
-                 ~S|1 IS DISTINCT FROM NULL|,
-                 %{["test"] => :int4},
-                 env
-               )
+      for {expr, expected} <- [
+            {~S|1 IS DISTINCT FROM 2|, true},
+            {~S|1 IS DISTINCT FROM NULL|, true},
+            {~S|NULL IS DISTINCT FROM NULL|, false},
+            {~S|1 IS NOT DISTINCT FROM 2|, false},
+            {~S|'foo' IS NOT DISTINCT FROM NULL|, false},
+            {~S|NULL IS NOT DISTINCT FROM NULL|, true}
+          ] do
+        assert {{:ok, %Expr{eval: result}}, ^expr} =
+                 {Parser.parse_and_validate_expression(expr, %{}, env), expr}
 
-      assert %Const{value: true, type: :bool} = result
+        assert {%Const{value: ^expected, type: :bool}, ^expr} = {result, expr}
+      end
     end
 
     test "should work with LIKE clauses" do

@@ -223,6 +223,7 @@ defmodule Electric.Replication.Eval.Parser do
       {:AEXPR_LIKE, _} -> handle_binary_operator(expr, refs, env)
       {:AEXPR_ILIKE, _} -> handle_binary_operator(expr, refs, env)
       {:AEXPR_DISTINCT, _} -> handle_distinct(expr, refs, env)
+      {:AEXPR_NOT_DISTINCT, _} -> handle_distinct(expr, refs, env)
       {:AEXPR_IN, _} -> handle_in(expr, refs, env)
       _ -> {:error, {loc, "expression #{identifier(expr.name)} is not currently supported"}}
     end
@@ -328,7 +329,12 @@ defmodule Electric.Replication.Eval.Parser do
 
   defp handle_distinct(%PgQuery.A_Expr{kind: kind} = expr, refs, env) do
     args = [expr.lexpr, expr.rexpr]
-    fun = if kind == :AEXPR_DISTINCT, do: :values_distinct?, else: :values_not_distinct?
+
+    fun =
+      case kind do
+        :AEXPR_DISTINCT -> :values_distinct?
+        :AEXPR_NOT_DISTINCT -> :values_not_distinct?
+      end
 
     with {:ok, func} <- find_operator_func(["<>"], args, expr.location, refs, env),
          {:ok, reduced} <- maybe_reduce(func) do
