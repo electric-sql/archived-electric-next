@@ -369,7 +369,7 @@ defmodule Electric.Replication.Eval.ParserTest do
       assert %Const{value: true, type: :bool} = result
     end
 
-    test "should support IS and IS NOT NULL" do
+    test "should support IS [NOT] NULL" do
       env = Env.new()
 
       assert {:ok, %Expr{eval: result}} =
@@ -388,7 +388,7 @@ defmodule Electric.Replication.Eval.ParserTest do
       assert %Const{value: true, type: :bool} = result
     end
 
-    test "should support IS and IS NOT TRUE/FALSE" do
+    test "should support IS [NOT] TRUE/FALSE" do
       env = Env.new()
 
       assert {:ok, %Expr{eval: result}} =
@@ -397,9 +397,9 @@ defmodule Electric.Replication.Eval.ParserTest do
       assert %Const{value: true, type: :bool} = result
 
       assert {:ok, %Expr{eval: result}} =
-               Parser.parse_and_validate_expression(~S|false IS NOT FALSE|, %{}, env)
+               Parser.parse_and_validate_expression(~S|false IS NOT TRUE|, %{}, env)
 
-      assert %Const{value: false, type: :bool} = result
+      assert %Const{value: true, type: :bool} = result
 
       assert {:ok, %Expr{eval: result}} =
                Parser.parse_and_validate_expression(~S|null IS NOT FALSE|, %{}, env)
@@ -407,7 +407,7 @@ defmodule Electric.Replication.Eval.ParserTest do
       assert %Const{value: true, type: :bool} = result
 
       assert {:ok, %Expr{eval: result}} =
-               Parser.parse_and_validate_expression(~S|null IS TRUE|, %{}, env)
+               Parser.parse_and_validate_expression(~S|null IS FALSE|, %{}, env)
 
       assert %Const{value: false, type: :bool} = result
 
@@ -419,6 +419,7 @@ defmodule Electric.Replication.Eval.ParserTest do
   describe "parse_and_validate_expression/3 default env" do
     test "can compare integers" do
       assert {:ok, _} = Parser.parse_and_validate_expression(~S|id != 1|, %{["id"] => :int8})
+      assert {:ok, _} = Parser.parse_and_validate_expression(~S|id <> 1|, %{["id"] => :int8})
       assert {:ok, _} = Parser.parse_and_validate_expression(~S|id > 1|, %{["id"] => :int8})
       assert {:ok, _} = Parser.parse_and_validate_expression(~S|id < 1|, %{["id"] => :int8})
       assert {:ok, _} = Parser.parse_and_validate_expression(~S|id >= 1|, %{["id"] => :int8})
