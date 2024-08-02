@@ -1,0 +1,11 @@
+[
+  {
+      "users": 100,
+      "rate": 5,
+      "config": {
+        "user_class_name": "ElectricClient",
+        "shape_size": 100,
+        "num_rows": 10000
+      }
+    }
+  ]

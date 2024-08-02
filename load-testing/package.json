@@ -1,0 +1,20 @@
+{
+  "name": "load_testing",
+  "type": "module",
+  "version": "0.0.1",
+  "description": "Utility tools for running load tests on Electric",
+  "main": "main.js",
+  "scripts": {
+    "load-test": "node main.js",
+    "docker-compose:up": "docker-compose -- -f $COMPOSE_FILE --env-file $ENV_FILE up -d",
+    "docker-compose:down": "docker-compose -f $COMPOSE_FILE  --env-file $ENV_FILE down",
+    "run-sql": "node utils.js script",
+    "table-dump": "node utils.js dump",
+    "table-load": "node utils.js load"
+  },
+  "author": "",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "cross-env": "^7.0.3"
+  }
+}
