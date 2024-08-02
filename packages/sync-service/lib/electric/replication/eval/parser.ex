@@ -330,7 +330,7 @@ defmodule Electric.Replication.Eval.Parser do
     args = [expr.lexpr, expr.rexpr]
     fun = if kind == :AEXPR_DISTINCT, do: :values_distinct?, else: :values_not_distinct?
 
-    with {:ok, func} <- find_operator_func(["="], args, expr.location, refs, env),
+    with {:ok, func} <- find_operator_func(["<>"], args, expr.location, refs, env),
          {:ok, reduced} <- maybe_reduce(func) do
       # This is suboptimal at evaluation time, in that it duplicates same argument sub-expressions
       # to be at this level, as well as at the `=` operator level. I'm not sure how else to model
