@@ -192,8 +192,8 @@ defmodule Electric.ConnectionManager do
         %Postgrex.Error{message: message} when not is_nil(message) ->
           message
 
-        %Postgrex.Error{postgres: %{message: message, pg_code: code, routine: routine}} ->
-          message <> " (PG code: #{code}, PG routine: #{routine})"
+        %Postgrex.Error{postgres: %{message: message} = pg_error} ->
+          message <> pg_error_extra_info(pg_error)
       end
 
     Logger.warning("Database connection failed: #{message}")
@@ -206,6 +206,22 @@ defmodule Electric.ConnectionManager do
 
     state = schedule_reconnection(step, state)
     {:noreply, state}
+  end
+
+  defp pg_error_extra_info(pg_error) do
+    extra_info_items =
+      [
+        {"PG code:", Map.get(pg_error, :pg_code)},
+        {"PG routine:", Map.get(pg_error, :routine)}
+      ]
+      |> Enum.reject(fn {_, val} -> is_nil(val) end)
+      |> Enum.map(fn {label, val} -> "#{label} #{val}" end)
+
+    if extra_info_items != [] do
+      " (" <> Enum.join(extra_info_items, ", ") <> ")"
+    else
+      ""
+    end
   end
 
   defp schedule_reconnection(step, %State{backoff: {backoff, _}} = state) do
