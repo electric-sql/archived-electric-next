@@ -4,6 +4,7 @@ defmodule Electric.Plug.Router do
   plug Plug.RequestId
   plug :server_header, Electric.vsn()
   plug :match
+  plug Electric.Plug.LabelProcessPlug
   plug Plug.Telemetry, event_prefix: [:electric, :routing]
   plug Plug.Logger
   plug Plug.RequestId
