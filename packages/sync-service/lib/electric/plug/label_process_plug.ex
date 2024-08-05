@@ -2,6 +2,11 @@ defmodule Electric.Plug.LabelProcessPlug do
   @moduledoc """
   A plug that assists debugging by labelling processes that handle requests with
   details about the request.
+
+  The plug should be places right after the match plug in the router:
+
+    plug :match
+    plug Electric.Plug.LabelProcessPlug
   """
 
   def init(opts), do: opts
