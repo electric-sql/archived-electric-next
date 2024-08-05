@@ -1,7 +1,7 @@
 defmodule Electric.Plug.Router do
   use Plug.Router, copy_opts_to_assign: :config
 
-  plug Plug.RequestId
+  plug Plug.RequestId, assign_as: :plug_request_id
   plug :server_header, Electric.vsn()
   plug :match
   plug Electric.Plug.LabelProcessPlug

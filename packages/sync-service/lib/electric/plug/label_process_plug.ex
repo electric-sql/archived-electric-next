@@ -24,14 +24,24 @@ defmodule Electric.Plug.LabelProcessPlug do
 
   ## Examples
 
-      iex> process_label(%{method: "GET", request_path: "/v1/shape/users", query_string: "offset=-1"})
-      "GET /v1/shape/users?offset=-1"
+      iex> process_label(%{
+      ...>   method: "GET",
+      ...>   request_path: "/v1/shape/users",
+      ...>   query_string: "offset=-1",
+      ...>   assigns: %{plug_request_id: "F-jPUudNHxbD8lIAABQG"}
+      ...> })
+      "Request F-jPUudNHxbD8lIAABQG - GET /v1/shape/users?offset=-1"
 
-      iex> process_label(%{method: "GET", request_path: "/v1/shape/users", query_string: ""})
-      "GET /v1/shape/users"
+      iex> process_label(%{
+      ...>   method: "GET",
+      ...>   request_path: "/v1/shape/users",
+      ...>   query_string: "",
+      ...>   assigns: %{plug_request_id: "F-jPUudNHxbD8lIAABQG"}
+      ...> })
+      "Request F-jPUudNHxbD8lIAABQG - GET /v1/shape/users"
   """
   def process_label(conn) do
-    "#{conn.method} #{conn.request_path}#{query_suffix(conn)}"
+    "Request #{conn.assigns.plug_request_id} - #{conn.method} #{conn.request_path}#{query_suffix(conn)}"
   end
 
   defp query_suffix(%{query_string: ""}), do: ""
