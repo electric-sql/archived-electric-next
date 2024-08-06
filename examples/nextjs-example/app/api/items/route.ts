@@ -3,7 +3,6 @@ import { NextResponse } from "next/server"
 
 export async function POST(request: Request) {
   const body = await request.json()
-  console.log({ body })
   const result = await db.query(
     `INSERT INTO items (id)
     VALUES ($1) RETURNING id;`,
