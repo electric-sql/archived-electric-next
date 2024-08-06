@@ -1,9 +1,9 @@
+import { Value } from 'packages/typescript-client/src/types'
 import {
-  Value,
-  Shape,
-  ShapeStream,
-  ShapeStreamOptions,
-} from '@electric-sql/next'
+  MutableShape as Shape,
+  TentativeShapeStream as ShapeStream,
+  TentativeShapeStreamOptions as ShapeStreamOptions,
+} from '../../typescript-client/src/tentative'
 import React, { createContext, useCallback, useContext, useRef } from 'react'
 import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/with-selector.js'
 

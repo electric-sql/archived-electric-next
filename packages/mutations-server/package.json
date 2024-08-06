@@ -1,0 +1,64 @@
+{
+  "name": "shapes-manager",
+  "description": "Postgres everywhere - your data, in sync, wherever you need it.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node ./dist/index.js",
+    "build": "shx rm -rf dist && concurrently \"tsup\" \"tsc -p tsconfig.build.json\"",
+    "test": "npx vitest",
+    "stylecheck": "eslint . --quiet",
+    "format": "eslint . --fix"
+  },
+  "author": "ElectricSQL team and contributors.",
+  "license": "Apache-2",
+  "bugs": {
+    "url": "https://github.com/electric-sql/electric-next/issues"
+  },
+  "homepage": "https://next.electric-sql.com",
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.6",
+    "@types/pg": "^8.11.6",
+    "@types/uuid": "^10.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "concurrently": "^8.2.2",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "glob": "^10.3.10",
+    "nodemon": "^3.1.4",
+    "prettier": "^3.1.1",
+    "shx": "^0.3.4",
+    "tsup": "^8.0.1",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.2",
+    "vitest": "^2.0.2"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.19.2",
+    "pg": "^8.12.0",
+    "uuid": "^10.0.0"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-darwin-arm64": "^4.18.1"
+  },
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "typesVersions": {
+    "*": {
+      "*": [
+        "./dist/index.d.ts"
+      ]
+    }
+  }
+}

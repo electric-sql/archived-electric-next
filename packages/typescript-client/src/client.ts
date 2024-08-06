@@ -186,6 +186,8 @@ export class ShapeStream {
 
   shapeId?: string
 
+  private prePublishHooks: ((message: Message) => void)[] = []
+
   constructor(options: ShapeStreamOptions) {
     this.validateOptions(options)
     this.options = { subscribe: true, ...options }
@@ -300,7 +302,16 @@ export class ShapeStream {
     this.subscribers.clear()
   }
 
-  private publish(messages: Message[]) {
+  public registerPrePublishHook(hook: (message: Message) => void) {
+    this.prePublishHooks.push(hook)
+
+    return () => {
+      this.prePublishHooks.splice(this.prePublishHooks.indexOf(hook), 1)
+    }
+  }
+
+  protected publish(messages: Message[]) {
+    this.prePublishHooks.forEach((h) => messages.forEach((m) => h(m)))
     this.subscribers.forEach(([subscriber, _]) => {
       subscriber.process(messages)
     })
@@ -443,12 +454,12 @@ export class ShapeStream {
  *     })
  */
 export class Shape {
-  private stream: ShapeStream
+  protected stream: ShapeStream
 
   private data: ShapeData = new Map()
   private subscribers = new Map<number, ShapeChangedCallback>()
   public error: FetchError | false = false
-  private hasNotifiedSubscribersUpToDate: boolean = false
+  protected hasNotifiedSubscribersUpToDate: boolean = false
 
   constructor(stream: ShapeStream) {
     this.stream = stream

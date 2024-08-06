@@ -106,3 +106,16 @@ export type TypedMessages<T extends Value = { [key: string]: Value }> = {
   messages: Array<Message<T>>
   schema: ColumnInfo
 }
+// Types for tentative shape
+export type Mutation<T extends Value = { [key: string]: Value }> = {
+  action: `insert` | `update` | `delete`
+  key: string
+  value: T
+  headers: Record<string, Value> & { action: `insert` | `update` | `delete` }
+}
+
+export type MergeFunction = (current: Mutation, incoming: Mutation) => Mutation
+
+export type MatchFunction = (current?: Mutation, incoming?: Mutation) => boolean
+
+export type GetKeyFunction = (message: Message) => string
