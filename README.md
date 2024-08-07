@@ -1,3 +1,5 @@
+# This repo is now archived and work has moved back to https://github.com/electric-sql/electric
+
 <p align="center">
   <a href="https://next.electric-sql.com" target="_blank">
     <picture>
